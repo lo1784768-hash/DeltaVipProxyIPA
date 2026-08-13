@@ -1,7 +1,8 @@
 #import "FileManagerViewController.h"
 #import <Foundation/Foundation.h>
+#import <objc/runtime.h>
 
-@interface FileManagerViewController () <UISearchBarDelegate>
+@interface FileManagerViewController () <UISearchBarDelegate, UIDocumentPickerDelegate>
 @end
 
 @implementation FileManagerViewController
@@ -173,38 +174,69 @@
 }
 
 - (void)replaceFileAtPath:(NSString *)filePath {
-    UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Replace File"
-                                                                   message:filePath
-                                                            preferredStyle:UIAlertControllerStyleAlert];
+    // Store the target path for the document picker callback
+    objc_setAssociatedObject(self, @"targetFilePath", filePath, OBJC_ASSOCIATION_COPY_NONATOMIC);
 
-    [alert addTextFieldWithConfigurationHandler:^(UITextField * _Nonnull textField) {
-        textField.placeholder = @"Enter new content or file path";
-    }];
+    // Open document picker to select replacement file
+    UIDocumentPickerViewController *picker = [[UIDocumentPickerViewController alloc]
+        initWithDocumentTypes:@[@"public.content", @"public.item"]
+        inMode:UIDocumentPickerModeImport];
 
-    [alert addAction:[UIAlertAction actionWithTitle:@"✅ Replace" style:UIAlertActionStyleDefault handler:^(UIAlertAction * _Nonnull action) {
-        UITextField *textField = alert.textFields.firstObject;
-        if (textField.text && textField.text.length > 0) {
-            NSError *error = nil;
-            [textField.text writeToFile:filePath atomically:YES encoding:NSUTF8StringEncoding error:&error];
+    picker.delegate = self;
+    picker.allowsMultipleSelection = NO;
 
-            if (error) {
-                UIAlertController *errorAlert = [UIAlertController alertControllerWithTitle:@"Error"
-                                                                                   message:[error localizedDescription]
-                                                                            preferredStyle:UIAlertControllerStyleAlert];
-                [errorAlert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
-                [self presentViewController:errorAlert animated:YES completion:nil];
-            } else {
-                UIAlertController *successAlert = [UIAlertController alertControllerWithTitle:@"✅ Success"
-                                                                                      message:@"File replaced successfully"
-                                                                               preferredStyle:UIAlertControllerStyleAlert];
-                [successAlert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
-                [self presentViewController:successAlert animated:YES completion:nil];
-            }
-        }
-    }]];
+    [self presentViewController:picker animated:YES completion:nil];
+}
 
-    [alert addAction:[UIAlertAction actionWithTitle:@"❌ Cancel" style:UIAlertActionStyleCancel handler:nil]];
-    [self presentViewController:alert animated:YES completion:nil];
+#pragma mark - UIDocumentPickerDelegate
+
+- (void)documentPicker:(UIDocumentPickerViewController *)controller
+didPickDocumentsAtURLs:(NSArray<NSURL *> *)urls {
+    if (urls.count == 0) return;
+
+    NSURL *selectedURL = urls.firstObject;
+    NSString *targetFilePath = objc_getAssociatedObject(self, @"targetFilePath");
+
+    // Start accessing the security-scoped resource
+    if (![selectedURL startAccessingSecurityScopedResource]) {
+        UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"❌ Error"
+                                                                       message:@"Cannot access selected file"
+                                                                preferredStyle:UIAlertControllerStyleAlert];
+        [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
+        [self presentViewController:alert animated:YES completion:nil];
+        return;
+    }
+
+    NSError *error = nil;
+    NSFileManager *fm = [NSFileManager defaultManager];
+
+    // Copy the selected file to replace the target
+    [fm removeItemAtPath:targetFilePath error:nil]; // Remove old file
+    [fm copyItemAtURL:selectedURL toURL:[NSURL fileURLWithPath:targetFilePath] error:&error];
+
+    // Stop accessing the security-scoped resource
+    [selectedURL stopAccessingSecurityScopedResource];
+
+    if (error) {
+        UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"❌ Error"
+                                                                       message:[error localizedDescription]
+                                                                preferredStyle:UIAlertControllerStyleAlert];
+        [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
+        [self presentViewController:alert animated:YES completion:nil];
+    } else {
+        UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"✅ Success"
+                                                                       message:@"File replaced successfully"
+                                                                preferredStyle:UIAlertControllerStyleAlert];
+        [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
+        [self presentViewController:alert animated:YES completion:nil];
+
+        // Refresh file list
+        [self reloadFileList];
+    }
+}
+
+- (void)documentPickerWasCancelled:(UIDocumentPickerViewController *)controller {
+    // User cancelled
 }
 
 #pragma mark - UISearchBarDelegate
