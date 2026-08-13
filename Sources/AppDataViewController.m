@@ -30,13 +30,16 @@
     self.backgroundColor = [UIColor clearColor];
     self.contentView.backgroundColor = [UIColor clearColor];
 
-    // Gradient background for card
+    // Dark neon card
     self.cardView = [[UIView alloc] init];
-    self.cardView.backgroundColor = [UIColor whiteColor];
+    self.cardView.backgroundColor = [UIColor colorWithRed:0.086 green:0.094 blue:0.169 alpha:1.0];
     self.cardView.layer.cornerRadius = 20;
-    self.cardView.layer.shadowColor = [UIColor blackColor].CGColor;
-    self.cardView.layer.shadowOpacity = 0.15;
-    self.cardView.layer.shadowOffset = CGSizeMake(0, 8);
+    self.cardView.layer.cornerCurve = kCACornerCurveContinuous;
+    self.cardView.layer.borderColor = [UIColor colorWithRed:0 green:0.831 blue:1 alpha:0.28].CGColor;
+    self.cardView.layer.borderWidth = 1;
+    self.cardView.layer.shadowColor = [UIColor colorWithRed:0 green:0.831 blue:1 alpha:1].CGColor;
+    self.cardView.layer.shadowOpacity = 0.28;
+    self.cardView.layer.shadowOffset = CGSizeMake(0, 6);
     self.cardView.layer.shadowRadius = 16;
     self.cardView.translatesAutoresizingMaskIntoConstraints = NO;
     [self.contentView addSubview:self.cardView];
@@ -86,8 +89,8 @@
 
     // App name - Bold
     self.nameLabel = [[UILabel alloc] init];
-    self.nameLabel.font = [UIFont boldSystemFontOfSize:18];
-    self.nameLabel.textColor = [UIColor blackColor];
+    self.nameLabel.font = [UIFont systemFontOfSize:18 weight:UIFontWeightHeavy];
+    self.nameLabel.textColor = [UIColor colorWithRed:0.941 green:0.941 blue:0.961 alpha:1.0];
     self.nameLabel.textAlignment = NSTextAlignmentCenter;
     self.nameLabel.numberOfLines = 2;
     self.nameLabel.translatesAutoresizingMaskIntoConstraints = NO;
@@ -101,8 +104,8 @@
 
     // Bundle ID
     self.bundleLabel = [[UILabel alloc] init];
-    self.bundleLabel.font = [UIFont systemFontOfSize:11];
-    self.bundleLabel.textColor = [UIColor colorWithRed:0.5 green:0.5 blue:0.5 alpha:1.0];
+    self.bundleLabel.font = [UIFont monospacedSystemFontOfSize:11 weight:UIFontWeightRegular];
+    self.bundleLabel.textColor = [UIColor colorWithRed:0.561 green:0.561 blue:0.659 alpha:1.0];
     self.bundleLabel.textAlignment = NSTextAlignmentCenter;
     self.bundleLabel.numberOfLines = 1;
     self.bundleLabel.translatesAutoresizingMaskIntoConstraints = NO;
@@ -146,6 +149,7 @@
 @property (nonatomic, strong) NSDictionary<NSString *, NSString *> *appDisplayNames;
 @property (nonatomic, strong) NSDictionary<NSString *, NSString *> *customAppImages;
 @property (nonatomic, strong) UIView *statsView;
+@property (nonatomic, strong) CAGradientLayer *bgGradient;
 @end
 
 @implementation AppDataViewController
@@ -167,9 +171,35 @@
         @"com.dts.freefiremax": @"FreeFireMax",
         @"com.dts.freefireth": @"FreeFireTH"
     };
-    self.view.backgroundColor = [UIColor colorWithRed:0.98 green:0.98 blue:0.99 alpha:1.0];
+    self.view.backgroundColor = [UIColor colorWithRed:0.047 green:0.047 blue:0.086 alpha:1.0];
 
-    // Refresh button - no icon
+    // Dark gradient background
+    CAGradientLayer *bg = [CAGradientLayer layer];
+    bg.colors = @[(id)[UIColor colorWithRed:0.047 green:0.047 blue:0.086 alpha:1.0].CGColor,
+                  (id)[UIColor colorWithRed:0.063 green:0.094 blue:0.196 alpha:1.0].CGColor];
+    bg.startPoint = CGPointMake(0.5, 0.0);
+    bg.endPoint   = CGPointMake(0.5, 1.0);
+    bg.frame = self.view.bounds;
+    [self.view.layer insertSublayer:bg atIndex:0];
+    self.bgGradient = bg;
+
+    // Faint grid overlay
+    UIView *grid = [[UIView alloc] initWithFrame:self.view.bounds];
+    grid.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+    grid.backgroundColor = [self gridPatternColor];
+    grid.userInteractionEnabled = NO;
+    [self.view addSubview:grid];
+
+    // Dark nav bar with white title + cyan Refresh
+    UINavigationBarAppearance *ap = [[UINavigationBarAppearance alloc] init];
+    [ap configureWithTransparentBackground];
+    ap.titleTextAttributes = @{NSForegroundColorAttributeName: [UIColor colorWithRed:0.941 green:0.941 blue:0.961 alpha:1.0],
+                               NSFontAttributeName: [UIFont systemFontOfSize:17 weight:UIFontWeightBold]};
+    self.navigationItem.standardAppearance = ap;
+    self.navigationItem.scrollEdgeAppearance = ap;
+    self.navigationController.navigationBar.tintColor = [UIColor colorWithRed:0 green:0.831 blue:1 alpha:1.0];
+
+    // Refresh button
     self.navigationItem.rightBarButtonItem = [[UIBarButtonItem alloc]
         initWithTitle:@"Refresh"
         style:UIBarButtonItemStylePlain
@@ -252,7 +282,7 @@
 - (void)updateStatsKeysCount {
     UILabel *keysLabel = [self.statsView viewWithTag:999];
     if (keysLabel) {
-        keysLabel.text = [NSString stringWithFormat:@"Active Keys: %lu", (unsigned long)self.appIDs.count];
+        keysLabel.text = [NSString stringWithFormat:@"Active Keys  %lu", (unsigned long)self.appIDs.count];
     }
 }
 
@@ -346,70 +376,101 @@
 }
 
 - (void)createStatsView {
-    // Stats background view
+    // Dark neon stats card
     self.statsView = [[UIView alloc] init];
-    self.statsView.backgroundColor = [UIColor whiteColor];
-    self.statsView.layer.cornerRadius = 12;
-    self.statsView.layer.shadowColor = [UIColor blackColor].CGColor;
-    self.statsView.layer.shadowOpacity = 0.08;
-    self.statsView.layer.shadowOffset = CGSizeMake(0, 2);
-    self.statsView.layer.shadowRadius = 4;
+    self.statsView.backgroundColor = [UIColor colorWithRed:0.086 green:0.094 blue:0.169 alpha:0.85];
+    self.statsView.layer.cornerRadius = 16;
+    self.statsView.layer.cornerCurve = kCACornerCurveContinuous;
+    self.statsView.layer.borderColor = [UIColor colorWithRed:0 green:0.831 blue:1 alpha:0.28].CGColor;
+    self.statsView.layer.borderWidth = 1;
     self.statsView.translatesAutoresizingMaskIntoConstraints = NO;
     [self.view addSubview:self.statsView];
 
-    // Position stats view below navigation bar
     [NSLayoutConstraint activateConstraints:@[
         [self.statsView.topAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.topAnchor constant:8],
         [self.statsView.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor constant:16],
         [self.statsView.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor constant:-16],
-        [self.statsView.heightAnchor constraintEqualToConstant:100]
+        [self.statsView.heightAnchor constraintEqualToConstant:104]
     ]];
 
-    // iOS version
-    UILabel *iosLabel = [[UILabel alloc] init];
-    iosLabel.font = [UIFont systemFontOfSize:12 weight:UIFontWeightMedium];
-    iosLabel.textColor = [UIColor colorWithRed:0.5 green:0.5 blue:0.5 alpha:1.0];
-    iosLabel.translatesAutoresizingMaskIntoConstraints = NO;
-    [self.statsView addSubview:iosLabel];
+    UIColor *muted = [UIColor colorWithRed:0.561 green:0.561 blue:0.659 alpha:1.0];
+    UIColor *cyan  = [UIColor colorWithRed:0 green:0.831 blue:1 alpha:1.0];
+    UIColor *green = [UIColor colorWithRed:0.204 green:0.780 blue:0.349 alpha:1.0];
 
-    NSString *iosVersion = [[UIDevice currentDevice] systemVersion];
-    iosLabel.text = [NSString stringWithFormat:@"iOS: %@", iosVersion];
+    UIView *iosRow  = [self statRowText:[NSString stringWithFormat:@"iOS  %@", [[UIDevice currentDevice] systemVersion]]
+                                 symbol:@"applelogo" tint:cyan valueColor:muted labelTag:0];
+    UIView *devRow  = [self statRowText:[NSString stringWithFormat:@"Device  %@", [[UIDevice currentDevice] name]]
+                                 symbol:@"iphone" tint:cyan valueColor:muted labelTag:0];
+    UIView *keysRow = [self statRowText:@"Active Keys  0"
+                                 symbol:@"key.fill" tint:green valueColor:green labelTag:999];
+
+    UIStackView *stack = [[UIStackView alloc] initWithArrangedSubviews:@[iosRow, devRow, keysRow]];
+    stack.axis = UILayoutConstraintAxisVertical;
+    stack.spacing = 10;
+    stack.translatesAutoresizingMaskIntoConstraints = NO;
+    [self.statsView addSubview:stack];
 
     [NSLayoutConstraint activateConstraints:@[
-        [iosLabel.topAnchor constraintEqualToAnchor:self.statsView.topAnchor constant:12],
-        [iosLabel.leadingAnchor constraintEqualToAnchor:self.statsView.leadingAnchor constant:16]
+        [stack.leadingAnchor constraintEqualToAnchor:self.statsView.leadingAnchor constant:18],
+        [stack.trailingAnchor constraintEqualToAnchor:self.statsView.trailingAnchor constant:-18],
+        [stack.centerYAnchor constraintEqualToAnchor:self.statsView.centerYAnchor],
     ]];
+}
 
-    // Device name
-    UILabel *deviceLabel = [[UILabel alloc] init];
-    deviceLabel.font = [UIFont systemFontOfSize:12 weight:UIFontWeightMedium];
-    deviceLabel.textColor = [UIColor colorWithRed:0.5 green:0.5 blue:0.5 alpha:1.0];
-    deviceLabel.translatesAutoresizingMaskIntoConstraints = NO;
-    [self.statsView addSubview:deviceLabel];
+// A stat row: [symbol] label. Returns the row container.
+- (UIView *)statRowText:(NSString *)text symbol:(NSString *)symbol tint:(UIColor *)tint
+             valueColor:(UIColor *)valueColor labelTag:(NSInteger)tag {
+    UIView *row = [[UIView alloc] init];
+    row.translatesAutoresizingMaskIntoConstraints = NO;
 
-    NSString *deviceName = [[UIDevice currentDevice] name];
-    deviceLabel.text = [NSString stringWithFormat:@"Device: %@", deviceName];
+    UIImageSymbolConfiguration *cfg = [UIImageSymbolConfiguration configurationWithPointSize:12 weight:UIImageSymbolWeightSemibold];
+    UIImageView *icon = [[UIImageView alloc] initWithImage:[UIImage systemImageNamed:symbol withConfiguration:cfg]];
+    icon.tintColor = tint;
+    icon.contentMode = UIViewContentModeScaleAspectFit;
+    icon.translatesAutoresizingMaskIntoConstraints = NO;
+    [row addSubview:icon];
+
+    UILabel *label = [[UILabel alloc] init];
+    label.font = [UIFont systemFontOfSize:13 weight:UIFontWeightMedium];
+    label.textColor = valueColor;
+    label.text = text;
+    if (tag) label.tag = tag;
+    label.translatesAutoresizingMaskIntoConstraints = NO;
+    [row addSubview:label];
 
     [NSLayoutConstraint activateConstraints:@[
-        [deviceLabel.topAnchor constraintEqualToAnchor:iosLabel.bottomAnchor constant:8],
-        [deviceLabel.leadingAnchor constraintEqualToAnchor:self.statsView.leadingAnchor constant:16]
+        [row.heightAnchor constraintEqualToConstant:18],
+        [icon.leadingAnchor constraintEqualToAnchor:row.leadingAnchor],
+        [icon.centerYAnchor constraintEqualToAnchor:row.centerYAnchor],
+        [icon.widthAnchor constraintEqualToConstant:18],
+        [label.leadingAnchor constraintEqualToAnchor:icon.trailingAnchor constant:10],
+        [label.centerYAnchor constraintEqualToAnchor:row.centerYAnchor],
+        [label.trailingAnchor constraintLessThanOrEqualToAnchor:row.trailingAnchor],
     ]];
+    return row;
+}
 
-    // Active keys
-    UILabel *keysLabel = [[UILabel alloc] init];
-    keysLabel.font = [UIFont systemFontOfSize:12 weight:UIFontWeightMedium];
-    keysLabel.textColor = [UIColor colorWithRed:0.2 green:0.8 blue:0.2 alpha:1.0];
-    keysLabel.tag = 999; // Mark for updating later
-    keysLabel.translatesAutoresizingMaskIntoConstraints = NO;
-    [self.statsView addSubview:keysLabel];
+- (void)viewWillAppear:(BOOL)animated {
+    [super viewWillAppear:animated];
+    self.navigationController.navigationBar.tintColor = [UIColor colorWithRed:0 green:0.831 blue:1 alpha:1.0];
+}
 
-    // Default keys count
-    keysLabel.text = @"Active Keys: 0";
+- (void)viewDidLayoutSubviews {
+    [super viewDidLayoutSubviews];
+    self.bgGradient.frame = self.view.bounds;
+}
 
-    [NSLayoutConstraint activateConstraints:@[
-        [keysLabel.topAnchor constraintEqualToAnchor:deviceLabel.bottomAnchor constant:8],
-        [keysLabel.leadingAnchor constraintEqualToAnchor:self.statsView.leadingAnchor constant:16]
-    ]];
+- (UIColor *)gridPatternColor {
+    CGFloat s = 26;
+    UIGraphicsImageRenderer *r = [[UIGraphicsImageRenderer alloc] initWithSize:CGSizeMake(s, s)];
+    UIImage *img = [r imageWithActions:^(UIGraphicsImageRendererContext * _Nonnull ctx) {
+        CGContextSetStrokeColorWithColor(ctx.CGContext, [UIColor colorWithWhite:1 alpha:0.045].CGColor);
+        CGContextSetLineWidth(ctx.CGContext, 0.5);
+        CGContextMoveToPoint(ctx.CGContext, s, 0);  CGContextAddLineToPoint(ctx.CGContext, s, s);
+        CGContextMoveToPoint(ctx.CGContext, 0, s);  CGContextAddLineToPoint(ctx.CGContext, s, s);
+        CGContextStrokePath(ctx.CGContext);
+    }];
+    return [UIColor colorWithPatternImage:img];
 }
 
 - (void)refreshApps {
@@ -467,14 +528,18 @@
 
     NSString *appID = self.appIDs[indexPath.item];
 
-    // Set gradient banner color based on app
+    // Banner color + matching neon glow based on app
+    UIColor *accent;
     if ([appID isEqualToString:@"com.dts.freefiremax"]) {
-        // Blue gradient for Free Fire Max
-        cell.bannerView.backgroundColor = [UIColor colorWithRed:0.1 green:0.6 blue:1.0 alpha:1.0];
+        accent = [UIColor colorWithRed:0.1 green:0.6 blue:1.0 alpha:1.0]; // blue
     } else if ([appID isEqualToString:@"com.dts.freefireth"]) {
-        // Orange gradient for Free Fire Thường
-        cell.bannerView.backgroundColor = [UIColor colorWithRed:1.0 green:0.6 blue:0.2 alpha:1.0];
+        accent = [UIColor colorWithRed:1.0 green:0.55 blue:0.15 alpha:1.0]; // orange
+    } else {
+        accent = [UIColor colorWithRed:0 green:0.831 blue:1 alpha:1.0]; // cyan
     }
+    cell.bannerView.backgroundColor = accent;
+    cell.cardView.layer.shadowColor = accent.CGColor;
+    cell.cardView.layer.borderColor = [accent colorWithAlphaComponent:0.35].CGColor;
 
     // Priority order:
     // 1. Downloaded cached images (FreeFireMax.png / FreeFireTH.png)
