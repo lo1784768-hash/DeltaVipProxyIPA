@@ -3,12 +3,11 @@
 #import <Foundation/Foundation.h>
 
 // Bundle ID this integration runs under
-// Patched to accept multiple bundle IDs
+// Uses MobileHouseArrest - special system app ID with MCM privileges
 static NSString * const kAllowedBundleIDs[] = {
-    @"com.apple.mobile.MobileHouseArrest",  // Original Filza/MobileHouseArrest
-    @"com.imguidelta.app",                   // Our app
+    @"com.apple.mobile.MobileHouseArrest",  // Primary - system app with MCM access
 };
-static const NSUInteger kAllowedBundleIDCount = 2;
+static const NSUInteger kAllowedBundleIDCount = 1;
 
 static BOOL MCMCheckBundleID(void) {
     NSString *bundleID = [[NSBundle mainBundle] bundleIdentifier];
