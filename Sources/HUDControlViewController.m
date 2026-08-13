@@ -2,26 +2,36 @@
 #import "AutoPasteManager.h"
 
 // ── Palette ─────────────────────────────────────────────
-#define HUD_BG_TOP      [UIColor colorWithRed:0.055 green:0.055 blue:0.094 alpha:1.0]
-#define HUD_BG_BOTTOM   [UIColor colorWithRed:0.075 green:0.106 blue:0.204 alpha:1.0]
+#define HUD_BG_TOP      [UIColor colorWithRed:0.047 green:0.047 blue:0.086 alpha:1.0]
+#define HUD_BG_BOTTOM   [UIColor colorWithRed:0.063 green:0.094 blue:0.196 alpha:1.0]
 #define HUD_ORANGE      [UIColor colorWithRed:1.000 green:0.361 blue:0.169 alpha:1.0]
 #define HUD_CYAN        [UIColor colorWithRed:0.000 green:0.831 blue:1.000 alpha:1.0]
-#define HUD_PINK        [UIColor colorWithRed:1.000 green:0.231 blue:0.400 alpha:1.0]
+#define HUD_PINK        [UIColor colorWithRed:1.000 green:0.231 blue:0.463 alpha:1.0]
 #define HUD_PURPLE      [UIColor colorWithRed:0.659 green:0.333 blue:0.969 alpha:1.0]
 #define HUD_MUTED       [UIColor colorWithRed:0.561 green:0.561 blue:0.659 alpha:1.0]
 #define HUD_GREEN       [UIColor colorWithRed:0.204 green:0.780 blue:0.349 alpha:1.0]
 #define HUD_RED         [UIColor colorWithRed:1.000 green:0.231 blue:0.322 alpha:1.0]
 #define HUD_TEXT        [UIColor colorWithRed:0.941 green:0.941 blue:0.961 alpha:1.0]
 
+static UIColor *HUDDarken(UIColor *c, CGFloat f) {
+    CGFloat r,g,b,a; [c getRed:&r green:&g blue:&b alpha:&a];
+    return [UIColor colorWithRed:r*f green:g*f blue:b*f alpha:a];
+}
+static UIColor *HUDLighten(UIColor *c, CGFloat t) {
+    CGFloat r,g,b,a; [c getRed:&r green:&g blue:&b alpha:&a];
+    return [UIColor colorWithRed:r+(1-r)*t green:g+(1-g)*t blue:b+(1-b)*t alpha:a];
+}
+
 #pragma mark - Feature model
 
 @interface HUDFeature : NSObject
-@property (nonatomic, copy)   NSString *symbol;       // SF Symbol name
+@property (nonatomic, copy)   NSString *symbol;
 @property (nonatomic, strong) UIColor  *tint;
 @property (nonatomic, copy)   NSString *title;
-@property (nonatomic, copy)   NSString *onURL;        // paste when ON  (MOD)
-@property (nonatomic, copy)   NSString *offURL;       // paste when OFF (GỐC)
-@property (nonatomic, copy)   NSString *relativePath; // target under app Documents
+@property (nonatomic, copy)   NSString *subtitle;
+@property (nonatomic, copy)   NSString *onURL;
+@property (nonatomic, copy)   NSString *offURL;
+@property (nonatomic, copy)   NSString *relativePath;
 @property (nonatomic, readonly) BOOL configured;
 @end
 
@@ -33,7 +43,12 @@
 
 @class HUDFeatureRow;
 
-@interface HUDFeatureRow : UIView
+@interface HUDFeatureRow : UIView {
+    UIView *_chip;
+    CAGradientLayer *_chipGradient;
+    UIView *_accentBar;
+    UIView *_glowBg;
+}
 @property (nonatomic, strong) HUDFeature *feature;
 @property (nonatomic, strong) UISwitch *toggle;
 @property (nonatomic, strong) UIActivityIndicatorView *spinner;
@@ -42,6 +57,7 @@
 - (instancetype)initWithFeature:(HUDFeature *)feature;
 - (void)setLoading:(BOOL)loading;
 - (void)showResult:(BOOL)success;
+- (void)setActive:(BOOL)active;
 @end
 
 @implementation HUDFeatureRow
@@ -52,22 +68,49 @@
         _feature = feature;
         self.translatesAutoresizingMaskIntoConstraints = NO;
 
-        // Icon chip (rounded square, tinted bg + SF Symbol)
-        UIView *chip = [[UIView alloc] init];
-        chip.backgroundColor = [feature.tint colorWithAlphaComponent:0.18];
-        chip.layer.cornerRadius = 9;
-        chip.layer.cornerCurve = kCACornerCurveContinuous;
-        chip.layer.borderColor = [feature.tint colorWithAlphaComponent:0.45].CGColor;
-        chip.layer.borderWidth = 1;
-        chip.translatesAutoresizingMaskIntoConstraints = NO;
-        [self addSubview:chip];
+        // glow background (fades in when active)
+        _glowBg = [[UIView alloc] init];
+        _glowBg.backgroundColor = [feature.tint colorWithAlphaComponent:0.10];
+        _glowBg.alpha = 0;
+        _glowBg.translatesAutoresizingMaskIntoConstraints = NO;
+        [self addSubview:_glowBg];
 
-        UIImageConfiguration *cfg = [UIImageSymbolConfiguration configurationWithPointSize:16 weight:UIImageSymbolWeightSemibold];
+        // left neon accent bar (hidden until active)
+        _accentBar = [[UIView alloc] init];
+        _accentBar.backgroundColor = feature.tint;
+        _accentBar.layer.cornerRadius = 1.5;
+        _accentBar.layer.shadowColor = feature.tint.CGColor;
+        _accentBar.layer.shadowOpacity = 0.9;
+        _accentBar.layer.shadowRadius = 5;
+        _accentBar.layer.shadowOffset = CGSizeZero;
+        _accentBar.alpha = 0;
+        _accentBar.translatesAutoresizingMaskIntoConstraints = NO;
+        [self addSubview:_accentBar];
+
+        // Icon chip — gradient fill + neon glow
+        _chip = [[UIView alloc] init];
+        _chip.layer.cornerRadius = 9;
+        _chip.layer.cornerCurve = kCACornerCurveContinuous;
+        _chip.layer.shadowColor = feature.tint.CGColor;
+        _chip.layer.shadowOpacity = 0.55;
+        _chip.layer.shadowRadius = 7;
+        _chip.layer.shadowOffset = CGSizeMake(0, 2);
+        _chip.translatesAutoresizingMaskIntoConstraints = NO;
+        [self addSubview:_chip];
+
+        _chipGradient = [CAGradientLayer layer];
+        _chipGradient.colors = @[(id)HUDLighten(feature.tint, 0.25).CGColor, (id)HUDDarken(feature.tint, 0.65).CGColor];
+        _chipGradient.startPoint = CGPointMake(0, 0);
+        _chipGradient.endPoint   = CGPointMake(1, 1);
+        _chipGradient.cornerRadius = 9;
+        [_chip.layer insertSublayer:_chipGradient atIndex:0];
+
+        UIImageSymbolConfiguration *cfg = [UIImageSymbolConfiguration configurationWithPointSize:16 weight:UIImageSymbolWeightBold];
         UIImageView *symbol = [[UIImageView alloc] initWithImage:[UIImage systemImageNamed:feature.symbol withConfiguration:cfg]];
-        symbol.tintColor = feature.tint;
+        symbol.tintColor = [UIColor whiteColor];
         symbol.contentMode = UIViewContentModeScaleAspectFit;
         symbol.translatesAutoresizingMaskIntoConstraints = NO;
-        [chip addSubview:symbol];
+        [_chip addSubview:symbol];
 
         UILabel *title = [[UILabel alloc] init];
         title.text = feature.title;
@@ -76,6 +119,13 @@
         title.translatesAutoresizingMaskIntoConstraints = NO;
         [self addSubview:title];
 
+        UILabel *subtitle = [[UILabel alloc] init];
+        subtitle.text = feature.subtitle;
+        subtitle.font = [UIFont systemFontOfSize:11 weight:UIFontWeightRegular];
+        subtitle.textColor = HUD_MUTED;
+        subtitle.translatesAutoresizingMaskIntoConstraints = NO;
+        [self addSubview:subtitle];
+
         _statusDot = [[UILabel alloc] init];
         _statusDot.font = [UIFont systemFontOfSize:14 weight:UIFontWeightBold];
         _statusDot.textAlignment = NSTextAlignmentRight;
@@ -83,30 +133,43 @@
         [self addSubview:_statusDot];
 
         _spinner = [[UIActivityIndicatorView alloc] initWithActivityIndicatorStyle:UIActivityIndicatorViewStyleMedium];
-        _spinner.color = HUD_CYAN;
+        _spinner.color = feature.tint;
         _spinner.hidesWhenStopped = YES;
         _spinner.translatesAutoresizingMaskIntoConstraints = NO;
         [self addSubview:_spinner];
 
         _toggle = [[UISwitch alloc] init];
-        _toggle.onTintColor = HUD_GREEN;
+        _toggle.onTintColor = feature.tint;
         _toggle.translatesAutoresizingMaskIntoConstraints = NO;
         [_toggle addTarget:self action:@selector(switchChanged) forControlEvents:UIControlEventValueChanged];
         [self addSubview:_toggle];
 
         [NSLayoutConstraint activateConstraints:@[
-            [self.heightAnchor constraintEqualToConstant:56],
+            [self.heightAnchor constraintEqualToConstant:62],
 
-            [chip.leadingAnchor constraintEqualToAnchor:self.leadingAnchor constant:16],
-            [chip.centerYAnchor constraintEqualToAnchor:self.centerYAnchor],
-            [chip.widthAnchor constraintEqualToConstant:34],
-            [chip.heightAnchor constraintEqualToConstant:34],
+            [_glowBg.topAnchor constraintEqualToAnchor:self.topAnchor],
+            [_glowBg.bottomAnchor constraintEqualToAnchor:self.bottomAnchor constant:-0.5],
+            [_glowBg.leadingAnchor constraintEqualToAnchor:self.leadingAnchor],
+            [_glowBg.trailingAnchor constraintEqualToAnchor:self.trailingAnchor],
 
-            [symbol.centerXAnchor constraintEqualToAnchor:chip.centerXAnchor],
-            [symbol.centerYAnchor constraintEqualToAnchor:chip.centerYAnchor],
+            [_accentBar.leadingAnchor constraintEqualToAnchor:self.leadingAnchor],
+            [_accentBar.centerYAnchor constraintEqualToAnchor:self.centerYAnchor],
+            [_accentBar.widthAnchor constraintEqualToConstant:3],
+            [_accentBar.heightAnchor constraintEqualToConstant:32],
 
-            [title.leadingAnchor constraintEqualToAnchor:chip.trailingAnchor constant:12],
-            [title.centerYAnchor constraintEqualToAnchor:self.centerYAnchor],
+            [_chip.leadingAnchor constraintEqualToAnchor:self.leadingAnchor constant:16],
+            [_chip.centerYAnchor constraintEqualToAnchor:self.centerYAnchor],
+            [_chip.widthAnchor constraintEqualToConstant:36],
+            [_chip.heightAnchor constraintEqualToConstant:36],
+
+            [symbol.centerXAnchor constraintEqualToAnchor:_chip.centerXAnchor],
+            [symbol.centerYAnchor constraintEqualToAnchor:_chip.centerYAnchor],
+
+            [title.leadingAnchor constraintEqualToAnchor:_chip.trailingAnchor constant:12],
+            [title.bottomAnchor constraintEqualToAnchor:self.centerYAnchor constant:-1],
+
+            [subtitle.leadingAnchor constraintEqualToAnchor:_chip.trailingAnchor constant:12],
+            [subtitle.topAnchor constraintEqualToAnchor:self.centerYAnchor constant:2],
 
             [_toggle.trailingAnchor constraintEqualToAnchor:self.trailingAnchor constant:-16],
             [_toggle.centerYAnchor constraintEqualToAnchor:self.centerYAnchor],
@@ -134,8 +197,21 @@
     return self;
 }
 
+- (void)layoutSubviews {
+    [super layoutSubviews];
+    _chipGradient.frame = _chip.bounds;
+}
+
 - (void)switchChanged {
     if (self.onChanged) self.onChanged(self, self.toggle.isOn);
+}
+
+- (void)setActive:(BOOL)active {
+    [UIView animateWithDuration:0.25 animations:^{
+        self->_glowBg.alpha = active ? 1 : 0;
+        self->_accentBar.alpha = active ? 1 : 0;
+        self->_chip.layer.shadowOpacity = active ? 0.9 : 0.55;
+    }];
 }
 
 - (void)setLoading:(BOOL)loading {
@@ -162,6 +238,7 @@
 @property (nonatomic, copy)   NSString *appName;
 @property (nonatomic, strong) UIImage  *icon;
 @property (nonatomic, strong) CAGradientLayer *bgGradient;
+@property (nonatomic, strong) CAGradientLayer *radialGlow;
 @property (nonatomic, strong) UILabel  *statusLabel;
 @end
 
@@ -187,6 +264,22 @@
     self.bgGradient.endPoint   = CGPointMake(0.5, 1.0);
     [self.view.layer insertSublayer:self.bgGradient atIndex:0];
 
+    // Radial glow behind the header
+    self.radialGlow = [CAGradientLayer layer];
+    self.radialGlow.type = kCAGradientLayerRadial;
+    self.radialGlow.colors = @[(id)[HUD_CYAN colorWithAlphaComponent:0.30].CGColor,
+                               (id)[HUD_CYAN colorWithAlphaComponent:0.0].CGColor];
+    self.radialGlow.startPoint = CGPointMake(0.5, 0.5);
+    self.radialGlow.endPoint   = CGPointMake(1.0, 1.0);
+    [self.view.layer insertSublayer:self.radialGlow above:self.bgGradient];
+
+    // Faint grid overlay
+    UIView *grid = [[UIView alloc] initWithFrame:self.view.bounds];
+    grid.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+    grid.backgroundColor = [self gridPatternColor];
+    grid.userInteractionEnabled = NO;
+    [self.view addSubview:grid];
+
     [self setupNavBarAppearance];
     [self buildUI];
 }
@@ -194,6 +287,21 @@
 - (void)viewDidLayoutSubviews {
     [super viewDidLayoutSubviews];
     self.bgGradient.frame = self.view.bounds;
+    CGFloat top = self.view.safeAreaInsets.top;
+    self.radialGlow.frame = CGRectMake(self.view.bounds.size.width/2 - 240, top - 60, 480, 480);
+}
+
+- (UIColor *)gridPatternColor {
+    CGFloat s = 26;
+    UIGraphicsImageRenderer *r = [[UIGraphicsImageRenderer alloc] initWithSize:CGSizeMake(s, s)];
+    UIImage *img = [r imageWithActions:^(UIGraphicsImageRendererContext * _Nonnull ctx) {
+        CGContextSetStrokeColorWithColor(ctx.CGContext, [UIColor colorWithWhite:1 alpha:0.05].CGColor);
+        CGContextSetLineWidth(ctx.CGContext, 0.5);
+        CGContextMoveToPoint(ctx.CGContext, s, 0);  CGContextAddLineToPoint(ctx.CGContext, s, s);
+        CGContextMoveToPoint(ctx.CGContext, 0, s);  CGContextAddLineToPoint(ctx.CGContext, s, s);
+        CGContextStrokePath(ctx.CGContext);
+    }];
+    return [UIColor colorWithPatternImage:img];
 }
 
 // White title + cyan back chevron on the dark HUD, scoped to this screen only
@@ -209,12 +317,12 @@
 
 - (void)viewWillAppear:(BOOL)animated {
     [super viewWillAppear:animated];
-    self.navigationController.navigationBar.tintColor = HUD_CYAN; // back chevron
+    self.navigationController.navigationBar.tintColor = HUD_CYAN;
 }
 
 - (void)viewWillDisappear:(BOOL)animated {
     [super viewWillDisappear:animated];
-    self.navigationController.navigationBar.tintColor = nil; // restore for the list screen
+    self.navigationController.navigationBar.tintColor = nil;
 }
 
 - (void)buildUI {
@@ -222,6 +330,7 @@
     UIScrollView *scroll = [[UIScrollView alloc] init];
     scroll.translatesAutoresizingMaskIntoConstraints = NO;
     scroll.showsVerticalScrollIndicator = NO;
+    scroll.backgroundColor = [UIColor clearColor];
     [self.view addSubview:scroll];
 
     UIView *content = [[UIView alloc] init];
@@ -247,19 +356,19 @@
     iconView.clipsToBounds = YES;
     iconView.layer.cornerRadius = 18;
     iconView.layer.cornerCurve = kCACornerCurveContinuous;
-    iconView.layer.borderColor = [UIColor colorWithWhite:1 alpha:0.15].CGColor;
-    iconView.layer.borderWidth = 1;
+    iconView.layer.borderColor = [HUD_CYAN colorWithAlphaComponent:0.45].CGColor;
+    iconView.layer.borderWidth = 1.5;
     iconView.layer.magnificationFilter = kCAFilterTrilinear;
     iconView.layer.shadowColor = HUD_CYAN.CGColor;
-    iconView.layer.shadowOpacity = 0.45;
-    iconView.layer.shadowRadius = 14;
+    iconView.layer.shadowOpacity = 0.6;
+    iconView.layer.shadowRadius = 18;
     iconView.layer.shadowOffset = CGSizeMake(0, 4);
     iconView.translatesAutoresizingMaskIntoConstraints = NO;
     [content addSubview:iconView];
 
     UILabel *nameLabel = [[UILabel alloc] init];
     nameLabel.text = self.appName;
-    nameLabel.font = [UIFont systemFontOfSize:20 weight:UIFontWeightBold];
+    nameLabel.font = [UIFont systemFontOfSize:22 weight:UIFontWeightHeavy];
     nameLabel.textColor = HUD_TEXT;
     nameLabel.textAlignment = NSTextAlignmentCenter;
     nameLabel.translatesAutoresizingMaskIntoConstraints = NO;
@@ -273,15 +382,24 @@
     bundleLabel.translatesAutoresizingMaskIntoConstraints = NO;
     [content addSubview:bundleLabel];
 
-    // ── Panel (blur → hoà vào nền gradient) ─────────────
+    // ── Panel wrapper (outer neon glow) ─────────────────
+    UIView *panelWrap = [[UIView alloc] init];
+    panelWrap.backgroundColor = [UIColor clearColor];
+    panelWrap.layer.shadowColor = HUD_CYAN.CGColor;
+    panelWrap.layer.shadowOpacity = 0.35;
+    panelWrap.layer.shadowRadius = 18;
+    panelWrap.layer.shadowOffset = CGSizeZero;
+    panelWrap.translatesAutoresizingMaskIntoConstraints = NO;
+    [content addSubview:panelWrap];
+
     UIVisualEffectView *panel = [[UIVisualEffectView alloc] initWithEffect:[UIBlurEffect effectWithStyle:UIBlurEffectStyleSystemThinMaterialDark]];
     panel.clipsToBounds = YES;
     panel.layer.cornerRadius = 18;
     panel.layer.cornerCurve = kCACornerCurveContinuous;
-    panel.layer.borderColor = [HUD_CYAN colorWithAlphaComponent:0.30].CGColor;
+    panel.layer.borderColor = [HUD_CYAN colorWithAlphaComponent:0.55].CGColor;
     panel.layer.borderWidth = 1;
     panel.translatesAutoresizingMaskIntoConstraints = NO;
-    [content addSubview:panel];
+    [panelWrap addSubview:panel];
     UIView *panelContent = panel.contentView;
 
     // Neon title bar
@@ -292,12 +410,20 @@
     UIView *accent = [[UIView alloc] init];
     accent.backgroundColor = HUD_CYAN;
     accent.layer.cornerRadius = 2;
+    accent.layer.shadowColor = HUD_CYAN.CGColor;
+    accent.layer.shadowOpacity = 0.9;
+    accent.layer.shadowRadius = 5;
+    accent.layer.shadowOffset = CGSizeZero;
     accent.translatesAutoresizingMaskIntoConstraints = NO;
     [titleBar addSubview:accent];
 
     UIImageView *bolt = [[UIImageView alloc] initWithImage:[UIImage systemImageNamed:@"bolt.fill"]];
     bolt.tintColor = HUD_CYAN;
     bolt.contentMode = UIViewContentModeScaleAspectFit;
+    bolt.layer.shadowColor = HUD_CYAN.CGColor;
+    bolt.layer.shadowOpacity = 0.9;
+    bolt.layer.shadowRadius = 6;
+    bolt.layer.shadowOffset = CGSizeZero;
     bolt.translatesAutoresizingMaskIntoConstraints = NO;
     [titleBar addSubview:bolt];
 
@@ -305,13 +431,23 @@
     menuTitle.text = @"PROXY MOD MENU";
     menuTitle.font = [UIFont systemFontOfSize:14 weight:UIFontWeightHeavy];
     menuTitle.textColor = HUD_CYAN;
+    menuTitle.layer.shadowColor = HUD_CYAN.CGColor;
+    menuTitle.layer.shadowOpacity = 0.7;
+    menuTitle.layer.shadowRadius = 6;
+    menuTitle.layer.shadowOffset = CGSizeZero;
     menuTitle.translatesAutoresizingMaskIntoConstraints = NO;
     [titleBar addSubview:menuTitle];
 
+    // AUTO badge
     UILabel *hint = [[UILabel alloc] init];
-    hint.text = @"AUTO";
+    hint.text = @"  AUTO  ";
     hint.font = [UIFont systemFontOfSize:10 weight:UIFontWeightBold];
-    hint.textColor = HUD_MUTED;
+    hint.textColor = HUD_GREEN;
+    hint.backgroundColor = [HUD_GREEN colorWithAlphaComponent:0.15];
+    hint.layer.cornerRadius = 8;
+    hint.layer.masksToBounds = YES;
+    hint.layer.borderColor = [HUD_GREEN colorWithAlphaComponent:0.5].CGColor;
+    hint.layer.borderWidth = 1;
     hint.translatesAutoresizingMaskIntoConstraints = NO;
     [titleBar addSubview:hint];
 
@@ -345,8 +481,8 @@
     [NSLayoutConstraint activateConstraints:@[
         [iconView.topAnchor constraintEqualToAnchor:content.topAnchor constant:20],
         [iconView.centerXAnchor constraintEqualToAnchor:content.centerXAnchor],
-        [iconView.widthAnchor constraintEqualToConstant:80],
-        [iconView.heightAnchor constraintEqualToConstant:80],
+        [iconView.widthAnchor constraintEqualToConstant:82],
+        [iconView.heightAnchor constraintEqualToConstant:82],
 
         [nameLabel.topAnchor constraintEqualToAnchor:iconView.bottomAnchor constant:12],
         [nameLabel.leadingAnchor constraintEqualToAnchor:content.leadingAnchor constant:24],
@@ -356,14 +492,19 @@
         [bundleLabel.leadingAnchor constraintEqualToAnchor:content.leadingAnchor constant:24],
         [bundleLabel.trailingAnchor constraintEqualToAnchor:content.trailingAnchor constant:-24],
 
-        [panel.topAnchor constraintEqualToAnchor:bundleLabel.bottomAnchor constant:24],
-        [panel.leadingAnchor constraintEqualToAnchor:content.leadingAnchor constant:16],
-        [panel.trailingAnchor constraintEqualToAnchor:content.trailingAnchor constant:-16],
+        [panelWrap.topAnchor constraintEqualToAnchor:bundleLabel.bottomAnchor constant:24],
+        [panelWrap.leadingAnchor constraintEqualToAnchor:content.leadingAnchor constant:16],
+        [panelWrap.trailingAnchor constraintEqualToAnchor:content.trailingAnchor constant:-16],
+
+        [panel.topAnchor constraintEqualToAnchor:panelWrap.topAnchor],
+        [panel.leadingAnchor constraintEqualToAnchor:panelWrap.leadingAnchor],
+        [panel.trailingAnchor constraintEqualToAnchor:panelWrap.trailingAnchor],
+        [panel.bottomAnchor constraintEqualToAnchor:panelWrap.bottomAnchor],
 
         [titleBar.topAnchor constraintEqualToAnchor:panelContent.topAnchor],
         [titleBar.leadingAnchor constraintEqualToAnchor:panelContent.leadingAnchor],
         [titleBar.trailingAnchor constraintEqualToAnchor:panelContent.trailingAnchor],
-        [titleBar.heightAnchor constraintEqualToConstant:44],
+        [titleBar.heightAnchor constraintEqualToConstant:46],
 
         [accent.leadingAnchor constraintEqualToAnchor:titleBar.leadingAnchor constant:16],
         [accent.centerYAnchor constraintEqualToAnchor:titleBar.centerYAnchor],
@@ -380,13 +521,14 @@
 
         [hint.trailingAnchor constraintEqualToAnchor:titleBar.trailingAnchor constant:-16],
         [hint.centerYAnchor constraintEqualToAnchor:titleBar.centerYAnchor],
+        [hint.heightAnchor constraintEqualToConstant:18],
 
         [stack.topAnchor constraintEqualToAnchor:titleBar.bottomAnchor],
         [stack.leadingAnchor constraintEqualToAnchor:panelContent.leadingAnchor],
         [stack.trailingAnchor constraintEqualToAnchor:panelContent.trailingAnchor],
         [stack.bottomAnchor constraintEqualToAnchor:panelContent.bottomAnchor constant:-4],
 
-        [self.statusLabel.topAnchor constraintEqualToAnchor:panel.bottomAnchor constant:18],
+        [self.statusLabel.topAnchor constraintEqualToAnchor:panelWrap.bottomAnchor constant:18],
         [self.statusLabel.leadingAnchor constraintEqualToAnchor:content.leadingAnchor constant:24],
         [self.statusLabel.trailingAnchor constraintEqualToAnchor:content.trailingAnchor constant:-24],
         [self.statusLabel.bottomAnchor constraintEqualToAnchor:content.bottomAnchor constant:-32],
@@ -395,11 +537,12 @@
 
 #pragma mark - Feature config
 
-- (HUDFeature *)featureWithSymbol:(NSString *)symbol tint:(UIColor *)tint title:(NSString *)title
+- (HUDFeature *)featureWithSymbol:(NSString *)symbol tint:(UIColor *)tint
+                            title:(NSString *)title subtitle:(NSString *)subtitle
                             onURL:(NSString *)onURL offURL:(NSString *)offURL
                      relativePath:(NSString *)relativePath {
     HUDFeature *f = [HUDFeature new];
-    f.symbol = symbol; f.tint = tint; f.title = title;
+    f.symbol = symbol; f.tint = tint; f.title = title; f.subtitle = subtitle;
     f.onURL = onURL; f.offURL = offURL; f.relativePath = relativePath;
     return f;
 }
@@ -410,16 +553,14 @@
     NSString *cacheRes = [base stringByAppendingString:@"cache_res.CfnFf59sr1SbsqQ6JqTKsEusjKs~3D"];
 
     return @[
-        // Body — đã cấu hình
-        [self featureWithSymbol:@"figure.stand" tint:HUD_ORANGE title:@"Proxy Body"
+        [self featureWithSymbol:@"figure.stand" tint:HUD_ORANGE title:@"Proxy Body" subtitle:@"Tăng vùng trúng đòn"
                           onURL:(isTH ? @"https://getuid.vip/ServerPaste/pastebody/cache_res.CfnFf59sr1SbsqQ6JqTKsEusjKs~3D" : nil)
                          offURL:(isTH ? @"https://getuid.vip/ServerPaste/pastebodygoc/cache_res.CfnFf59sr1SbsqQ6JqTKsEusjKs~3D" : nil)
                    relativePath:(isTH ? cacheRes : nil)],
 
-        // Chờ URL từ bạn
-        [self featureWithSymbol:@"scope"          tint:HUD_PINK   title:@"Proxy Neck"  onURL:nil offURL:nil relativePath:nil],
-        [self featureWithSymbol:@"hand.draw.fill" tint:HUD_CYAN   title:@"Proxy Drag"  onURL:nil offURL:nil relativePath:nil],
-        [self featureWithSymbol:@"wand.and.stars" tint:HUD_PURPLE title:@"Proxy Magic" onURL:nil offURL:nil relativePath:nil],
+        [self featureWithSymbol:@"scope"          tint:HUD_PINK   title:@"Proxy Neck"  subtitle:@"Khóa tâm vào cổ"    onURL:nil offURL:nil relativePath:nil],
+        [self featureWithSymbol:@"hand.draw.fill" tint:HUD_CYAN   title:@"Proxy Drag"  subtitle:@"Hỗ trợ kéo tâm"     onURL:nil offURL:nil relativePath:nil],
+        [self featureWithSymbol:@"wand.and.stars" tint:HUD_PURPLE title:@"Proxy Magic" subtitle:@"Đạn bám theo mục tiêu" onURL:nil offURL:nil relativePath:nil],
     ];
 }
 
@@ -432,10 +573,13 @@
     HUDFeature *f = row.feature;
     if (!f.configured) {
         [row.toggle setOn:!isOn animated:YES];
+        [row setActive:NO];
         [row showResult:NO];
         [self setStatus:[NSString stringWithFormat:@"⚠️ %@ chưa có URL", f.title] color:HUD_ORANGE];
         return;
     }
+
+    [row setActive:isOn];
 
     NSString *url = isOn ? f.onURL : f.offURL;
     NSString *mode = isOn ? @"MOD" : @"GỐC";
