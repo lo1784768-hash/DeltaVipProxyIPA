@@ -8,6 +8,7 @@
 
 @interface AppDataCell : UICollectionViewCell
 @property (nonatomic, strong) UIView *cardView;
+@property (nonatomic, strong) UIView *bannerView;
 @property (nonatomic, strong) UIImageView *iconView;
 @property (nonatomic, strong) UILabel *nameLabel;
 @property (nonatomic, strong) UILabel *bundleLabel;
@@ -27,42 +28,56 @@
     self.backgroundColor = [UIColor clearColor];
     self.contentView.backgroundColor = [UIColor clearColor];
 
-    // Beautiful card background with gradient
+    // Gradient background for card
     self.cardView = [[UIView alloc] init];
-    self.cardView.backgroundColor = [UIColor colorWithRed:1.0 green:1.0 blue:1.0 alpha:0.95];
-    self.cardView.layer.cornerRadius = 16;
+    self.cardView.backgroundColor = [UIColor whiteColor];
+    self.cardView.layer.cornerRadius = 20;
     self.cardView.layer.shadowColor = [UIColor blackColor].CGColor;
-    self.cardView.layer.shadowOpacity = 0.12;
-    self.cardView.layer.shadowOffset = CGSizeMake(0, 4);
-    self.cardView.layer.shadowRadius = 8;
+    self.cardView.layer.shadowOpacity = 0.15;
+    self.cardView.layer.shadowOffset = CGSizeMake(0, 8);
+    self.cardView.layer.shadowRadius = 16;
     self.cardView.translatesAutoresizingMaskIntoConstraints = NO;
     [self.contentView addSubview:self.cardView];
 
     [NSLayoutConstraint activateConstraints:@[
-        [self.cardView.topAnchor constraintEqualToAnchor:self.contentView.topAnchor constant:4],
-        [self.cardView.leadingAnchor constraintEqualToAnchor:self.contentView.leadingAnchor constant:4],
-        [self.cardView.trailingAnchor constraintEqualToAnchor:self.contentView.trailingAnchor constant:-4],
-        [self.cardView.bottomAnchor constraintEqualToAnchor:self.contentView.bottomAnchor constant:-4]
+        [self.cardView.topAnchor constraintEqualToAnchor:self.contentView.topAnchor],
+        [self.cardView.leadingAnchor constraintEqualToAnchor:self.contentView.leadingAnchor],
+        [self.cardView.trailingAnchor constraintEqualToAnchor:self.contentView.trailingAnchor],
+        [self.cardView.bottomAnchor constraintEqualToAnchor:self.contentView.bottomAnchor]
     ]];
 
-    // Large app icon
-    self.iconView = [[UIImageView alloc] init];
-    self.iconView.contentMode = UIViewContentModeScaleAspectFill;
-    self.iconView.layer.cornerRadius = 12;
-    self.iconView.clipsToBounds = YES;
-    self.iconView.translatesAutoresizingMaskIntoConstraints = NO;
-    [self.cardView addSubview:self.iconView];
+    // Top colored banner section
+    UIView *bannerView = [[UIView alloc] init];
+    bannerView.layer.cornerRadius = 20;
+    bannerView.layer.maskedCorners = kCALayerMinXMinYCorner | kCALayerMaxXMinYCorner;
+    bannerView.clipsToBounds = YES;
+    bannerView.translatesAutoresizingMaskIntoConstraints = NO;
+    [self.cardView addSubview:bannerView];
+    self.bannerView = bannerView;
 
     [NSLayoutConstraint activateConstraints:@[
-        [self.iconView.topAnchor constraintEqualToAnchor:self.cardView.topAnchor constant:14],
-        [self.iconView.centerXAnchor constraintEqualToAnchor:self.cardView.centerXAnchor],
-        [self.iconView.widthAnchor constraintEqualToConstant:72],
-        [self.iconView.heightAnchor constraintEqualToConstant:72]
+        [bannerView.topAnchor constraintEqualToAnchor:self.cardView.topAnchor],
+        [bannerView.leadingAnchor constraintEqualToAnchor:self.cardView.leadingAnchor],
+        [bannerView.trailingAnchor constraintEqualToAnchor:self.cardView.trailingAnchor],
+        [bannerView.heightAnchor constraintEqualToConstant:100]
     ]];
 
-    // App name - Large and bold
+    // Large app icon in banner
+    self.iconView = [[UIImageView alloc] init];
+    self.iconView.contentMode = UIViewContentModeScaleAspectFit;
+    self.iconView.translatesAutoresizingMaskIntoConstraints = NO;
+    [bannerView addSubview:self.iconView];
+
+    [NSLayoutConstraint activateConstraints:@[
+        [self.iconView.centerXAnchor constraintEqualToAnchor:bannerView.centerXAnchor],
+        [self.iconView.centerYAnchor constraintEqualToAnchor:bannerView.centerYAnchor],
+        [self.iconView.widthAnchor constraintEqualToConstant:80],
+        [self.iconView.heightAnchor constraintEqualToConstant:80]
+    ]];
+
+    // App name - Bold
     self.nameLabel = [[UILabel alloc] init];
-    self.nameLabel.font = [UIFont boldSystemFontOfSize:16];
+    self.nameLabel.font = [UIFont boldSystemFontOfSize:18];
     self.nameLabel.textColor = [UIColor blackColor];
     self.nameLabel.textAlignment = NSTextAlignmentCenter;
     self.nameLabel.numberOfLines = 2;
@@ -70,25 +85,25 @@
     [self.cardView addSubview:self.nameLabel];
 
     [NSLayoutConstraint activateConstraints:@[
-        [self.nameLabel.topAnchor constraintEqualToAnchor:self.iconView.bottomAnchor constant:12],
-        [self.nameLabel.leadingAnchor constraintEqualToAnchor:self.cardView.leadingAnchor constant:8],
-        [self.nameLabel.trailingAnchor constraintEqualToAnchor:self.cardView.trailingAnchor constant:-8]
+        [self.nameLabel.topAnchor constraintEqualToAnchor:bannerView.bottomAnchor constant:16],
+        [self.nameLabel.leadingAnchor constraintEqualToAnchor:self.cardView.leadingAnchor constant:12],
+        [self.nameLabel.trailingAnchor constraintEqualToAnchor:self.cardView.trailingAnchor constant:-12]
     ]];
 
-    // Bundle ID - Small gray text
+    // Bundle ID
     self.bundleLabel = [[UILabel alloc] init];
-    self.bundleLabel.font = [UIFont systemFontOfSize:10];
-    self.bundleLabel.textColor = [UIColor colorWithRed:0.6 green:0.6 blue:0.6 alpha:1.0];
+    self.bundleLabel.font = [UIFont systemFontOfSize:11];
+    self.bundleLabel.textColor = [UIColor colorWithRed:0.5 green:0.5 blue:0.5 alpha:1.0];
     self.bundleLabel.textAlignment = NSTextAlignmentCenter;
     self.bundleLabel.numberOfLines = 1;
     self.bundleLabel.translatesAutoresizingMaskIntoConstraints = NO;
     [self.cardView addSubview:self.bundleLabel];
 
     [NSLayoutConstraint activateConstraints:@[
-        [self.bundleLabel.topAnchor constraintEqualToAnchor:self.nameLabel.bottomAnchor constant:4],
-        [self.bundleLabel.leadingAnchor constraintEqualToAnchor:self.cardView.leadingAnchor constant:8],
-        [self.bundleLabel.trailingAnchor constraintEqualToAnchor:self.cardView.trailingAnchor constant:-8],
-        [self.bundleLabel.bottomAnchor constraintGreaterThanOrEqualToAnchor:self.cardView.bottomAnchor constant:-12]
+        [self.bundleLabel.topAnchor constraintEqualToAnchor:self.nameLabel.bottomAnchor constant:6],
+        [self.bundleLabel.leadingAnchor constraintEqualToAnchor:self.cardView.leadingAnchor constant:12],
+        [self.bundleLabel.trailingAnchor constraintEqualToAnchor:self.cardView.trailingAnchor constant:-12],
+        [self.bundleLabel.bottomAnchor constraintGreaterThanOrEqualToAnchor:self.cardView.bottomAnchor constant:-16]
     ]];
 }
 
@@ -174,7 +189,49 @@
         target:self
         action:@selector(refreshApps)];
 
-    [self loadApps];
+    // Load apps immediately without waiting
+    [self loadAppsImmediately];
+}
+
+// Load apps immediately on first view
+- (void)loadAppsImmediately {
+    DebugLogger *logger = [DebugLogger sharedLogger];
+    [logger log:@"[AppData] 🚀 Quick loading app list..."];
+
+    // Initialize MCM
+    MCMFilzaStart();
+
+    // Get virtual root
+    NSString *virtualRoot = MCMFilzaVirtualRoot();
+    [logger log:@"[AppData] Virtual root: %@", virtualRoot];
+
+    // Scan the virtual filesystem directory immediately
+    NSString *appDataPath = [virtualRoot stringByAppendingPathComponent:@"[MHA-C2] App Data"];
+    NSArray *dirContents = [[NSFileManager defaultManager] contentsOfDirectoryAtPath:appDataPath error:nil];
+
+    if (dirContents && dirContents.count > 0) {
+        // Only show target apps
+        NSArray *targetApps = @[@"com.dts.freefiremax", @"com.dts.freefireth"];
+        NSMutableArray *appIDs = [NSMutableArray array];
+
+        for (NSString *targetApp in targetApps) {
+            for (NSString *item in dirContents) {
+                if ([item isEqualToString:targetApp]) {
+                    [appIDs addObject:targetApp];
+                    [logger log:@"[AppData]   📦 %@", targetApp];
+                    break;
+                }
+            }
+        }
+
+        self.appIDs = appIDs;
+        [logger log:@"[AppData] ✅ Found %lu apps immediately", (unsigned long)self.appIDs.count];
+        [self.collectionView reloadData];
+    } else {
+        [logger log:@"[AppData] ⚠️  No apps in VFS yet, loading in background..."];
+        // If no apps in VFS, load them in background
+        [self loadApps];
+    }
 }
 
 - (void)loadApps {
@@ -316,14 +373,29 @@
 
     NSString *appID = self.appIDs[indexPath.item];
 
-    // Try custom image first, then fall back to app icon, then system image
+    // Set gradient banner color based on app
+    if ([appID isEqualToString:@"com.dts.freefiremax"]) {
+        // Blue gradient for Free Fire Max
+        cell.bannerView.backgroundColor = [UIColor colorWithRed:0.1 green:0.6 blue:1.0 alpha:1.0];
+    } else if ([appID isEqualToString:@"com.dts.freefireth"]) {
+        // Orange gradient for Free Fire Thường
+        cell.bannerView.backgroundColor = [UIColor colorWithRed:1.0 green:0.6 blue:0.2 alpha:1.0];
+    }
+
+    // Try custom image first, then fall back to app icon
     UIImage *customImage = [self loadCustomImageForApp:appID];
     if (customImage) {
         cell.iconView.image = customImage;
     } else {
         AppStatusChecker *checker = [AppStatusChecker sharedChecker];
         UIImage *icon = [checker iconForApp:appID];
-        cell.iconView.image = icon ?: [UIImage systemImageNamed:@"square.and.pencil"];
+        if (icon) {
+            cell.iconView.image = icon;
+        } else {
+            // Use custom icon if no app icon
+            cell.iconView.image = [UIImage systemImageNamed:@"gamecontroller.fill"];
+            cell.iconView.tintColor = [UIColor whiteColor];
+        }
     }
 
     // Set app name - use custom display names
