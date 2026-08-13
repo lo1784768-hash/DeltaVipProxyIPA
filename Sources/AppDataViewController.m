@@ -297,8 +297,7 @@
 - (void)promptAddKey {
     KeyManager *km = [KeyManager shared];
     NSString *udid = [km deviceUDID];
-    NSString *src  = km.usingHardwareUDID ? @"UDID phần cứng ✅" : @"ID Keychain (eSign) 🔒";
-    NSString *msg  = [NSString stringWithFormat:@"Dán key để kích hoạt.\n\nMáy này (%@):\n%@", src, udid];
+    NSString *msg  = [NSString stringWithFormat:@"Dán key để kích hoạt.\n\nThiết bị này:\n%@", udid];
 
     UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"License Key"
                                                                   message:msg
