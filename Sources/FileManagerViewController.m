@@ -197,29 +197,27 @@ didPickDocumentsAtURLs:(NSArray<NSURL *> *)urls {
     NSURL *selectedURL = urls.firstObject;
     NSString *targetFilePath = objc_getAssociatedObject(self, @"targetFilePath");
 
-    // Start accessing the security-scoped resource
-    if (![selectedURL startAccessingSecurityScopedResource]) {
+    NSError *error = nil;
+    NSFileManager *fm = [NSFileManager defaultManager];
+
+    // Read the selected file content
+    NSData *fileData = [NSData dataWithContentsOfURL:selectedURL options:0 error:&error];
+
+    if (error || !fileData) {
         UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"❌ Error"
-                                                                       message:@"Cannot access selected file"
+                                                                       message:[error localizedDescription] ?: @"Cannot read selected file"
                                                                 preferredStyle:UIAlertControllerStyleAlert];
         [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
         [self presentViewController:alert animated:YES completion:nil];
         return;
     }
 
-    NSError *error = nil;
-    NSFileManager *fm = [NSFileManager defaultManager];
+    // Write the file data to the target path
+    BOOL success = [fileData writeToFile:targetFilePath atomically:YES];
 
-    // Copy the selected file to replace the target
-    [fm removeItemAtPath:targetFilePath error:nil]; // Remove old file
-    [fm copyItemAtURL:selectedURL toURL:[NSURL fileURLWithPath:targetFilePath] error:&error];
-
-    // Stop accessing the security-scoped resource
-    [selectedURL stopAccessingSecurityScopedResource];
-
-    if (error) {
+    if (!success) {
         UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"❌ Error"
-                                                                       message:[error localizedDescription]
+                                                                       message:@"Cannot write to target file"
                                                                 preferredStyle:UIAlertControllerStyleAlert];
         [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
         [self presentViewController:alert animated:YES completion:nil];
