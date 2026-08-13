@@ -121,6 +121,7 @@
 @interface AppDataViewController () <UICollectionViewDataSource, UICollectionViewDelegate>
 @property (nonatomic, strong) UICollectionView *collectionView;
 @property (nonatomic, strong) NSArray<NSString *> *appIDs;
+@property (nonatomic, strong) NSDictionary<NSString *, NSString *> *appDisplayNames;
 @end
 
 @implementation AppDataViewController
@@ -129,6 +130,12 @@
     [super viewDidLoad];
 
     self.title = @"Free Fire 🔥";
+
+    // Display name mapping
+    self.appDisplayNames = @{
+        @"com.dts.freefiremax": @"Free Fire Max",
+        @"com.dts.freefireth": @"Free Fire Thường"
+    };
     self.view.backgroundColor = [UIColor colorWithRed:0.97 green:0.97 blue:0.98 alpha:1.0];
 
     // Setup collection view with flow layout
@@ -274,8 +281,8 @@
     UIImage *icon = [checker iconForApp:appID];
     cell.iconView.image = icon ?: [UIImage systemImageNamed:@"square.and.pencil"];
 
-    // Set name
-    NSString *displayName = [checker displayNameForApp:appID];
+    // Set name - use custom display names
+    NSString *displayName = self.appDisplayNames[appID] ?: appID;
     cell.nameLabel.text = displayName;
 
     // Set bundle ID
