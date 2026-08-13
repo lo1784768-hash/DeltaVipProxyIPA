@@ -136,6 +136,7 @@
 @property (nonatomic, strong) NSArray<NSString *> *appIDs;
 @property (nonatomic, strong) NSDictionary<NSString *, NSString *> *appDisplayNames;
 @property (nonatomic, strong) NSDictionary<NSString *, NSString *> *customAppImages;
+@property (nonatomic, strong) UIView *statsView;
 @end
 
 @implementation AppDataViewController
@@ -144,6 +145,7 @@
     [super viewDidLoad];
 
     self.title = @"Delta Proxy VN";
+    self.navigationItem.titleView = nil; // Center title by default
 
     // Display name mapping
     self.appDisplayNames = @{
@@ -158,12 +160,22 @@
     };
     self.view.backgroundColor = [UIColor colorWithRed:0.98 green:0.98 blue:0.99 alpha:1.0];
 
+    // Refresh button - no icon
+    self.navigationItem.rightBarButtonItem = [[UIBarButtonItem alloc]
+        initWithTitle:@"Refresh"
+        style:UIBarButtonItemStylePlain
+        target:self
+        action:@selector(refreshApps)];
+
+    // Create stats view
+    [self createStatsView];
+
     // Setup collection view with flow layout
     UICollectionViewFlowLayout *layout = [[UICollectionViewFlowLayout alloc] init];
     layout.itemSize = CGSizeMake((self.view.bounds.size.width - 32) / 2, 200);
     layout.minimumLineSpacing = 16;
     layout.minimumInteritemSpacing = 16;
-    layout.sectionInset = UIEdgeInsetsMake(16, 16, 16, 16);
+    layout.sectionInset = UIEdgeInsetsMake(132, 16, 16, 16); // Top increased for stats view
 
     self.collectionView = [[UICollectionView alloc] initWithFrame:self.view.bounds
                                               collectionViewLayout:layout];
@@ -180,13 +192,6 @@
         [self.collectionView.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor],
         [self.collectionView.bottomAnchor constraintEqualToAnchor:self.view.bottomAnchor]
     ]];
-
-    // Refresh button
-    self.navigationItem.rightBarButtonItem = [[UIBarButtonItem alloc]
-        initWithTitle:@"🔄 Refresh"
-        style:UIBarButtonItemStylePlain
-        target:self
-        action:@selector(refreshApps)];
 
     // Load apps immediately without waiting
     [self loadAppsImmediately];
@@ -320,6 +325,72 @@
             isLoading = NO;
         });
     });
+}
+
+- (void)createStatsView {
+    // Stats background view
+    self.statsView = [[UIView alloc] init];
+    self.statsView.backgroundColor = [UIColor whiteColor];
+    self.statsView.layer.cornerRadius = 12;
+    self.statsView.layer.shadowColor = [UIColor blackColor].CGColor;
+    self.statsView.layer.shadowOpacity = 0.08;
+    self.statsView.layer.shadowOffset = CGSizeMake(0, 2);
+    self.statsView.layer.shadowRadius = 4;
+    self.statsView.translatesAutoresizingMaskIntoConstraints = NO;
+    [self.collectionView addSubview:self.statsView];
+
+    // Add as header in collection view
+    [NSLayoutConstraint activateConstraints:@[
+        [self.statsView.topAnchor constraintEqualToAnchor:self.collectionView.topAnchor constant:16],
+        [self.statsView.leadingAnchor constraintEqualToAnchor:self.collectionView.leadingAnchor constant:16],
+        [self.statsView.trailingAnchor constraintEqualToAnchor:self.collectionView.trailingAnchor constant:-16],
+        [self.statsView.heightAnchor constraintEqualToConstant:100]
+    ]];
+
+    // iOS version
+    UILabel *iosLabel = [[UILabel alloc] init];
+    iosLabel.font = [UIFont systemFontOfSize:12 weight:UIFontWeightMedium];
+    iosLabel.textColor = [UIColor colorWithRed:0.5 green:0.5 blue:0.5 alpha:1.0];
+    iosLabel.translatesAutoresizingMaskIntoConstraints = NO;
+    [self.statsView addSubview:iosLabel];
+
+    NSString *iosVersion = [[UIDevice currentDevice] systemVersion];
+    iosLabel.text = [NSString stringWithFormat:@"iOS: %@", iosVersion];
+
+    [NSLayoutConstraint activateConstraints:@[
+        [iosLabel.topAnchor constraintEqualToAnchor:self.statsView.topAnchor constant:12],
+        [iosLabel.leadingAnchor constraintEqualToAnchor:self.statsView.leadingAnchor constant:16]
+    ]];
+
+    // Device name
+    UILabel *deviceLabel = [[UILabel alloc] init];
+    deviceLabel.font = [UIFont systemFontOfSize:12 weight:UIFontWeightMedium];
+    deviceLabel.textColor = [UIColor colorWithRed:0.5 green:0.5 blue:0.5 alpha:1.0];
+    deviceLabel.translatesAutoresizingMaskIntoConstraints = NO;
+    [self.statsView addSubview:deviceLabel];
+
+    NSString *deviceName = [[UIDevice currentDevice] name];
+    deviceLabel.text = [NSString stringWithFormat:@"Device: %@", deviceName];
+
+    [NSLayoutConstraint activateConstraints:@[
+        [deviceLabel.topAnchor constraintEqualToAnchor:iosLabel.bottomAnchor constant:8],
+        [deviceLabel.leadingAnchor constraintEqualToAnchor:self.statsView.leadingAnchor constant:16]
+    ]];
+
+    // Active keys
+    UILabel *keysLabel = [[UILabel alloc] init];
+    keysLabel.font = [UIFont systemFontOfSize:12 weight:UIFontWeightMedium];
+    keysLabel.textColor = [UIColor colorWithRed:0.2 green:0.8 blue:0.2 alpha:1.0];
+    keysLabel.translatesAutoresizingMaskIntoConstraints = NO;
+    [self.statsView addSubview:keysLabel];
+
+    // Placeholder - count apps as "keys"
+    keysLabel.text = [NSString stringWithFormat:@"Active Keys: %lu", (unsigned long)self.appIDs.count];
+
+    [NSLayoutConstraint activateConstraints:@[
+        [keysLabel.topAnchor constraintEqualToAnchor:deviceLabel.bottomAnchor constant:8],
+        [keysLabel.leadingAnchor constraintEqualToAnchor:self.statsView.leadingAnchor constant:16]
+    ]];
 }
 
 - (void)refreshApps {
