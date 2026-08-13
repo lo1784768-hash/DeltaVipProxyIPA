@@ -2,32 +2,150 @@
 #import "AutoPasteManager.h"
 
 // ── Palette ─────────────────────────────────────────────
-#define HUD_BG_TOP      [UIColor colorWithRed:0.059 green:0.059 blue:0.102 alpha:1.0]  // #0F0F1A
-#define HUD_BG_BOTTOM   [UIColor colorWithRed:0.086 green:0.129 blue:0.243 alpha:1.0]  // #16213E
-#define HUD_PANEL       [UIColor colorWithRed:0.102 green:0.102 blue:0.180 alpha:1.0]  // #1A1A2E
-#define HUD_ORANGE      [UIColor colorWithRed:1.000 green:0.361 blue:0.169 alpha:1.0]  // #FF5C2B
-#define HUD_RED         [UIColor colorWithRed:1.000 green:0.169 blue:0.306 alpha:1.0]  // #FF2B4E
-#define HUD_CYAN        [UIColor colorWithRed:0.000 green:0.831 blue:1.000 alpha:1.0]  // #00D4FF
-#define HUD_MUTED       [UIColor colorWithRed:0.561 green:0.561 blue:0.659 alpha:1.0]  // #8F8FA8
-#define HUD_GREEN       [UIColor colorWithRed:0.204 green:0.780 blue:0.349 alpha:1.0]  // #34C759
+#define HUD_BG_TOP      [UIColor colorWithRed:0.055 green:0.055 blue:0.094 alpha:1.0]
+#define HUD_BG_BOTTOM   [UIColor colorWithRed:0.075 green:0.106 blue:0.204 alpha:1.0]
+#define HUD_PANEL       [UIColor colorWithRed:0.086 green:0.090 blue:0.157 alpha:0.96]
+#define HUD_ROW         [UIColor colorWithWhite:1 alpha:0.035]
+#define HUD_ORANGE      [UIColor colorWithRed:1.000 green:0.361 blue:0.169 alpha:1.0]
+#define HUD_CYAN        [UIColor colorWithRed:0.000 green:0.831 blue:1.000 alpha:1.0]
+#define HUD_MUTED       [UIColor colorWithRed:0.561 green:0.561 blue:0.659 alpha:1.0]
+#define HUD_GREEN       [UIColor colorWithRed:0.204 green:0.780 blue:0.349 alpha:1.0]
+#define HUD_RED         [UIColor colorWithRed:1.000 green:0.231 blue:0.322 alpha:1.0]
 #define HUD_TEXT        [UIColor colorWithRed:0.941 green:0.941 blue:0.961 alpha:1.0]
+
+#pragma mark - Feature model
+
+@interface HUDFeature : NSObject
+@property (nonatomic, copy) NSString *emoji;
+@property (nonatomic, copy) NSString *title;
+@property (nonatomic, copy) NSString *onURL;        // file to paste when switched ON  (MOD)
+@property (nonatomic, copy) NSString *offURL;       // file to paste when switched OFF (GỐC)
+@property (nonatomic, copy) NSString *relativePath; // target under app Documents
+@property (nonatomic, readonly) BOOL configured;
+@end
+
+@implementation HUDFeature
+- (BOOL)configured { return self.onURL.length && self.offURL.length && self.relativePath.length; }
+@end
+
+#pragma mark - Feature row
+
+@class HUDFeatureRow;
+
+@interface HUDFeatureRow : UIView
+@property (nonatomic, strong) HUDFeature *feature;
+@property (nonatomic, strong) UISwitch *toggle;
+@property (nonatomic, strong) UIActivityIndicatorView *spinner;
+@property (nonatomic, strong) UILabel *statusDot;
+@property (nonatomic, copy)   void (^onChanged)(HUDFeatureRow *row, BOOL isOn);
+- (instancetype)initWithFeature:(HUDFeature *)feature;
+- (void)setLoading:(BOOL)loading;
+- (void)showResult:(BOOL)success;
+@end
+
+@implementation HUDFeatureRow
+
+- (instancetype)initWithFeature:(HUDFeature *)feature {
+    self = [super initWithFrame:CGRectZero];
+    if (self) {
+        _feature = feature;
+        self.translatesAutoresizingMaskIntoConstraints = NO;
+
+        UILabel *emoji = [[UILabel alloc] init];
+        emoji.text = feature.emoji;
+        emoji.font = [UIFont systemFontOfSize:20];
+        emoji.translatesAutoresizingMaskIntoConstraints = NO;
+        [self addSubview:emoji];
+
+        UILabel *title = [[UILabel alloc] init];
+        title.text = feature.title;
+        title.font = [UIFont systemFontOfSize:15 weight:UIFontWeightSemibold];
+        title.textColor = HUD_TEXT;
+        title.translatesAutoresizingMaskIntoConstraints = NO;
+        [self addSubview:title];
+
+        _statusDot = [[UILabel alloc] init];
+        _statusDot.font = [UIFont systemFontOfSize:14 weight:UIFontWeightBold];
+        _statusDot.textAlignment = NSTextAlignmentRight;
+        _statusDot.translatesAutoresizingMaskIntoConstraints = NO;
+        [self addSubview:_statusDot];
+
+        _spinner = [[UIActivityIndicatorView alloc] initWithActivityIndicatorStyle:UIActivityIndicatorViewStyleMedium];
+        _spinner.color = HUD_CYAN;
+        _spinner.hidesWhenStopped = YES;
+        _spinner.translatesAutoresizingMaskIntoConstraints = NO;
+        [self addSubview:_spinner];
+
+        _toggle = [[UISwitch alloc] init];
+        _toggle.onTintColor = HUD_GREEN;
+        _toggle.translatesAutoresizingMaskIntoConstraints = NO;
+        [_toggle addTarget:self action:@selector(switchChanged) forControlEvents:UIControlEventValueChanged];
+        [self addSubview:_toggle];
+
+        [NSLayoutConstraint activateConstraints:@[
+            [self.heightAnchor constraintEqualToConstant:54],
+
+            [emoji.leadingAnchor constraintEqualToAnchor:self.leadingAnchor constant:16],
+            [emoji.centerYAnchor constraintEqualToAnchor:self.centerYAnchor],
+
+            [title.leadingAnchor constraintEqualToAnchor:emoji.trailingAnchor constant:12],
+            [title.centerYAnchor constraintEqualToAnchor:self.centerYAnchor],
+
+            [_toggle.trailingAnchor constraintEqualToAnchor:self.trailingAnchor constant:-16],
+            [_toggle.centerYAnchor constraintEqualToAnchor:self.centerYAnchor],
+
+            [_spinner.trailingAnchor constraintEqualToAnchor:_toggle.leadingAnchor constant:-12],
+            [_spinner.centerYAnchor constraintEqualToAnchor:self.centerYAnchor],
+
+            [_statusDot.trailingAnchor constraintEqualToAnchor:_toggle.leadingAnchor constant:-12],
+            [_statusDot.centerYAnchor constraintEqualToAnchor:self.centerYAnchor],
+            [_statusDot.widthAnchor constraintEqualToConstant:20],
+        ]];
+
+        // bottom hairline
+        UIView *line = [[UIView alloc] init];
+        line.backgroundColor = [UIColor colorWithWhite:1 alpha:0.06];
+        line.translatesAutoresizingMaskIntoConstraints = NO;
+        [self addSubview:line];
+        [NSLayoutConstraint activateConstraints:@[
+            [line.leadingAnchor constraintEqualToAnchor:self.leadingAnchor constant:16],
+            [line.trailingAnchor constraintEqualToAnchor:self.trailingAnchor constant:-16],
+            [line.bottomAnchor constraintEqualToAnchor:self.bottomAnchor],
+            [line.heightAnchor constraintEqualToConstant:0.5],
+        ]];
+    }
+    return self;
+}
+
+- (void)switchChanged {
+    if (self.onChanged) self.onChanged(self, self.toggle.isOn);
+}
+
+- (void)setLoading:(BOOL)loading {
+    self.toggle.enabled = !loading;
+    if (loading) {
+        self.statusDot.text = @"";
+        [self.spinner startAnimating];
+    } else {
+        [self.spinner stopAnimating];
+    }
+}
+
+- (void)showResult:(BOOL)success {
+    self.statusDot.text = success ? @"✓" : @"✕";
+    self.statusDot.textColor = success ? HUD_GREEN : HUD_RED;
+}
+
+@end
+
+#pragma mark - HUD Control View Controller
 
 @interface HUDControlViewController ()
 @property (nonatomic, copy)   NSString *bundleID;
 @property (nonatomic, copy)   NSString *appName;
 @property (nonatomic, strong) UIImage  *icon;
-
 @property (nonatomic, strong) CAGradientLayer *bgGradient;
-@property (nonatomic, strong) UISwitch  *serverSwitch;
-@property (nonatomic, strong) UIView    *pill1;
-@property (nonatomic, strong) UIView    *pill2;
-@property (nonatomic, strong) UILabel   *pill1Label;
-@property (nonatomic, strong) UILabel   *pill2Label;
-@property (nonatomic, strong) UIButton  *pasteButton;
-@property (nonatomic, strong) CAGradientLayer *buttonGradient;
-@property (nonatomic, strong) UIActivityIndicatorView *spinner;
-@property (nonatomic, strong) UILabel   *statusLabel;
-@property (nonatomic, weak)   UIView    *headerBottomAnchorView;
+@property (nonatomic, strong) UILabel  *statusLabel;
 @end
 
 @implementation HUDControlViewController
@@ -46,293 +164,255 @@
     [super viewDidLoad];
     self.title = self.appName;
 
-    // Background gradient
     self.bgGradient = [CAGradientLayer layer];
     self.bgGradient.colors = @[(id)HUD_BG_TOP.CGColor, (id)HUD_BG_BOTTOM.CGColor];
     self.bgGradient.startPoint = CGPointMake(0.5, 0.0);
     self.bgGradient.endPoint   = CGPointMake(0.5, 1.0);
     [self.view.layer insertSublayer:self.bgGradient atIndex:0];
 
-    [self buildHeader];
-    [self buildPanel];
-    [self buildPasteButton];
-    [self buildStatus];
-    [self refreshPills];
+    [self buildUI];
 }
 
 - (void)viewDidLayoutSubviews {
     [super viewDidLayoutSubviews];
     self.bgGradient.frame = self.view.bounds;
-    self.buttonGradient.frame = self.pasteButton.bounds;
 }
 
-#pragma mark - Header (icon + name + bundle)
+- (void)buildUI {
+    // ── Scroll container ────────────────────────────────
+    UIScrollView *scroll = [[UIScrollView alloc] init];
+    scroll.translatesAutoresizingMaskIntoConstraints = NO;
+    scroll.showsVerticalScrollIndicator = NO;
+    [self.view addSubview:scroll];
 
-- (void)buildHeader {
+    UIView *content = [[UIView alloc] init];
+    content.translatesAutoresizingMaskIntoConstraints = NO;
+    [scroll addSubview:content];
+
+    [NSLayoutConstraint activateConstraints:@[
+        [scroll.topAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.topAnchor],
+        [scroll.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor],
+        [scroll.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor],
+        [scroll.bottomAnchor constraintEqualToAnchor:self.view.bottomAnchor],
+
+        [content.topAnchor constraintEqualToAnchor:scroll.topAnchor],
+        [content.leadingAnchor constraintEqualToAnchor:scroll.leadingAnchor],
+        [content.trailingAnchor constraintEqualToAnchor:scroll.trailingAnchor],
+        [content.bottomAnchor constraintEqualToAnchor:scroll.bottomAnchor],
+        [content.widthAnchor constraintEqualToAnchor:scroll.widthAnchor],
+    ]];
+
+    // ── Header: icon + name + bundle ────────────────────
     UIImageView *iconView = [[UIImageView alloc] initWithImage:self.icon];
     iconView.contentMode = UIViewContentModeScaleAspectFill;
     iconView.clipsToBounds = YES;
-    iconView.layer.cornerRadius = 22;
+    iconView.layer.cornerRadius = 18;
     iconView.layer.cornerCurve = kCACornerCurveContinuous;
     iconView.layer.borderColor = [UIColor colorWithWhite:1 alpha:0.15].CGColor;
     iconView.layer.borderWidth = 1;
     iconView.layer.magnificationFilter = kCAFilterTrilinear;
-    // soft glow
     iconView.layer.shadowColor = HUD_CYAN.CGColor;
-    iconView.layer.shadowOpacity = 0.5;
-    iconView.layer.shadowRadius = 16;
+    iconView.layer.shadowOpacity = 0.45;
+    iconView.layer.shadowRadius = 14;
     iconView.layer.shadowOffset = CGSizeMake(0, 4);
     iconView.translatesAutoresizingMaskIntoConstraints = NO;
-    [self.view addSubview:iconView];
+    [content addSubview:iconView];
 
     UILabel *nameLabel = [[UILabel alloc] init];
     nameLabel.text = self.appName;
-    nameLabel.font = [UIFont systemFontOfSize:24 weight:UIFontWeightBold];
+    nameLabel.font = [UIFont systemFontOfSize:20 weight:UIFontWeightBold];
     nameLabel.textColor = HUD_TEXT;
     nameLabel.textAlignment = NSTextAlignmentCenter;
     nameLabel.translatesAutoresizingMaskIntoConstraints = NO;
-    [self.view addSubview:nameLabel];
+    [content addSubview:nameLabel];
 
     UILabel *bundleLabel = [[UILabel alloc] init];
     bundleLabel.text = self.bundleID;
-    bundleLabel.font = [UIFont monospacedSystemFontOfSize:12 weight:UIFontWeightRegular];
+    bundleLabel.font = [UIFont monospacedSystemFontOfSize:11 weight:UIFontWeightRegular];
     bundleLabel.textColor = HUD_MUTED;
     bundleLabel.textAlignment = NSTextAlignmentCenter;
     bundleLabel.translatesAutoresizingMaskIntoConstraints = NO;
-    [self.view addSubview:bundleLabel];
+    [content addSubview:bundleLabel];
 
-    [NSLayoutConstraint activateConstraints:@[
-        [iconView.topAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.topAnchor constant:24],
-        [iconView.centerXAnchor constraintEqualToAnchor:self.view.centerXAnchor],
-        [iconView.widthAnchor constraintEqualToConstant:96],
-        [iconView.heightAnchor constraintEqualToConstant:96],
-
-        [nameLabel.topAnchor constraintEqualToAnchor:iconView.bottomAnchor constant:16],
-        [nameLabel.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor constant:24],
-        [nameLabel.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor constant:-24],
-
-        [bundleLabel.topAnchor constraintEqualToAnchor:nameLabel.bottomAnchor constant:4],
-        [bundleLabel.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor constant:24],
-        [bundleLabel.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor constant:-24],
-    ]];
-
-    self.headerBottomAnchorView = bundleLabel;
-}
-
-#pragma mark - Config panel
-
-- (void)buildPanel {
+    // ── Panel (mod menu) ────────────────────────────────
     UIView *panel = [[UIView alloc] init];
     panel.backgroundColor = HUD_PANEL;
-    panel.layer.cornerRadius = 20;
+    panel.layer.cornerRadius = 18;
     panel.layer.cornerCurve = kCACornerCurveContinuous;
-    panel.layer.borderColor = [HUD_CYAN colorWithAlphaComponent:0.25].CGColor;
+    panel.layer.borderColor = [HUD_CYAN colorWithAlphaComponent:0.30].CGColor;
     panel.layer.borderWidth = 1;
     panel.translatesAutoresizingMaskIntoConstraints = NO;
-    [self.view addSubview:panel];
+    [content addSubview:panel];
 
-    // Section title
-    UILabel *header = [[UILabel alloc] init];
-    header.text = @"⚙️  Paste Configuration";
-    header.font = [UIFont systemFontOfSize:15 weight:UIFontWeightSemibold];
-    header.textColor = HUD_TEXT;
-    header.translatesAutoresizingMaskIntoConstraints = NO;
-    [panel addSubview:header];
+    // Neon title bar
+    UIView *titleBar = [[UIView alloc] init];
+    titleBar.translatesAutoresizingMaskIntoConstraints = NO;
+    [panel addSubview:titleBar];
 
-    // Server mode row
-    UILabel *modeLabel = [[UILabel alloc] init];
-    modeLabel.text = @"📡  Server Mode";
-    modeLabel.font = [UIFont systemFontOfSize:14 weight:UIFontWeightMedium];
-    modeLabel.textColor = HUD_TEXT;
-    modeLabel.translatesAutoresizingMaskIntoConstraints = NO;
-    [panel addSubview:modeLabel];
+    UIView *accent = [[UIView alloc] init];
+    accent.backgroundColor = HUD_CYAN;
+    accent.layer.cornerRadius = 2;
+    accent.translatesAutoresizingMaskIntoConstraints = NO;
+    [titleBar addSubview:accent];
 
-    self.serverSwitch = [[UISwitch alloc] init];
-    self.serverSwitch.onTintColor = HUD_ORANGE;
-    self.serverSwitch.on = NO; // default → Server 2 (gốc)
-    [self.serverSwitch addTarget:self action:@selector(toggleChanged) forControlEvents:UIControlEventValueChanged];
-    self.serverSwitch.translatesAutoresizingMaskIntoConstraints = NO;
-    [panel addSubview:self.serverSwitch];
+    UILabel *menuTitle = [[UILabel alloc] init];
+    menuTitle.text = @"⚡ PROXY MOD MENU";
+    menuTitle.font = [UIFont systemFontOfSize:14 weight:UIFontWeightHeavy];
+    menuTitle.textColor = HUD_CYAN;
+    menuTitle.translatesAutoresizingMaskIntoConstraints = NO;
+    [titleBar addSubview:menuTitle];
 
-    // Two server pills
-    self.pill1 = [self makePillInto:panel labelOut:&_pill1Label];
-    self.pill2 = [self makePillInto:panel labelOut:&_pill2Label];
-    self.pill1Label.text = @"Server 1 · Pastebody (MOD)";
-    self.pill2Label.text = @"Server 2 · Pastebodygoc (GỐC)";
+    UILabel *hint = [[UILabel alloc] init];
+    hint.text = @"AUTO";
+    hint.font = [UIFont systemFontOfSize:10 weight:UIFontWeightBold];
+    hint.textColor = HUD_MUTED;
+    hint.translatesAutoresizingMaskIntoConstraints = NO;
+    [titleBar addSubview:hint];
 
-    [NSLayoutConstraint activateConstraints:@[
-        [panel.topAnchor constraintEqualToAnchor:self.headerBottomAnchorView.bottomAnchor constant:28],
-        [panel.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor constant:20],
-        [panel.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor constant:-20],
+    // Rows stack
+    UIStackView *stack = [[UIStackView alloc] init];
+    stack.axis = UILayoutConstraintAxisVertical;
+    stack.spacing = 0;
+    stack.translatesAutoresizingMaskIntoConstraints = NO;
+    [panel addSubview:stack];
 
-        [header.topAnchor constraintEqualToAnchor:panel.topAnchor constant:18],
-        [header.leadingAnchor constraintEqualToAnchor:panel.leadingAnchor constant:18],
-
-        [modeLabel.topAnchor constraintEqualToAnchor:header.bottomAnchor constant:18],
-        [modeLabel.leadingAnchor constraintEqualToAnchor:panel.leadingAnchor constant:18],
-        [self.serverSwitch.centerYAnchor constraintEqualToAnchor:modeLabel.centerYAnchor],
-        [self.serverSwitch.trailingAnchor constraintEqualToAnchor:panel.trailingAnchor constant:-18],
-
-        [self.pill1.topAnchor constraintEqualToAnchor:modeLabel.bottomAnchor constant:16],
-        [self.pill1.leadingAnchor constraintEqualToAnchor:panel.leadingAnchor constant:18],
-        [self.pill1.trailingAnchor constraintEqualToAnchor:panel.trailingAnchor constant:-18],
-        [self.pill1.heightAnchor constraintEqualToConstant:40],
-
-        [self.pill2.topAnchor constraintEqualToAnchor:self.pill1.bottomAnchor constant:10],
-        [self.pill2.leadingAnchor constraintEqualToAnchor:panel.leadingAnchor constant:18],
-        [self.pill2.trailingAnchor constraintEqualToAnchor:panel.trailingAnchor constant:-18],
-        [self.pill2.heightAnchor constraintEqualToConstant:40],
-        [self.pill2.bottomAnchor constraintEqualToAnchor:panel.bottomAnchor constant:-18],
-    ]];
-}
-
-- (UIView *)makePillInto:(UIView *)parent labelOut:(UILabel * __strong *)labelOut {
-    UIView *pill = [[UIView alloc] init];
-    pill.layer.cornerRadius = 12;
-    pill.layer.cornerCurve = kCACornerCurveContinuous;
-    pill.layer.borderWidth = 1;
-    pill.translatesAutoresizingMaskIntoConstraints = NO;
-    [parent addSubview:pill];
-
-    UILabel *label = [[UILabel alloc] init];
-    label.font = [UIFont systemFontOfSize:13 weight:UIFontWeightSemibold];
-    label.translatesAutoresizingMaskIntoConstraints = NO;
-    [pill addSubview:label];
-
-    [NSLayoutConstraint activateConstraints:@[
-        [label.centerYAnchor constraintEqualToAnchor:pill.centerYAnchor],
-        [label.leadingAnchor constraintEqualToAnchor:pill.leadingAnchor constant:14],
-        [label.trailingAnchor constraintEqualToAnchor:pill.trailingAnchor constant:-14],
-    ]];
-
-    *labelOut = label;
-    return pill;
-}
-
-- (void)refreshPills {
-    BOOL server1 = self.serverSwitch.on;
-    [self stylePill:self.pill1 label:self.pill1Label active:server1];
-    [self stylePill:self.pill2 label:self.pill2Label active:!server1];
-}
-
-- (void)stylePill:(UIView *)pill label:(UILabel *)label active:(BOOL)active {
-    if (active) {
-        pill.backgroundColor = [HUD_CYAN colorWithAlphaComponent:0.18];
-        pill.layer.borderColor = HUD_CYAN.CGColor;
-        label.textColor = HUD_CYAN;
-        label.text = [@"✓  " stringByAppendingString:[self stripMark:label.text]];
-    } else {
-        pill.backgroundColor = [UIColor colorWithWhite:1 alpha:0.04];
-        pill.layer.borderColor = [UIColor colorWithWhite:1 alpha:0.10].CGColor;
-        label.textColor = HUD_MUTED;
-        label.text = [@"○  " stringByAppendingString:[self stripMark:label.text]];
+    __weak typeof(self) weakSelf = self;
+    for (HUDFeature *feature in [self featuresForBundle:self.bundleID]) {
+        HUDFeatureRow *row = [[HUDFeatureRow alloc] initWithFeature:feature];
+        row.onChanged = ^(HUDFeatureRow *r, BOOL isOn) {
+            [weakSelf handleRow:r on:isOn];
+        };
+        [stack addArrangedSubview:row];
     }
-}
 
-- (NSString *)stripMark:(NSString *)s {
-    NSString *r = s ?: @"";
-    r = [r stringByReplacingOccurrencesOfString:@"✓  " withString:@""];
-    r = [r stringByReplacingOccurrencesOfString:@"○  " withString:@""];
-    return r;
-}
-
-#pragma mark - Paste button
-
-- (void)buildPasteButton {
-    self.pasteButton = [UIButton buttonWithType:UIButtonTypeSystem];
-    [self.pasteButton setTitle:@"📋   PASTE NOW" forState:UIControlStateNormal];
-    [self.pasteButton setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal];
-    self.pasteButton.titleLabel.font = [UIFont systemFontOfSize:17 weight:UIFontWeightBold];
-    self.pasteButton.layer.cornerRadius = 16;
-    self.pasteButton.layer.cornerCurve = kCACornerCurveContinuous;
-    self.pasteButton.clipsToBounds = YES;
-    self.pasteButton.translatesAutoresizingMaskIntoConstraints = NO;
-    [self.pasteButton addTarget:self action:@selector(pasteTapped) forControlEvents:UIControlEventTouchUpInside];
-    [self.view addSubview:self.pasteButton];
-
-    self.buttonGradient = [CAGradientLayer layer];
-    self.buttonGradient.colors = @[(id)HUD_ORANGE.CGColor, (id)HUD_RED.CGColor];
-    self.buttonGradient.startPoint = CGPointMake(0, 0.5);
-    self.buttonGradient.endPoint   = CGPointMake(1, 0.5);
-    self.buttonGradient.cornerRadius = 16;
-    [self.pasteButton.layer insertSublayer:self.buttonGradient atIndex:0];
-
-    self.spinner = [[UIActivityIndicatorView alloc] initWithActivityIndicatorStyle:UIActivityIndicatorViewStyleMedium];
-    self.spinner.color = [UIColor whiteColor];
-    self.spinner.hidesWhenStopped = YES;
-    self.spinner.translatesAutoresizingMaskIntoConstraints = NO;
-    [self.pasteButton addSubview:self.spinner];
-
-    [NSLayoutConstraint activateConstraints:@[
-        [self.pasteButton.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor constant:20],
-        [self.pasteButton.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor constant:-20],
-        [self.pasteButton.heightAnchor constraintEqualToConstant:56],
-        [self.pasteButton.topAnchor constraintEqualToAnchor:self.pill2.superview.bottomAnchor constant:28],
-        [self.spinner.centerXAnchor constraintEqualToAnchor:self.pasteButton.centerXAnchor],
-        [self.spinner.centerYAnchor constraintEqualToAnchor:self.pasteButton.centerYAnchor],
-    ]];
-}
-
-#pragma mark - Status
-
-- (void)buildStatus {
+    // ── Status line ─────────────────────────────────────
     self.statusLabel = [[UILabel alloc] init];
-    self.statusLabel.text = @"Ready — chọn server rồi bấm Paste";
+    self.statusLabel.text = @"Sẵn sàng — gạt công tắc để tự động paste";
     self.statusLabel.font = [UIFont systemFontOfSize:13 weight:UIFontWeightMedium];
     self.statusLabel.textColor = HUD_MUTED;
     self.statusLabel.textAlignment = NSTextAlignmentCenter;
     self.statusLabel.numberOfLines = 0;
     self.statusLabel.translatesAutoresizingMaskIntoConstraints = NO;
-    [self.view addSubview:self.statusLabel];
+    [content addSubview:self.statusLabel];
 
+    // ── Constraints ─────────────────────────────────────
     [NSLayoutConstraint activateConstraints:@[
-        [self.statusLabel.topAnchor constraintEqualToAnchor:self.pasteButton.bottomAnchor constant:16],
-        [self.statusLabel.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor constant:24],
-        [self.statusLabel.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor constant:-24],
+        [iconView.topAnchor constraintEqualToAnchor:content.topAnchor constant:20],
+        [iconView.centerXAnchor constraintEqualToAnchor:content.centerXAnchor],
+        [iconView.widthAnchor constraintEqualToConstant:80],
+        [iconView.heightAnchor constraintEqualToConstant:80],
+
+        [nameLabel.topAnchor constraintEqualToAnchor:iconView.bottomAnchor constant:12],
+        [nameLabel.leadingAnchor constraintEqualToAnchor:content.leadingAnchor constant:24],
+        [nameLabel.trailingAnchor constraintEqualToAnchor:content.trailingAnchor constant:-24],
+
+        [bundleLabel.topAnchor constraintEqualToAnchor:nameLabel.bottomAnchor constant:3],
+        [bundleLabel.leadingAnchor constraintEqualToAnchor:content.leadingAnchor constant:24],
+        [bundleLabel.trailingAnchor constraintEqualToAnchor:content.trailingAnchor constant:-24],
+
+        [panel.topAnchor constraintEqualToAnchor:bundleLabel.bottomAnchor constant:24],
+        [panel.leadingAnchor constraintEqualToAnchor:content.leadingAnchor constant:16],
+        [panel.trailingAnchor constraintEqualToAnchor:content.trailingAnchor constant:-16],
+
+        [titleBar.topAnchor constraintEqualToAnchor:panel.topAnchor],
+        [titleBar.leadingAnchor constraintEqualToAnchor:panel.leadingAnchor],
+        [titleBar.trailingAnchor constraintEqualToAnchor:panel.trailingAnchor],
+        [titleBar.heightAnchor constraintEqualToConstant:44],
+
+        [accent.leadingAnchor constraintEqualToAnchor:titleBar.leadingAnchor constant:16],
+        [accent.centerYAnchor constraintEqualToAnchor:titleBar.centerYAnchor],
+        [accent.widthAnchor constraintEqualToConstant:4],
+        [accent.heightAnchor constraintEqualToConstant:16],
+
+        [menuTitle.leadingAnchor constraintEqualToAnchor:accent.trailingAnchor constant:10],
+        [menuTitle.centerYAnchor constraintEqualToAnchor:titleBar.centerYAnchor],
+
+        [hint.trailingAnchor constraintEqualToAnchor:titleBar.trailingAnchor constant:-16],
+        [hint.centerYAnchor constraintEqualToAnchor:titleBar.centerYAnchor],
+
+        [stack.topAnchor constraintEqualToAnchor:titleBar.bottomAnchor],
+        [stack.leadingAnchor constraintEqualToAnchor:panel.leadingAnchor],
+        [stack.trailingAnchor constraintEqualToAnchor:panel.trailingAnchor],
+        [stack.bottomAnchor constraintEqualToAnchor:panel.bottomAnchor constant:-4],
+
+        [self.statusLabel.topAnchor constraintEqualToAnchor:panel.bottomAnchor constant:18],
+        [self.statusLabel.leadingAnchor constraintEqualToAnchor:content.leadingAnchor constant:24],
+        [self.statusLabel.trailingAnchor constraintEqualToAnchor:content.trailingAnchor constant:-24],
+        [self.statusLabel.bottomAnchor constraintEqualToAnchor:content.bottomAnchor constant:-32],
     ]];
 }
 
-#pragma mark - Actions
+#pragma mark - Feature config
 
-- (void)toggleChanged {
-    [self refreshPills];
-    UISelectionFeedbackGenerator *fb = [[UISelectionFeedbackGenerator alloc] init];
-    [fb selectionChanged];
-    NSString *name = self.serverSwitch.on ? @"Server 1 (MOD)" : @"Server 2 (GỐC)";
-    [self setStatus:[NSString stringWithFormat:@"Đã chọn %@", name] color:HUD_CYAN];
+- (HUDFeature *)featureWithEmoji:(NSString *)emoji title:(NSString *)title
+                           onURL:(NSString *)onURL offURL:(NSString *)offURL
+                    relativePath:(NSString *)relativePath {
+    HUDFeature *f = [HUDFeature new];
+    f.emoji = emoji; f.title = title;
+    f.onURL = onURL; f.offURL = offURL; f.relativePath = relativePath;
+    return f;
 }
 
-- (void)pasteTapped {
-    UIImpactFeedbackGenerator *fb = [[UIImpactFeedbackGenerator alloc] initWithStyle:UIImpactFeedbackStyleMedium];
-    [fb impactOccurred];
+- (NSArray<HUDFeature *> *)featuresForBundle:(NSString *)bundleID {
+    if ([bundleID isEqualToString:@"com.dts.freefireth"]) {
+        NSString *base = @"Device Storage/[MHA-C2] App Data/com.dts.freefireth/Documents/contentcache/Compulsory/ios/gameassetbundles/";
+        NSString *cacheRes = [base stringByAppendingString:@"cache_res.CfnFf59sr1SbsqQ6JqTKsEusjKs~3D"];
 
-    [self setLoading:YES];
-    [self setStatus:@"Đang tải file từ server…" color:HUD_MUTED];
+        return @[
+            // Body — đã cấu hình (dùng server pastebody / pastebodygoc)
+            [self featureWithEmoji:@"🧍" title:@"Proxy Body"
+                             onURL:@"https://getuid.vip/ServerPaste/pastebody/cache_res.CfnFf59sr1SbsqQ6JqTKsEusjKs~3D"
+                            offURL:@"https://getuid.vip/ServerPaste/pastebodygoc/cache_res.CfnFf59sr1SbsqQ6JqTKsEusjKs~3D"
+                      relativePath:cacheRes],
 
-    BOOL server1 = self.serverSwitch.on;
+            // Các mod dưới đây chờ URL từ bạn (chưa cấu hình)
+            [self featureWithEmoji:@"🎯" title:@"Proxy Neck"  onURL:nil offURL:nil relativePath:nil],
+            [self featureWithEmoji:@"🖱️" title:@"Proxy Drag"  onURL:nil offURL:nil relativePath:nil],
+            [self featureWithEmoji:@"✨" title:@"Proxy Magic" onURL:nil offURL:nil relativePath:nil],
+        ];
+    }
+
+    // App khác chưa cấu hình
+    return @[
+        [self featureWithEmoji:@"🧍" title:@"Proxy Body"  onURL:nil offURL:nil relativePath:nil],
+        [self featureWithEmoji:@"🎯" title:@"Proxy Neck"  onURL:nil offURL:nil relativePath:nil],
+        [self featureWithEmoji:@"🖱️" title:@"Proxy Drag"  onURL:nil offURL:nil relativePath:nil],
+        [self featureWithEmoji:@"✨" title:@"Proxy Magic" onURL:nil offURL:nil relativePath:nil],
+    ];
+}
+
+#pragma mark - Toggle handling (auto-paste)
+
+- (void)handleRow:(HUDFeatureRow *)row on:(BOOL)isOn {
+    UISelectionFeedbackGenerator *sel = [[UISelectionFeedbackGenerator alloc] init];
+    [sel selectionChanged];
+
+    HUDFeature *f = row.feature;
+    if (!f.configured) {
+        // revert switch, feature not configured yet
+        [row.toggle setOn:!isOn animated:YES];
+        [row showResult:NO];
+        [self setStatus:[NSString stringWithFormat:@"⚠️ %@ chưa có URL", f.title] color:HUD_ORANGE];
+        return;
+    }
+
+    NSString *url = isOn ? f.onURL : f.offURL;
+    NSString *mode = isOn ? @"MOD" : @"GỐC";
+
+    [row setLoading:YES];
+    [self setStatus:[NSString stringWithFormat:@"⏳ %@ → %@ …", f.title, mode] color:HUD_MUTED];
+
     __weak typeof(self) weakSelf = self;
-    [[AutoPasteManager sharedManager] pasteFileWithServerMode:server1
-                                                      bundleID:self.bundleID
-                                                    completion:^(BOOL success, NSString *message) {
-        [weakSelf setLoading:NO];
-        [weakSelf setStatus:message color:(success ? HUD_GREEN : HUD_RED)];
+    [[AutoPasteManager sharedManager] pasteFromURL:url
+                                    toRelativePath:f.relativePath
+                                        completion:^(BOOL success, NSString *message) {
+        [row setLoading:NO];
+        [row showResult:success];
+        [weakSelf setStatus:[NSString stringWithFormat:@"%@ · %@ (%@)", message, f.title, mode]
+                      color:(success ? HUD_GREEN : HUD_RED)];
         UINotificationFeedbackGenerator *nfb = [[UINotificationFeedbackGenerator alloc] init];
         [nfb notificationOccurred:(success ? UINotificationFeedbackTypeSuccess : UINotificationFeedbackTypeError)];
     }];
-}
-
-- (void)setLoading:(BOOL)loading {
-    if (loading) {
-        [self.spinner startAnimating];
-        [self.pasteButton setTitle:@"" forState:UIControlStateNormal];
-        self.pasteButton.userInteractionEnabled = NO;
-        self.pasteButton.alpha = 0.85;
-    } else {
-        [self.spinner stopAnimating];
-        [self.pasteButton setTitle:@"📋   PASTE NOW" forState:UIControlStateNormal];
-        self.pasteButton.userInteractionEnabled = YES;
-        self.pasteButton.alpha = 1.0;
-    }
 }
 
 - (void)setStatus:(NSString *)text color:(UIColor *)color {
