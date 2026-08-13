@@ -64,14 +64,38 @@ jobs:
         run: |
           export THEOS=~/theos
           make clean
-          make package FINALPACKAGE=1
+          make package FINALPACKAGE=1 2>&1 | tee build.log
+          echo "Build completed. Exit code: $?"
+
+      # Debug: Show build output and directory structure
+      - name: Debug Build Output
+        if: always()
+        run: |
+          echo "=== Build Log ==="
+          cat build.log || echo "No build.log found"
+          echo ""
+          echo "=== Directory Structure ==="
+          find . -type f \( -name "*.ipa" -o -name "*.deb" -o -name "*.log" \) -o -type d -name "packages" 2>/dev/null | head -20
+          echo ""
+          echo "=== Root Contents ==="
+          ls -lah
+          echo ""
+          echo "=== Packages Directory ==="
+          ls -lah packages/ 2>/dev/null || echo "No packages directory"
 
       # Find and rename the built IPA
       - name: Prepare IPA Artifact
         run: |
-          IPA_FILE=$(find . -name "*.ipa" -type f | head -1)
+          echo "Searching for IPA files..."
+          IPA_FILE=$(find . -name "*.ipa" -type f 2>/dev/null | head -1)
           if [ -z "$IPA_FILE" ]; then
             echo "Error: No IPA file found after build!"
+            echo "Checking for deb files instead..."
+            DEB_FILE=$(find . -name "*.deb" -type f 2>/dev/null | head -1)
+            if [ -n "$DEB_FILE" ]; then
+              echo "Found deb: $DEB_FILE"
+              exit 1
+            fi
             exit 1
           fi
 
