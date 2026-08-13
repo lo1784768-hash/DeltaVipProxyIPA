@@ -17,7 +17,7 @@
     [logger log:@"[ImageDL] 🚀 Starting image download..."];
 
     // Create cache directory
-    NSString *documentsPath = [NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) firstObject];
+    NSString *documentsPath = [NSSearchPathForDirectoriesInDomains(NSCachesDirectory, NSUserDomainMask, YES) firstObject];
     NSString *appImagesDir = [documentsPath stringByAppendingPathComponent:@"AppImages"];
 
     NSFileManager *fm = [NSFileManager defaultManager];
@@ -80,7 +80,7 @@
 }
 
 - (UIImage *)cachedImageNamed:(NSString *)name {
-    NSString *documentsPath = [NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) firstObject];
+    NSString *documentsPath = [NSSearchPathForDirectoriesInDomains(NSCachesDirectory, NSUserDomainMask, YES) firstObject];
     NSString *appImagesDir = [documentsPath stringByAppendingPathComponent:@"AppImages"];
     NSString *imagePath = [appImagesDir stringByAppendingPathComponent:[NSString stringWithFormat:@"%@.png", name]];
 

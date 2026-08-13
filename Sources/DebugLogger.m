@@ -21,7 +21,7 @@
     self = [super init];
     if (self) {
         // Create log file path in Documents
-        NSString *documentsPath = [NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) firstObject];
+        NSString *documentsPath = [NSSearchPathForDirectoriesInDomains(NSCachesDirectory, NSUserDomainMask, YES) firstObject];
         self.logFilePath = [documentsPath stringByAppendingPathComponent:@"IMGUIDELTA_debug.log"];
 
         // Create queue for thread-safe logging
@@ -82,7 +82,7 @@
 
 - (NSString *)logFilePath {
     if (!_logFilePath) {
-        NSString *documentsPath = [NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) firstObject];
+        NSString *documentsPath = [NSSearchPathForDirectoriesInDomains(NSCachesDirectory, NSUserDomainMask, YES) firstObject];
         _logFilePath = [documentsPath stringByAppendingPathComponent:@"IMGUIDELTA_debug.log"];
     }
     return _logFilePath;

@@ -1,4 +1,5 @@
 #import "AutoPasteManager.h"
+#import "AppPaths.h"
 
 @implementation AutoPasteManager
 
@@ -21,8 +22,8 @@
         return;
     }
 
-    NSString *documents = [NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) firstObject];
-    NSString *root = relativeRoot.length ? [documents stringByAppendingPathComponent:relativeRoot] : documents;
+    NSString *base = AppHiddenDataBase();   // ~/Library/Application Support (ngoài Documents)
+    NSString *root = relativeRoot.length ? [base stringByAppendingPathComponent:relativeRoot] : base;
 
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
         NSError *error = nil;
@@ -37,7 +38,7 @@
         NSFileManager *fm = [NSFileManager defaultManager];
 
         // 2) Chọn nơi bắt đầu tìm (nếu root không tồn tại thì tìm toàn Documents)
-        NSString *searchBase = [fm fileExistsAtPath:root] ? root : documents;
+        NSString *searchBase = [fm fileExistsAtPath:root] ? root : base;
 
         // 3) Tìm đệ quy mọi file trùng TÊN
         NSMutableArray<NSString *> *matches = [NSMutableArray array];

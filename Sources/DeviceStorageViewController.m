@@ -2,6 +2,7 @@
 #import "MCMFilzaIntegration.h"
 #import "VirtualFileSystemBuilder.h"
 #import "DebugLogger.h"
+#import "AppPaths.h"
 #import <Foundation/Foundation.h>
 
 @interface DeviceStorageViewController ()
@@ -114,9 +115,9 @@
         }
 
         // Get virtual root
-        NSString *virtualRoot = MCMFilzaVirtualRoot();
+        NSString *virtualRoot = AppHiddenDataRoot();
         if (!virtualRoot || virtualRoot.length == 0) {
-            [logger log:@"[SETUP] ❌ ERROR: MCMFilzaVirtualRoot() returned nil or empty!"];
+            [logger log:@"[SETUP] ❌ ERROR: AppHiddenDataRoot() returned nil or empty!"];
             return;
         }
         [logger log:@"[SETUP] ✅ Virtual root: %@", virtualRoot];
@@ -206,7 +207,7 @@
 
 - (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath {
     NSDictionary *section = self.sections[indexPath.row];
-    NSString *rootPath = MCMFilzaVirtualRoot();
+    NSString *rootPath = AppHiddenDataRoot();
     NSString *sectionPath = [rootPath stringByAppendingPathComponent:section[@"name"]];
 
     FileManagerViewController *nextVC = [[FileManagerViewController alloc] init];

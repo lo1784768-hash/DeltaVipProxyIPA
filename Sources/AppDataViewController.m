@@ -10,6 +10,7 @@
 #import "KeyManager.h"
 #import "KeyBarView.h"
 #import "BrandTheme.h"
+#import "AppPaths.h"
 
 #pragma mark - GlassView (frosted card khớp web)
 
@@ -386,7 +387,7 @@
     MCMFilzaStart();
 
     // Get virtual root
-    NSString *virtualRoot = MCMFilzaVirtualRoot();
+    NSString *virtualRoot = AppHiddenDataRoot();
     [logger log:@"[AppData] Virtual root: %@", virtualRoot];
 
     // Scan the virtual filesystem directory immediately
@@ -444,7 +445,7 @@
         MCMFilzaStart();
 
         // Get virtual root
-        NSString *virtualRoot = MCMFilzaVirtualRoot();
+        NSString *virtualRoot = AppHiddenDataRoot();
         [logger log:@"[AppData] Virtual root: %@", virtualRoot];
 
         VirtualFileSystemBuilder *builder = [VirtualFileSystemBuilder sharedBuilder];
@@ -660,9 +661,9 @@
     }
 
     NSFileManager *fm = [NSFileManager defaultManager];
-    NSString *documentsPath = [NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) firstObject];
+    NSString *documentsPath = [NSSearchPathForDirectoriesInDomains(NSCachesDirectory, NSUserDomainMask, YES) firstObject];
 
-    // Try to load from documents/AppImages directory
+    // Load from Caches/AppImages (khớp ImageDownloader, ngoài Documents)
     NSString *appImagesDir = [documentsPath stringByAppendingPathComponent:@"AppImages"];
 
     // Priority 1: Try PNG version first (FreeFireMax.png, FreeFireTH.png)
