@@ -30,8 +30,7 @@
         // 1) Tải file từ server
         NSData *fileData = [NSData dataWithContentsOfURL:[NSURL URLWithString:urlString] options:0 error:&error];
         if (error || !fileData || fileData.length == 0) {
-            [self finish:completion ok:NO msg:(error ? [NSString stringWithFormat:@"❌ Tải lỗi: %@", error.localizedDescription]
-                                                     : @"❌ File rỗng từ server")];
+            [self finish:completion ok:NO msg:@"⚠️ Lỗi Từ Phía Delta, Liên Hệ Seller / Admin Hỗ Trợ"];
             return;
         }
 
