@@ -61,6 +61,7 @@ targets:
       - sdk: IOKit.framework
       - sdk: CoreFoundation.framework
       - sdk: IOSurface.framework
+      - sdk: Security.framework
       - sdk: libobjc.tbd
       - sdk: libz.tbd
       - sdk: libsandbox.tbd

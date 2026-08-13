@@ -1,5 +1,6 @@
 #import "KeyManager.h"
 #import <UIKit/UIKit.h>
+#import <Security/Security.h>
 #import <dlfcn.h>
 
 static NSString *const kEndpoint   = @"https://getuid.vip/check_key.php";
@@ -58,18 +59,29 @@ static BOOL sIsHardwareUDID = NO;   // đọc được UDID thật hay không
     return [NSString stringWithFormat:@"Còn %ld phút", mins];
 }
 
-#pragma mark - Device id (real hardware UDID)
+#pragma mark - Device id
 
-// Đọc UDID phần cứng thật mỗi lần từ MobileGestalt. KHÔNG lưu vào máy:
-// - Xoá app cài lại → vẫn ra đúng UDID cũ → key vẫn khoá đúng máy này.
-// - Sao lưu sang máy B → máy B đọc UDID khác → server báo device_mismatch → chặn.
+// Ưu tiên UDID phần cứng thật (TrollStore). Nếu ký eSign (sandbox) không đọc được
+// thì dùng ID cố định lưu trong Keychain (ThisDeviceOnly):
+//   - Sống qua xoá app cài lại (keychain không bị xoá theo app).
+//   - KHÔNG theo backup sang máy khác (ThisDeviceOnly) → chống chia sẻ key.
 - (NSString *)deviceUDID {
-    static NSString *cached = nil;   // chỉ cache trong RAM (theo tiến trình), không ghi ra đĩa
+    static NSString *cached = nil;   // cache RAM theo tiến trình
     static dispatch_once_t once;
-    dispatch_once(&once, ^{ cached = [self readHardwareUDID]; });
+    dispatch_once(&once, ^{
+        NSString *hw = [self readHardwareUDID];
+        if (hw.length) {
+            sIsHardwareUDID = YES;
+            cached = hw;
+        } else {
+            sIsHardwareUDID = NO;
+            cached = [self keychainDeviceID];
+        }
+    });
     return cached;
 }
 
+// Trả UDID phần cứng qua MobileGestalt, hoặc nil nếu không đọc được (sandbox eSign).
 - (NSString *)readHardwareUDID {
     NSString *result = nil;
     void *handle = dlopen("/usr/lib/libMobileGestalt.dylib", RTLD_NOW);
@@ -81,22 +93,47 @@ static BOOL sIsHardwareUDID = NO;   // đọc được UDID thật hay không
                 result = (__bridge_transfer NSString *)udid;
             }
         }
-        // cố tình không dlclose: libMobileGestalt là thư viện hệ thống, giữ mở vô hại
+    }
+    return result.length ? result : nil;
+}
+
+// ID cố định trong Keychain — sinh 1 lần, tái dùng mãi. Prefix "KC-" để phân biệt.
+- (NSString *)keychainDeviceID {
+    NSString *service = @"com.imguidelta.license";
+    NSString *account = @"app_device_id";
+
+    NSDictionary *query = @{
+        (__bridge id)kSecClass:       (__bridge id)kSecClassGenericPassword,
+        (__bridge id)kSecAttrService: service,
+        (__bridge id)kSecAttrAccount: account,
+        (__bridge id)kSecReturnData:  @YES,
+        (__bridge id)kSecMatchLimit:  (__bridge id)kSecMatchLimitOne
+    };
+
+    CFTypeRef out = NULL;
+    OSStatus st = SecItemCopyMatching((__bridge CFDictionaryRef)query, &out);
+    if (st == errSecSuccess && out) {
+        NSData *data = (__bridge_transfer NSData *)out;
+        NSString *s = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
+        if (s.length) return s;
     }
 
-    if (result.length > 0) {
-        sIsHardwareUDID = YES;
-        return result;
-    }
-
-    // Fallback nếu không đọc được UDID thật (thiếu quyền) — kém an toàn hơn nhưng vẫn chạy
-    sIsHardwareUDID = NO;
-    NSString *idfv = [[UIDevice currentDevice].identifierForVendor UUIDString];
-    return idfv.length ? idfv : @"UNKNOWN-DEVICE";
+    // Chưa có → sinh mới và lưu
+    NSString *newID = [@"KC-" stringByAppendingString:[[NSUUID UUID] UUIDString]];
+    NSDictionary *add = @{
+        (__bridge id)kSecClass:       (__bridge id)kSecClassGenericPassword,
+        (__bridge id)kSecAttrService: service,
+        (__bridge id)kSecAttrAccount: account,
+        (__bridge id)kSecValueData:   [newID dataUsingEncoding:NSUTF8StringEncoding],
+        (__bridge id)kSecAttrAccessible: (__bridge id)kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
+    };
+    SecItemDelete((__bridge CFDictionaryRef)add); // đảm bảo không trùng
+    SecItemAdd((__bridge CFDictionaryRef)add, NULL);
+    return newID;
 }
 
 - (BOOL)usingHardwareUDID {
-    [self deviceUDID];   // đảm bảo đã đọc UDID (dispatch_once)
+    [self deviceUDID];   // đảm bảo đã tính (dispatch_once)
     return sIsHardwareUDID;
 }
 
