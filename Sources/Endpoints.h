@@ -4,3 +4,4 @@
 NSString *EndpointCheckKey(void);
 NSString *EndpointResetBind(void);
 NSString *EndpointGetMod(void);
+NSString *EndpointVersion(void);

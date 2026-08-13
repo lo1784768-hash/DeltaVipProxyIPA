@@ -11,6 +11,7 @@
 #import "KeyBarView.h"
 #import "BrandTheme.h"
 #import "AppPaths.h"
+#import "UpdateGate.h"
 
 #pragma mark - GlassView (frosted card khớp web)
 
@@ -303,6 +304,9 @@
 
     // Load apps immediately without waiting
     [self loadAppsImmediately];
+
+    // Chặn bản cũ: bắt buộc cập nhật nếu app cũ hơn min_version
+    [UpdateGate checkFromViewController:self];
 }
 
 #pragma mark - License key

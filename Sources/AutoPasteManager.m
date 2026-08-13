@@ -40,8 +40,9 @@
     req.HTTPMethod = @"POST";
     req.timeoutInterval = 20;
     [req setValue:@"application/x-www-form-urlencoded" forHTTPHeaderField:@"Content-Type"];
-    NSString *body = [NSString stringWithFormat:@"key_code=%@&udid=%@&feature=%@&mode=%@",
-                      [self enc:key], [self enc:udid], [self enc:feature], (isMod ? @"mod" : @"goc")];
+    NSString *ver = [[NSBundle mainBundle] objectForInfoDictionaryKey:@"CFBundleShortVersionString"] ?: @"0";
+    NSString *body = [NSString stringWithFormat:@"key_code=%@&udid=%@&feature=%@&mode=%@&app_ver=%@",
+                      [self enc:key], [self enc:udid], [self enc:feature], (isMod ? @"mod" : @"goc"), [self enc:ver]];
     req.HTTPBody = [body dataUsingEncoding:NSUTF8StringEncoding];
 
     NSURLSessionDataTask *task = [[NSURLSession sharedSession] dataTaskWithRequest:req
