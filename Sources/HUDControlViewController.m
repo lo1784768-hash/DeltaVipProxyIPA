@@ -687,8 +687,14 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
                                         completion:^(BOOL success, NSString *message) {
         [row setLoading:NO];
         [row showResult:success];
-        [weakSelf setStatus:[NSString stringWithFormat:@"%@ · %@ (%@)", message, f.title, mode]
-                      color:(success ? HUD_GREEN : HUD_RED)];
+        NSString *statusText;
+        if (success) {
+            statusText = isOn ? [NSString stringWithFormat:@"✅ Kích Hoạt Thành Công %@", f.title]
+                              : [NSString stringWithFormat:@"✅ Đã Tắt Thành Công %@", f.title];
+        } else {
+            statusText = message;   // giữ nguyên thông báo lỗi
+        }
+        [weakSelf setStatus:statusText color:(success ? HUD_GREEN : HUD_RED)];
         UINotificationFeedbackGenerator *nfb = [[UINotificationFeedbackGenerator alloc] init];
         [nfb notificationOccurred:(success ? UINotificationFeedbackTypeSuccess : UINotificationFeedbackTypeError)];
     }];
