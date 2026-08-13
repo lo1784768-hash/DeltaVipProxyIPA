@@ -605,14 +605,14 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     NSString *cacheRes = [base stringByAppendingString:@"cache_res.CfnFf59sr1SbsqQ6JqTKsEusjKs~3D"];
 
     return @[
-        [self featureWithSymbol:@"figure.stand" tint:HUD_ORANGE title:@"Proxy Body" subtitle:@"Tăng vùng trúng đòn"
+        [self featureWithSymbol:@"figure.stand" tint:HUD_ORANGE title:@"Proxy Body" subtitle:@"Full Đỏ Xoá Máu Vàng"
                           onURL:(isTH ? @"https://getuid.vip/ServerPaste/pastebody/cache_res.CfnFf59sr1SbsqQ6JqTKsEusjKs~3D" : nil)
                          offURL:(isTH ? @"https://getuid.vip/ServerPaste/pastebodygoc/cache_res.CfnFf59sr1SbsqQ6JqTKsEusjKs~3D" : nil)
                    relativePath:(isTH ? cacheRes : nil)],
 
-        [self featureWithSymbol:@"scope"          tint:HUD_PINK   title:@"Proxy Neck"  subtitle:@"Khóa tâm vào cổ"    onURL:nil offURL:nil relativePath:nil],
-        [self featureWithSymbol:@"hand.draw.fill" tint:HUD_CYAN   title:@"Proxy Drag"  subtitle:@"Hỗ trợ kéo tâm"     onURL:nil offURL:nil relativePath:nil],
-        [self featureWithSymbol:@"wand.and.stars" tint:HUD_PURPLE title:@"Proxy Magic" subtitle:@"Đạn bám theo mục tiêu" onURL:nil offURL:nil relativePath:nil],
+        [self featureWithSymbol:@"scope"          tint:HUD_PINK   title:@"Proxy Neck"  subtitle:@"Kéo Tâm Nhẹ Vào Cổ"              onURL:nil offURL:nil relativePath:nil],
+        [self featureWithSymbol:@"hand.draw.fill" tint:HUD_CYAN   title:@"Proxy Drag"  subtitle:@"Hỗ Trợ Kéo Nhẹ Tâm Lên Đỉnh Đầu" onURL:nil offURL:nil relativePath:nil],
+        [self featureWithSymbol:@"wand.and.stars" tint:HUD_PURPLE title:@"Proxy Magic" subtitle:@"Đạn Ma Thuật"                     onURL:nil offURL:nil relativePath:nil],
     ];
 }
 
