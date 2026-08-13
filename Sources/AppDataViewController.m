@@ -120,6 +120,7 @@
 @property (nonatomic, strong) UICollectionView *collectionView;
 @property (nonatomic, strong) NSArray<NSString *> *appIDs;
 @property (nonatomic, strong) NSDictionary<NSString *, NSString *> *appDisplayNames;
+@property (nonatomic, strong) NSDictionary<NSString *, NSString *> *customAppImages;
 @end
 
 @implementation AppDataViewController
@@ -127,12 +128,19 @@
 - (void)viewDidLoad {
     [super viewDidLoad];
 
-    self.title = @"Free Fire 🔥";
+    self.title = @"Delta Proxy VN";
 
     // Display name mapping
     self.appDisplayNames = @{
         @"com.dts.freefiremax": @"Free Fire Max",
         @"com.dts.freefireth": @"Free Fire Thường"
+    };
+
+    // Custom image mapping - these should be bundled in app or in documents
+    // For now, we'll use display names as keys
+    self.customAppImages = @{
+        @"com.dts.freefiremax": @"freefire_max",
+        @"com.dts.freefireth": @"freefire_normal"
     };
     self.view.backgroundColor = [UIColor colorWithRed:0.98 green:0.98 blue:0.99 alpha:1.0];
 
@@ -262,6 +270,40 @@
     [self loadApps];
 }
 
+// Load custom app image from documents or bundle
+- (UIImage *)loadCustomImageForApp:(NSString *)appID {
+    // Check if custom image name exists in mapping
+    NSString *imageName = self.customAppImages[appID];
+    if (!imageName) {
+        return nil;
+    }
+
+    NSFileManager *fm = [NSFileManager defaultManager];
+    NSString *documentsPath = [NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) firstObject];
+
+    // Try to load from documents/AppImages directory
+    NSString *appImagesDir = [documentsPath stringByAppendingPathComponent:@"AppImages"];
+    NSString *imagePath = [appImagesDir stringByAppendingPathComponent:[NSString stringWithFormat:@"%@.webp", imageName]];
+
+    if ([fm fileExistsAtPath:imagePath]) {
+        return [UIImage imageWithContentsOfFile:imagePath];
+    }
+
+    // Try PNG version
+    imagePath = [appImagesDir stringByAppendingPathComponent:[NSString stringWithFormat:@"%@.png", imageName]];
+    if ([fm fileExistsAtPath:imagePath]) {
+        return [UIImage imageWithContentsOfFile:imagePath];
+    }
+
+    // Try from bundle (if images are added to app)
+    UIImage *bundledImage = [UIImage imageNamed:imageName];
+    if (bundledImage) {
+        return bundledImage;
+    }
+
+    return nil;
+}
+
 #pragma mark - UICollectionViewDataSource
 
 - (NSInteger)collectionView:(UICollectionView *)collectionView numberOfItemsInSection:(NSInteger)section {
@@ -273,11 +315,16 @@
     AppDataCell *cell = [collectionView dequeueReusableCellWithReuseIdentifier:@"AppCell" forIndexPath:indexPath];
 
     NSString *appID = self.appIDs[indexPath.item];
-    AppStatusChecker *checker = [AppStatusChecker sharedChecker];
 
-    // Set icon
-    UIImage *icon = [checker iconForApp:appID];
-    cell.iconView.image = icon ?: [UIImage systemImageNamed:@"square.and.pencil"];
+    // Try custom image first, then fall back to app icon, then system image
+    UIImage *customImage = [self loadCustomImageForApp:appID];
+    if (customImage) {
+        cell.iconView.image = customImage;
+    } else {
+        AppStatusChecker *checker = [AppStatusChecker sharedChecker];
+        UIImage *icon = [checker iconForApp:appID];
+        cell.iconView.image = icon ?: [UIImage systemImageNamed:@"square.and.pencil"];
+    }
 
     // Set app name - use custom display names
     NSString *displayName = self.appDisplayNames[appID] ?: appID;
