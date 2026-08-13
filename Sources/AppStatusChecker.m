@@ -1,4 +1,5 @@
 #import "AppStatusChecker.h"
+#import "DebugLogger.h"
 
 @interface LSApplicationWorkspace : NSObject
 + (instancetype)defaultWorkspace;
@@ -24,21 +25,27 @@
 }
 
 - (BOOL)isAppRunning:(NSString *)bundleID {
+    DebugLogger *logger = [DebugLogger sharedLogger];
+
     @try {
-        // Try method 1: Check if app process is running using UIApplication
+        // Method 1: Check if app process is running using UIApplication
         Class UIAppClass = NSClassFromString(@"UIApplication");
         if (UIAppClass) {
             SEL sharedAppSelector = NSSelectorFromString(@"sharedApplication");
             id sharedApp = [UIAppClass performSelector:sharedAppSelector];
             if (sharedApp) {
+                // Try _runningApplications
                 SEL applicationsSelector = NSSelectorFromString(@"_runningApplications");
                 if ([sharedApp respondsToSelector:applicationsSelector]) {
                     NSArray *runningApps = [sharedApp performSelector:applicationsSelector];
+                    [logger log:@"[AppStatus] Found %lu running apps", (unsigned long)runningApps.count];
+
                     for (id app in runningApps) {
                         SEL bundleIDSelector = NSSelectorFromString(@"bundleIdentifier");
                         if ([app respondsToSelector:bundleIDSelector]) {
                             NSString *appBundleID = [app performSelector:bundleIDSelector];
                             if ([appBundleID isEqualToString:bundleID]) {
+                                [logger log:@"[AppStatus] ✅ %@ is RUNNING (via UIApp)", bundleID];
                                 return YES;
                             }
                         }
@@ -47,31 +54,65 @@
             }
         }
 
-        // Try method 2: LSApplicationWorkspace
+        // Method 2: FrontBoard / SBApplication check
+        Class FBWorkspaceClass = NSClassFromString(@"FBWorkspace");
+        if (FBWorkspaceClass) {
+            SEL sharedInstanceSelector = NSSelectorFromString(@"sharedInstance");
+            id workspace = [FBWorkspaceClass performSelector:sharedInstanceSelector];
+            if (workspace) {
+                SEL appWithBundleIDSelector = NSSelectorFromString(@"applicationWithBundleIdentifier:");
+                if ([workspace respondsToSelector:appWithBundleIDSelector]) {
+                    id app = [workspace performSelector:appWithBundleIDSelector withObject:bundleID];
+                    if (app) {
+                        SEL isRunningSelector = NSSelectorFromString(@"isRunning");
+                        if ([app respondsToSelector:isRunningSelector]) {
+                            BOOL running = [[app performSelector:isRunningSelector] boolValue];
+                            if (running) {
+                                [logger log:@"[AppStatus] ✅ %@ is RUNNING (via FrontBoard)", bundleID];
+                                return YES;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Method 3: LSApplicationWorkspace
         Class LSAppWorkspaceClass = NSClassFromString(@"LSApplicationWorkspace");
-        if (!LSAppWorkspaceClass) return NO;
+        if (LSAppWorkspaceClass) {
+            SEL defaultWorkspaceSelector = NSSelectorFromString(@"defaultWorkspace");
+            id workspace = [LSAppWorkspaceClass performSelector:defaultWorkspaceSelector];
+            if (workspace) {
+                SEL appProxySelector = NSSelectorFromString(@"applicationProxyForIdentifier:");
+                id appProxy = [workspace performSelector:appProxySelector withObject:bundleID];
+                if (appProxy) {
+                    // Try isRunning
+                    SEL isRunningSelector = NSSelectorFromString(@"isRunning");
+                    if ([appProxy respondsToSelector:isRunningSelector]) {
+                        BOOL running = [[appProxy performSelector:isRunningSelector] boolValue];
+                        if (running) {
+                            [logger log:@"[AppStatus] ✅ %@ is RUNNING (via LSAppWorkspace.isRunning)", bundleID];
+                            return YES;
+                        }
+                    }
 
-        SEL defaultWorkspaceSelector = NSSelectorFromString(@"defaultWorkspace");
-        id workspace = [LSAppWorkspaceClass performSelector:defaultWorkspaceSelector];
-        if (!workspace) return NO;
-
-        SEL appProxySelector = NSSelectorFromString(@"applicationProxyForIdentifier:");
-        id appProxy = [workspace performSelector:appProxySelector withObject:bundleID];
-        if (!appProxy) return NO;
-
-        // Try different selectors for running status
-        SEL isRunningSelector = NSSelectorFromString(@"isRunning");
-        if ([appProxy respondsToSelector:isRunningSelector]) {
-            return [[appProxy performSelector:isRunningSelector] boolValue];
+                    // Try isActive
+                    SEL isActiveSelector = NSSelectorFromString(@"isActive");
+                    if ([appProxy respondsToSelector:isActiveSelector]) {
+                        BOOL active = [[appProxy performSelector:isActiveSelector] boolValue];
+                        if (active) {
+                            [logger log:@"[AppStatus] ✅ %@ is RUNNING (via LSAppWorkspace.isActive)", bundleID];
+                            return YES;
+                        }
+                    }
+                }
+            }
         }
 
-        SEL isActiveSelector = NSSelectorFromString(@"isActive");
-        if ([appProxy respondsToSelector:isActiveSelector]) {
-            return [[appProxy performSelector:isActiveSelector] boolValue];
-        }
-
+        [logger log:@"[AppStatus] ⚫ %@ is NOT running", bundleID];
         return NO;
     } @catch (NSException *e) {
+        [[DebugLogger sharedLogger] log:@"[AppStatus] ❌ Exception checking %@: %@", bundleID, e];
         return NO;
     }
 }
