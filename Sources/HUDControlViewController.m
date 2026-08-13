@@ -641,7 +641,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
         [row.toggle setOn:!isOn animated:YES];
         [row setActive:NO];
         [row showResult:NO];
-        [self setStatus:[NSString stringWithFormat:@"⚠️ %@ chưa có URL", f.title] color:HUD_ORANGE];
+        [self setStatus:[NSString stringWithFormat:@"🔧 %@ đang Bảo Trì", f.title] color:HUD_ORANGE];
         return;
     }
 
