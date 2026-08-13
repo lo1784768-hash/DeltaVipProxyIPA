@@ -527,17 +527,15 @@
         [self.statsView.topAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.topAnchor constant:8],
         [self.statsView.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor constant:16],
         [self.statsView.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor constant:-16],
-        [self.statsView.heightAnchor constraintEqualToConstant:104]
+        [self.statsView.heightAnchor constraintEqualToConstant:76]
     ]];
 
     UIView *iosRow  = [self statRowText:[NSString stringWithFormat:@"iOS  %@", [[UIDevice currentDevice] systemVersion]]
                                  symbol:@"applelogo" tint:BRAND_PURPLE valueColor:BRAND_MUTED labelTag:0];
     UIView *devRow  = [self statRowText:[NSString stringWithFormat:@"Device  %@", [[UIDevice currentDevice] name]]
                                  symbol:@"iphone" tint:BRAND_CYAN valueColor:BRAND_MUTED labelTag:0];
-    UIView *keysRow = [self statRowText:@"Active Keys  0"
-                                 symbol:@"key.fill" tint:BRAND_GREEN valueColor:BRAND_GREEN labelTag:999];
 
-    UIStackView *stack = [[UIStackView alloc] initWithArrangedSubviews:@[iosRow, devRow, keysRow]];
+    UIStackView *stack = [[UIStackView alloc] initWithArrangedSubviews:@[iosRow, devRow]];
     stack.axis = UILayoutConstraintAxisVertical;
     stack.spacing = 10;
     stack.translatesAutoresizingMaskIntoConstraints = NO;
