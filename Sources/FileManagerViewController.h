@@ -7,4 +7,8 @@
 @property (nonatomic, strong) NSString *sectionName;
 @property (nonatomic, strong) NSString *containerClass;
 @property (nonatomic, strong) UISearchBar *searchBar;
+
+// File clipboard for copy/paste operations
+@property (nonatomic, strong, class) NSString *clipboardFilePath;
+@property (nonatomic, strong, class) NSString *clipboardFileName;
 @end

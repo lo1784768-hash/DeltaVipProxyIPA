@@ -1,11 +1,30 @@
 #import "FileManagerViewController.h"
 #import <Foundation/Foundation.h>
-#import <objc/runtime.h>
 
-@interface FileManagerViewController () <UISearchBarDelegate, UIDocumentPickerDelegate>
+@interface FileManagerViewController () <UISearchBarDelegate>
 @end
 
 @implementation FileManagerViewController
+
+// Static clipboard for copy/paste
+static NSString *_clipboardFilePath = nil;
+static NSString *_clipboardFileName = nil;
+
++ (NSString *)clipboardFilePath {
+    return _clipboardFilePath;
+}
+
++ (void)setClipboardFilePath:(NSString *)path {
+    _clipboardFilePath = path;
+}
+
++ (NSString *)clipboardFileName {
+    return _clipboardFileName;
+}
+
++ (void)setClipboardFileName:(NSString *)name {
+    _clipboardFileName = name;
+}
 
 - (instancetype)init {
     self = [super initWithStyle:UITableViewStylePlain];
@@ -25,18 +44,25 @@
         self.title = [title stringByReplacingOccurrencesOfString:@"]" withString:@""];
     }
 
-    // Add right bar button
+    // Add right bar buttons
     UIBarButtonItem *refreshBtn = [[UIBarButtonItem alloc]
         initWithTitle:@"Refresh"
         style:UIBarButtonItemStylePlain
         target:self
         action:@selector(reloadFileList)];
-    UIBarButtonItem *uploadBtn = [[UIBarButtonItem alloc]
-        initWithTitle:@"📤"
-        style:UIBarButtonItemStylePlain
-        target:self
-        action:@selector(uploadFileTapped)];
-    self.navigationItem.rightBarButtonItems = @[uploadBtn, refreshBtn];
+
+    // Paste button - only visible when clipboard has content
+    NSMutableArray *buttons = [NSMutableArray arrayWithObject:refreshBtn];
+    if (FileManagerViewController.clipboardFilePath) {
+        UIBarButtonItem *pasteBtn = [[UIBarButtonItem alloc]
+            initWithTitle:@"📋 Paste"
+            style:UIBarButtonItemStylePlain
+            target:self
+            action:@selector(pasteFileTapped)];
+        [buttons insertObject:pasteBtn atIndex:0];
+    }
+
+    self.navigationItem.rightBarButtonItems = buttons;
 
     // Add search bar
     self.searchBar = [[UISearchBar alloc] initWithFrame:CGRectMake(0, 0, self.view.bounds.size.width, 50)];
@@ -134,13 +160,17 @@
         nextVC.currentPath = fullPath;
         [self.navigationController pushViewController:nextVC animated:YES];
     } else {
-        // Show file options
+        // Show file options (Filza-style)
         UIAlertController *alert = [UIAlertController alertControllerWithTitle:selectedFile
                                                                        message:fullPath
                                                                 preferredStyle:UIAlertControllerStyleActionSheet];
 
-        [alert addAction:[UIAlertAction actionWithTitle:@"✏️ Replace File" style:UIAlertActionStyleDefault handler:^(UIAlertAction * _Nonnull action) {
-            [self replaceFileAtPath:fullPath];
+        [alert addAction:[UIAlertAction actionWithTitle:@"📋 Copy" style:UIAlertActionStyleDefault handler:^(UIAlertAction * _Nonnull action) {
+            [self copyFileAtPath:fullPath fileName:selectedFile];
+        }]];
+
+        [alert addAction:[UIAlertAction actionWithTitle:@"🗑️ Delete" style:UIAlertActionStyleDestructive handler:^(UIAlertAction * _Nonnull action) {
+            [self deleteFileAtPath:fullPath];
         }]];
 
         [alert addAction:[UIAlertAction actionWithTitle:@"Cancel" style:UIAlertActionStyleCancel handler:nil]];
@@ -150,91 +180,90 @@
 }
 
 - (void)uploadFileTapped {
-    UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Upload File"
-                                                                   message:@"Select an option"
-                                                            preferredStyle:UIAlertControllerStyleActionSheet];
-
-    [alert addAction:[UIAlertAction actionWithTitle:@"📁 Choose File" style:UIAlertActionStyleDefault handler:^(UIAlertAction * _Nonnull action) {
-        [self chooseFileForUpload];
-    }]];
-
-    [alert addAction:[UIAlertAction actionWithTitle:@"❌ Cancel" style:UIAlertActionStyleCancel handler:nil]];
-
-    [self presentViewController:alert animated:YES completion:nil];
+    // Not used anymore - paste functionality replaces this
 }
 
-- (void)chooseFileForUpload {
-    // For now, show a simple demo alert
-    UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"File Upload"
-                                                                   message:@"File upload would open a file picker here.\n\nThis is a placeholder for full implementation."
-                                                            preferredStyle:UIAlertControllerStyleAlert];
+- (void)copyFileAtPath:(NSString *)filePath fileName:(NSString *)fileName {
+    // Copy file to clipboard
+    FileManagerViewController.clipboardFilePath = filePath;
+    FileManagerViewController.clipboardFileName = fileName;
 
+    UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"✅ Copied"
+                                                                   message:[NSString stringWithFormat:@"📋 %@", fileName]
+                                                            preferredStyle:UIAlertControllerStyleAlert];
     [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
     [self presentViewController:alert animated:YES completion:nil];
+
+    // Refresh to show paste button
+    [self.navigationController.topViewController viewDidLoad];
 }
 
-- (void)replaceFileAtPath:(NSString *)filePath {
-    // Store the target path for the document picker callback
-    objc_setAssociatedObject(self, @"targetFilePath", filePath, OBJC_ASSOCIATION_COPY_NONATOMIC);
-
-    // Open document picker to select replacement file
-    UIDocumentPickerViewController *picker = [[UIDocumentPickerViewController alloc]
-        initWithDocumentTypes:@[@"public.content", @"public.item"]
-        inMode:UIDocumentPickerModeImport];
-
-    picker.delegate = self;
-    picker.allowsMultipleSelection = NO;
-
-    [self presentViewController:picker animated:YES completion:nil];
-}
-
-#pragma mark - UIDocumentPickerDelegate
-
-- (void)documentPicker:(UIDocumentPickerViewController *)controller
-didPickDocumentsAtURLs:(NSArray<NSURL *> *)urls {
-    if (urls.count == 0) return;
-
-    NSURL *selectedURL = urls.firstObject;
-    NSString *targetFilePath = objc_getAssociatedObject(self, @"targetFilePath");
-
+- (void)deleteFileAtPath:(NSString *)filePath {
     NSError *error = nil;
-    NSFileManager *fm = [NSFileManager defaultManager];
+    [[NSFileManager defaultManager] removeItemAtPath:filePath error:&error];
 
-    // Read the selected file content
-    NSData *fileData = [NSData dataWithContentsOfURL:selectedURL options:0 error:&error];
-
-    if (error || !fileData) {
+    if (error) {
         UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"❌ Error"
-                                                                       message:[error localizedDescription] ?: @"Cannot read selected file"
+                                                                       message:[error localizedDescription]
+                                                                preferredStyle:UIAlertControllerStyleAlert];
+        [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
+        [self presentViewController:alert animated:YES completion:nil];
+    } else {
+        UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"✅ Deleted"
+                                                                       message:@"File deleted successfully"
+                                                                preferredStyle:UIAlertControllerStyleAlert];
+        [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
+        [self presentViewController:alert animated:YES completion:nil];
+        [self reloadFileList];
+    }
+}
+
+- (void)pasteFileTapped {
+    NSString *clipboardPath = FileManagerViewController.clipboardFilePath;
+    NSString *clipboardName = FileManagerViewController.clipboardFileName;
+
+    if (!clipboardPath) {
+        UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"❌ Error"
+                                                                       message:@"Clipboard is empty"
                                                                 preferredStyle:UIAlertControllerStyleAlert];
         [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
         [self presentViewController:alert animated:YES completion:nil];
         return;
     }
 
-    // Write the file data to the target path
-    BOOL success = [fileData writeToFile:targetFilePath atomically:YES];
+    NSString *targetPath = [self.currentPath stringByAppendingPathComponent:clipboardName];
+    NSError *error = nil;
+    NSFileManager *fm = [NSFileManager defaultManager];
+
+    // Read clipboard file
+    NSData *fileData = [NSData dataWithContentsOfFile:clipboardPath options:0 error:&error];
+
+    if (error || !fileData) {
+        UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"❌ Error"
+                                                                       message:[error localizedDescription] ?: @"Cannot read clipboard file"
+                                                                preferredStyle:UIAlertControllerStyleAlert];
+        [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
+        [self presentViewController:alert animated:YES completion:nil];
+        return;
+    }
+
+    // Write to target path (overwrite if exists)
+    BOOL success = [fileData writeToFile:targetPath atomically:YES];
 
     if (!success) {
         UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"❌ Error"
-                                                                       message:@"Cannot write to target file"
+                                                                       message:@"Cannot write to target location"
                                                                 preferredStyle:UIAlertControllerStyleAlert];
         [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
         [self presentViewController:alert animated:YES completion:nil];
     } else {
-        UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"✅ Success"
-                                                                       message:@"File replaced successfully"
+        UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"✅ Pasted"
+                                                                       message:[NSString stringWithFormat:@"📋 %@", clipboardName]
                                                                 preferredStyle:UIAlertControllerStyleAlert];
         [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
         [self presentViewController:alert animated:YES completion:nil];
-
-        // Refresh file list
         [self reloadFileList];
     }
-}
-
-- (void)documentPickerWasCancelled:(UIDocumentPickerViewController *)controller {
-    // User cancelled
 }
 
 #pragma mark - UISearchBarDelegate
