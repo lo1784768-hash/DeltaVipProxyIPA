@@ -691,6 +691,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
                                         completion:^(BOOL success, NSString *message) {
         [row setLoading:NO];
         [row showResult:success];
+        if (!success) { [row.toggle setOn:NO animated:YES]; [row setActive:NO]; }
         NSString *statusText;
         if (success) {
             statusText = isOn ? [NSString stringWithFormat:@"✅ Kích Hoạt Thành Công %@", f.title]
