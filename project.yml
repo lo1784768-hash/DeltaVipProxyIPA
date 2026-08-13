@@ -1,0 +1,76 @@
+name: IMGUIDELTA
+options:
+  bundleIdPrefix: com.imguidelta
+  deploymentTarget:
+    iOS: "15.0"
+  usesTabs: false
+  indentWidth: 2
+
+targets:
+  IMGUIDELTA:
+    type: application
+    platform: iOS
+
+    sources:
+      - path: Sources
+      - path: kexploit
+        compileExtensions:
+          - m
+          - c
+      - path: kpf
+        compileExtensions:
+          - m
+          - c
+      - path: XPF
+        compileExtensions:
+          - c
+      - path: utils
+        compileExtensions:
+          - c
+      - path: compat
+
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.imguidelta.app
+        PRODUCT_NAME: IMGUIDELTA
+        TARGETED_DEVICE_FAMILY: "1,2"
+        SWIFT_VERSION: "5.0"
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: IMGUIDELTA
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: NO
+        INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: YES
+        CODE_SIGN_STYLE: Manual
+        CODE_SIGN_IDENTITY: ""
+        CODE_SIGNING_REQUIRED: NO
+        CODE_SIGNING_ALLOWED: NO
+        DEVELOPMENT_TEAM: ""
+        CODE_SIGN_ENTITLEMENTS: IMGUIDELTA/IMGUIDELTA.entitlements
+
+        # Compiler flags for exploit code
+        OTHER_CFLAGS: -I$(SRCROOT)/compat -I$(SRCROOT)/XPF/src -I$(SRCROOT)/XPF/external/ChOma/include -fobjc-arc -Wno-unused-function -Wno-unused-variable -Wno-incompatible-pointer-types -Wno-deprecated-declarations
+
+        # ARC enabled
+        CLANG_ENABLE_OBJC_ARC: YES
+
+        GCC_PREPROCESSOR_DEFINITIONS: $(inherited) DEBUG=1
+
+    dependencies:
+      - sdk: UIKit.framework
+      - sdk: Foundation.framework
+      - sdk: IOKit.framework
+      - sdk: CoreFoundation.framework
+      - sdk: IOSurface.framework
+      - sdk: libobjc.tbd
+      - sdk: libz.tbd
+      - sdk: libsandbox.tbd
+
+    buildSettings:
+      Debug:
+        COPY_PHASE_STRIP: NO
+      Release:
+        COPY_PHASE_STRIP: YES
+
+    scheme:
+      testTargets: []
+      gatherCoverageData: false

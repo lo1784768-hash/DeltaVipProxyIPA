@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>application-identifier</key>
+	<string>$(BUNDLE_IDENTIFIER)</string>
+
+	<!-- MobileHouseArrest for sandbox escape -->
+	<key>com.apple.mobile.MobileHouseArrest</key>
+	<true/>
+
+	<!-- Allow kernel read/write for exploit -->
+	<key>com.apple.private.kernel.override-jit-require-on-device</key>
+	<true/>
+
+	<!-- IOKit access for hardware -->
+	<key>com.apple.private.iokit.user-client-class</key>
+	<array>
+		<string>IOSurfaceRootUserClient</string>
+		<string>IOHIDParamUserClient</string>
+	</array>
+
+	<!-- File system access -->
+	<key>com.apple.security.files.user-selected.read-write</key>
+	<true/>
+
+	<!-- Debugger capabilities -->
+	<key>get-task-allow</key>
+	<true/>
+</dict>
+</plist>

@@ -1,4 +1,4 @@
-name: Build IMGUIDELTA IPA
+name: Build IMGUIDELTA (Xcode)
 
 on:
   push:
@@ -17,27 +17,20 @@ jobs:
     runs-on: macos-latest
 
     steps:
-      - name: Checkout IMGUIDELTA
+      - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
-      # Setup Theos framework
-      - name: Setup Theos
+      # Install XcodeGen
+      - name: Install XcodeGen
         run: |
-          git clone --depth 1 --recursive https://github.com/theos/theos.git ~/theos
-          echo "THEOS=~/theos" >> $GITHUB_ENV
-          echo "PATH=~/theos/bin:$PATH" >> $GITHUB_ENV
+          brew install xcodegen
 
-      # Install dependencies
-      - name: Install Build Dependencies
-        run: |
-          brew install ldid dpkg
-
-      # Download exploit code from FilzaSlop reference
-      - name: Download Exploit Code
+      # Download exploit code from FilzaSlop
+      - name: Download FilzaSlop Exploit Code
         run: |
           echo "Downloading FilzaSlop exploit framework..."
-
-          # Clone FilzaSlop (skip large wallpaper samples)
           git clone --depth 1 --filter=blob:none --sparse https://github.com/0xjohnnydev/FilzaSlop.git filzaslop_src
           cd filzaslop_src
           git sparse-checkout set --no-cone kexploit kpf XPF utils compat sandbox_escape.m sandbox_escape.h apfs_own.m apfs_own.h
@@ -61,115 +54,99 @@ jobs:
           rm -rf filzaslop_src
 
           echo "✓ Exploit code ready"
-          find . -name "*.m" -o -name "*.c" | grep -E "(kexploit|kpf|XPF|apfs|sandbox)" | head -20
 
-      # Build app with Theos
+      # Generate Xcode project from XcodeGen
+      - name: Generate Xcode Project
+        run: |
+          xcodegen generate
+          echo "✓ Xcode project generated"
+          ls -lah IMGUIDELTA.xcodeproj/
+
+      # Build with Xcode
       - name: Build IMGUIDELTA
         run: |
-          export THEOS=~/theos
-          make clean
-          make package FINALPACKAGE=1 2>&1 | tee build.log
-          echo "Build completed. Exit code: $?"
+          xcodebuild \
+            -scheme IMGUIDELTA \
+            -configuration Release \
+            -sdk iphoneos \
+            -derivedDataPath build \
+            -verbose
 
-      # Debug: Show build output and directory structure
-      - name: Debug Build Output
-        if: always()
+      # Create IPA from built app
+      - name: Package IPA
         run: |
-          echo "=== Build Log ==="
-          cat build.log || echo "No build.log found"
-          echo ""
-          echo "=== Directory Structure ==="
-          find . -type f \( -name "*.ipa" -o -name "*.deb" -o -name "*.log" \) -o -type d -name "packages" 2>/dev/null | head -20
-          echo ""
-          echo "=== Root Contents ==="
-          ls -lah
-          echo ""
-          echo "=== Packages Directory ==="
-          ls -lah packages/ 2>/dev/null || echo "No packages directory"
+          echo "Creating IPA from built app..."
+          BUILT_APP="build/Build/Products/Release-iphoneos/IMGUIDELTA.app"
 
-      # Find and rename the built IPA
-      - name: Prepare IPA Artifact
-        run: |
-          echo "Searching for IPA files..."
-          IPA_FILE=$(find . -name "*.ipa" -type f 2>/dev/null | head -1)
-          if [ -z "$IPA_FILE" ]; then
-            echo "Error: No IPA file found after build!"
-            echo "Checking for deb files instead..."
-            DEB_FILE=$(find . -name "*.deb" -type f 2>/dev/null | head -1)
-            if [ -n "$DEB_FILE" ]; then
-              echo "Found deb: $DEB_FILE"
-              exit 1
-            fi
+          if [ ! -d "$BUILT_APP" ]; then
+            echo "Error: Built app not found at $BUILT_APP"
+            find build -name "*.app" -type d
             exit 1
           fi
 
-          # Rename to versioned filename
-          VERSION=$(grep "Version:" control | awk '{print $2}')
-          DEST_NAME="IMGUIDELTA-v${VERSION}-unsigned.ipa"
-          cp "$IPA_FILE" "$DEST_NAME"
-          echo "IPA_PATH=$DEST_NAME" >> $GITHUB_ENV
-          echo "IPA built: $DEST_NAME"
+          mkdir -p Payload
+          cp -r "$BUILT_APP" Payload/
+          zip -qr IMGUIDELTA-v1.0.0-unsigned.ipa Payload/
 
-      # Upload artifact to GitHub Actions
+          if [ -f "IMGUIDELTA-v1.0.0-unsigned.ipa" ]; then
+            echo "✓ IPA created: IMGUIDELTA-v1.0.0-unsigned.ipa"
+            unzip -l IMGUIDELTA-v1.0.0-unsigned.ipa | head -20
+            ls -lh IMGUIDELTA-v1.0.0-unsigned.ipa
+          else
+            echo "Error: IPA creation failed"
+            exit 1
+          fi
+
+      # Upload artifact
       - name: Upload IPA Artifact
         uses: actions/upload-artifact@v4
         with:
           name: IMGUIDELTA-IPA
-          path: ${{ env.IPA_PATH }}
+          path: IMGUIDELTA-v1.0.0-unsigned.ipa
           retention-days: 30
 
-      # Create auto-tag from version
+      # Create auto-tag
       - name: Create Release Tag
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
-          VERSION=$(grep "Version:" control | awk '{print $2}')
-          TAG="v${VERSION}"
+          TAG="v1.0.0-xcode"
           echo "Creating tag: $TAG"
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
-          git tag -a "$TAG" -m "Release $TAG - Build ${{ github.run_number }}" || echo "Tag already exists"
+          git tag -a "$TAG" -m "Xcode Release $TAG - Build ${{ github.run_number }}" || echo "Tag already exists"
           git push origin "$TAG" 2>/dev/null || true
           echo "TAG=$TAG" >> $GITHUB_ENV
 
-      # Create release on successful build
+      # Create GitHub Release
       - name: Create Release
         if: github.event_name == 'push' && github.ref == 'refs/heads/main' && success()
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ env.TAG }}
-          files: ${{ env.IPA_PATH }}
+          files: IMGUIDELTA-v1.0.0-unsigned.ipa
           draft: false
           prerelease: false
           body: |
-            **IMGUIDELTA Build ${{ github.run_number }}**
+            **IMGUIDELTA Build ${{ github.run_number }} (Xcode)**
 
             Unsigned IPA generated from commit ${{ github.sha }}
 
-            **Installation Methods:**
-            - **Sideloadly** (recommended for most users)
-              1. Download Sideloadly from https://sideloadly.io
-              2. Open this IPA with Sideloadly
-              3. Sign in with your Apple ID
-              4. Click Start to auto-sign & install
+            **Built with:**
+            - Xcode + XcodeGen
+            - FilzaSlop sandbox escape framework
+            - iOS 15.0+ support
 
-            - **AltStore**
-              1. Install AltStore from https://altstore.io
-              2. Download IPA and open with AltStore
-              3. AltStore handles signing & installation
-
-            - **TrollStore** (jailbroken devices only)
-              1. Install TrollStore on jailbroken device
-              2. Download IPA
-              3. Open with TrollStore app to install
-
-            **Requirements:**
-            - iOS 15.0 or later
-            - Free Apple Developer account (for Sideloadly/AltStore)
-            - Jailbroken device (for TrollStore)
+            **Installation:**
+            1. Download IPA below
+            2. Sign with esign or codesign:
+               ```bash
+               esign -s cert.p12:password -p provision.mobileprovision IMGUIDELTA-v1.0.0-unsigned.ipa
+               ```
+            3. Install via Sideloadly/AltStore/TrollStore
 
             **Notes:**
-            - This is an **unsigned debug IPA**
-            - Sandbox escape features depend on iOS version
-            - Some features may not work on all iOS versions
+            - Unsigned debug IPA
+            - Manual signing required before installation
+            - Sandbox escape features device/iOS version dependent
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
