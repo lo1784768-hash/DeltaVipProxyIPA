@@ -8,6 +8,7 @@ include $(THEOS)/makefiles/common.mk
 
 APPLICATION_NAME = IMGUIDELTA
 
+IMGUIDELTA_BUNDLE_EXTENSION = app
 IMGUIDELTA_FILES = main.m AppDelegate.m FileManagerViewController.m
 IMGUIDELTA_FILES += sandbox_escape.m apfs_own.m
 IMGUIDELTA_FILES += kexploit/kexploit_opa334.m kexploit/krw.m kexploit/kutils.m kexploit/offsets.m kexploit/vnode.m
@@ -38,11 +39,18 @@ include $(THEOS_MAKE_PATH)/application.mk
 
 # Generate IPA from app bundle
 after-package::
-	@echo "Packaging app bundle into IPA..."
-	@mkdir -p "$(THEOS_STAGING_DIR)/Payload"
-	@cp -r "$(THEOS_STAGING_DIR)/Applications/IMGUIDELTA.app" "$(THEOS_STAGING_DIR)/Payload/" 2>/dev/null || true
-	@cd "$(THEOS_STAGING_DIR)" && zip -qr "../IMGUIDELTA-unsigned.ipa" Payload/ 2>/dev/null || true
-	@if [ -f "IMGUIDELTA-unsigned.ipa" ]; then \
-		mv "IMGUIDELTA-unsigned.ipa" "packages/IMGUIDELTA-unsigned.ipa"; \
+	@echo "Packaging complete app bundle into IPA..."
+	@mkdir -p ".staging/Payload"
+	@echo "Copying app bundle from: $(THEOS_STAGING_DIR)/Applications/IMGUIDELTA.app"
+	@ls -lah "$(THEOS_STAGING_DIR)/Applications/IMGUIDELTA.app/" || echo "Warning: app bundle may be incomplete"
+	@cp -rp "$(THEOS_STAGING_DIR)/Applications/IMGUIDELTA.app" ".staging/Payload/" 2>/dev/null || true
+	@echo "App bundle contents:"
+	@ls -lah ".staging/Payload/IMGUIDELTA.app/"
+	@cd ".staging" && zip -qr "../packages/IMGUIDELTA-unsigned.ipa" Payload/ 2>/dev/null || echo "zip error"
+	@if [ -f "packages/IMGUIDELTA-unsigned.ipa" ]; then \
 		echo "✓ IPA created: packages/IMGUIDELTA-unsigned.ipa"; \
+		unzip -l "packages/IMGUIDELTA-unsigned.ipa" | head -20; \
+	else \
+		echo "❌ IPA creation failed"; \
 	fi
+	@rm -rf ".staging"
