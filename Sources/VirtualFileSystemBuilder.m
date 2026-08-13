@@ -1,6 +1,7 @@
 #import "VirtualFileSystemBuilder.h"
 #import "MCMFilzaIntegration.h"
 #import "AppEnumerator.h"
+#import "DebugLogger.h"
 
 @implementation VirtualFileSystemBuilder
 
@@ -23,10 +24,10 @@
            withIntermediateDirectories:YES
                             attributes:nil
                                  error:error]) {
-            NSLog(@"[VFS] ❌ Failed to create virtual root at %@: %@", rootPath, error ? *error : @"unknown");
+            [[DebugLogger sharedLogger] log:@"[VFS] ❌ Failed to create virtual root at %@: %@", rootPath, error ? *error : @"unknown"];
             return nil;
         }
-        NSLog(@"[VFS] ✅ Created virtual root: %@", rootPath);
+        [[DebugLogger sharedLogger] log:@"[VFS] ✅ Created virtual root: %@", rootPath];
     } else {
         NSLog(@"[VFS] ✅ Virtual root already exists: %@", rootPath);
     }
