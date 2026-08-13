@@ -7,6 +7,8 @@
 #import "DebugLogger.h"
 #import "ImageDownloader.h"
 #import "HUDControlViewController.h"
+#import "KeyManager.h"
+#import "KeyBarView.h"
 
 @interface AppDataCell : UICollectionViewCell
 @property (nonatomic, strong) UIView *cardView;
@@ -150,6 +152,8 @@
 @property (nonatomic, strong) NSDictionary<NSString *, NSString *> *customAppImages;
 @property (nonatomic, strong) UIView *statsView;
 @property (nonatomic, strong) CAGradientLayer *bgGradient;
+@property (nonatomic, strong) KeyBarView *keyBar;
+@property (nonatomic, strong) NSTimer *keyTimer;
 @end
 
 @implementation AppDataViewController
@@ -225,16 +229,63 @@
     self.collectionView.translatesAutoresizingMaskIntoConstraints = NO;
     [self.view addSubview:self.collectionView];
 
-    // Position collection view below stats view
+    // License key bottom bar
+    self.keyBar = [[KeyBarView alloc] init];
+    self.keyBar.translatesAutoresizingMaskIntoConstraints = NO;
+    [self.view addSubview:self.keyBar];
+
+    __weak typeof(self) weakSelf = self;
+    self.keyBar.onAddTapped = ^{ [weakSelf promptAddKey]; };
+
+    // Position collection view below stats view, above the key bar
     [NSLayoutConstraint activateConstraints:@[
         [self.collectionView.topAnchor constraintEqualToAnchor:self.statsView.bottomAnchor constant:16],
         [self.collectionView.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor],
         [self.collectionView.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor],
-        [self.collectionView.bottomAnchor constraintEqualToAnchor:self.view.bottomAnchor]
+        [self.collectionView.bottomAnchor constraintEqualToAnchor:self.keyBar.topAnchor],
+
+        // Bar starts 64pt above the safe-area bottom and fills to the screen edge
+        [self.keyBar.topAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.bottomAnchor constant:-64],
+        [self.keyBar.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor],
+        [self.keyBar.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor],
+        [self.keyBar.bottomAnchor constraintEqualToAnchor:self.view.bottomAnchor],
     ]];
 
     // Load apps immediately without waiting
     [self loadAppsImmediately];
+}
+
+#pragma mark - License key
+
+- (void)promptAddKey {
+    UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"License Key"
+                                                                  message:@"Dán key của bạn để kích hoạt"
+                                                           preferredStyle:UIAlertControllerStyleAlert];
+    [alert addTextFieldWithConfigurationHandler:^(UITextField *tf) {
+        tf.placeholder = @"Nhập / dán key…";
+        tf.autocapitalizationType = UITextAutocapitalizationTypeAllCharacters;
+        tf.clearButtonMode = UITextFieldViewModeWhileEditing;
+        tf.text = [KeyManager shared].keyCode;
+    }];
+
+    __weak typeof(self) weakSelf = self;
+    [alert addAction:[UIAlertAction actionWithTitle:@"Kích hoạt" style:UIAlertActionStyleDefault handler:^(UIAlertAction *a) {
+        NSString *key = alert.textFields.firstObject.text;
+        [[KeyManager shared] activateKey:key completion:^(BOOL success, NSString *message) {
+            [weakSelf.keyBar update];
+            [weakSelf toast:message success:success];
+        }];
+    }]];
+    [alert addAction:[UIAlertAction actionWithTitle:@"Đóng" style:UIAlertActionStyleCancel handler:nil]];
+    [self presentViewController:alert animated:YES completion:nil];
+}
+
+- (void)toast:(NSString *)message success:(BOOL)success {
+    UIAlertController *a = [UIAlertController alertControllerWithTitle:(success ? @"✅ Thành công" : @"⚠️ Lỗi")
+                                                              message:message
+                                                       preferredStyle:UIAlertControllerStyleAlert];
+    [a addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
+    [self presentViewController:a animated:YES completion:nil];
 }
 
 // Load apps immediately on first view
@@ -453,6 +504,29 @@
 - (void)viewWillAppear:(BOOL)animated {
     [super viewWillAppear:animated];
     self.navigationController.navigationBar.tintColor = [UIColor colorWithRed:0 green:0.831 blue:1 alpha:1.0];
+
+    // Refresh license key state + start countdown ticker
+    [self.keyBar update];
+    if ([KeyManager shared].keyCode) {
+        __weak typeof(self) weakSelf = self;
+        [[KeyManager shared] refreshWithCompletion:^(BOOL success, NSString *message) {
+            [weakSelf.keyBar update];
+        }];
+    }
+    [self.keyTimer invalidate];
+    self.keyTimer = [NSTimer scheduledTimerWithTimeInterval:30.0 target:self
+                                                   selector:@selector(tickKeyBar)
+                                                   userInfo:nil repeats:YES];
+}
+
+- (void)viewWillDisappear:(BOOL)animated {
+    [super viewWillDisappear:animated];
+    [self.keyTimer invalidate];
+    self.keyTimer = nil;
+}
+
+- (void)tickKeyBar {
+    [self.keyBar update];
 }
 
 - (void)viewDidLayoutSubviews {
