@@ -7,11 +7,10 @@
 #import "DebugLogger.h"
 
 @interface AppDataCell : UICollectionViewCell
+@property (nonatomic, strong) UIView *cardView;
 @property (nonatomic, strong) UIImageView *iconView;
 @property (nonatomic, strong) UILabel *nameLabel;
-@property (nonatomic, strong) UILabel *idLabel;
-@property (nonatomic, strong) UIView *statusIndicator;
-@property (nonatomic, strong) UILabel *statusLabel;
+@property (nonatomic, strong) UILabel *bundleLabel;
 @end
 
 @implementation AppDataCell
@@ -26,94 +25,93 @@
 
 - (void)setupUI {
     self.backgroundColor = [UIColor clearColor];
-    self.layer.cornerRadius = 12;
+    self.contentView.backgroundColor = [UIColor clearColor];
 
-    // Card background
-    UIView *cardView = [[UIView alloc] init];
-    cardView.backgroundColor = [UIColor colorWithRed:0.95 green:0.95 blue:0.97 alpha:1.0];
-    cardView.layer.cornerRadius = 12;
-    cardView.layer.shadowColor = [UIColor blackColor].CGColor;
-    cardView.layer.shadowOpacity = 0.1;
-    cardView.layer.shadowOffset = CGSizeMake(0, 2);
-    cardView.layer.shadowRadius = 4;
-    cardView.translatesAutoresizingMaskIntoConstraints = NO;
-    [self.contentView addSubview:cardView];
+    // Beautiful card background with gradient
+    self.cardView = [[UIView alloc] init];
+    self.cardView.backgroundColor = [UIColor colorWithRed:1.0 green:1.0 blue:1.0 alpha:0.95];
+    self.cardView.layer.cornerRadius = 16;
+    self.cardView.layer.shadowColor = [UIColor blackColor].CGColor;
+    self.cardView.layer.shadowOpacity = 0.12;
+    self.cardView.layer.shadowOffset = CGSizeMake(0, 4);
+    self.cardView.layer.shadowRadius = 8;
+    self.cardView.translatesAutoresizingMaskIntoConstraints = NO;
+    [self.contentView addSubview:self.cardView];
 
     [NSLayoutConstraint activateConstraints:@[
-        [cardView.topAnchor constraintEqualToAnchor:self.contentView.topAnchor],
-        [cardView.leadingAnchor constraintEqualToAnchor:self.contentView.leadingAnchor],
-        [cardView.trailingAnchor constraintEqualToAnchor:self.contentView.trailingAnchor],
-        [cardView.bottomAnchor constraintEqualToAnchor:self.contentView.bottomAnchor]
+        [self.cardView.topAnchor constraintEqualToAnchor:self.contentView.topAnchor constant:4],
+        [self.cardView.leadingAnchor constraintEqualToAnchor:self.contentView.leadingAnchor constant:4],
+        [self.cardView.trailingAnchor constraintEqualToAnchor:self.contentView.trailingAnchor constant:-4],
+        [self.cardView.bottomAnchor constraintEqualToAnchor:self.contentView.bottomAnchor constant:-4]
     ]];
 
-    // App icon
+    // Large app icon
     self.iconView = [[UIImageView alloc] init];
-    self.iconView.contentMode = UIViewContentModeScaleAspectFit;
-    self.iconView.layer.cornerRadius = 8;
+    self.iconView.contentMode = UIViewContentModeScaleAspectFill;
+    self.iconView.layer.cornerRadius = 12;
     self.iconView.clipsToBounds = YES;
     self.iconView.translatesAutoresizingMaskIntoConstraints = NO;
-    [cardView addSubview:self.iconView];
+    [self.cardView addSubview:self.iconView];
 
     [NSLayoutConstraint activateConstraints:@[
-        [self.iconView.topAnchor constraintEqualToAnchor:cardView.topAnchor constant:12],
-        [self.iconView.leadingAnchor constraintEqualToAnchor:cardView.leadingAnchor constant:12],
-        [self.iconView.widthAnchor constraintEqualToConstant:50],
-        [self.iconView.heightAnchor constraintEqualToConstant:50]
+        [self.iconView.topAnchor constraintEqualToAnchor:self.cardView.topAnchor constant:14],
+        [self.iconView.centerXAnchor constraintEqualToAnchor:self.cardView.centerXAnchor],
+        [self.iconView.widthAnchor constraintEqualToConstant:72],
+        [self.iconView.heightAnchor constraintEqualToConstant:72]
     ]];
 
-    // Status indicator (green dot)
-    self.statusIndicator = [[UIView alloc] init];
-    self.statusIndicator.layer.cornerRadius = 6;
-    self.statusIndicator.backgroundColor = [UIColor colorWithRed:0.2 green:0.8 blue:0.2 alpha:0.5];
-    self.statusIndicator.translatesAutoresizingMaskIntoConstraints = NO;
-    [cardView addSubview:self.statusIndicator];
-
-    [NSLayoutConstraint activateConstraints:@[
-        [self.statusIndicator.widthAnchor constraintEqualToConstant:12],
-        [self.statusIndicator.heightAnchor constraintEqualToConstant:12],
-        [self.statusIndicator.trailingAnchor constraintEqualToAnchor:self.iconView.trailingAnchor],
-        [self.statusIndicator.bottomAnchor constraintEqualToAnchor:self.iconView.bottomAnchor]
-    ]];
-
-    // App name label
+    // App name - Large and bold
     self.nameLabel = [[UILabel alloc] init];
-    self.nameLabel.font = [UIFont boldSystemFontOfSize:14];
+    self.nameLabel.font = [UIFont boldSystemFontOfSize:16];
     self.nameLabel.textColor = [UIColor blackColor];
-    self.nameLabel.numberOfLines = 1;
+    self.nameLabel.textAlignment = NSTextAlignmentCenter;
+    self.nameLabel.numberOfLines = 2;
     self.nameLabel.translatesAutoresizingMaskIntoConstraints = NO;
-    [cardView addSubview:self.nameLabel];
+    [self.cardView addSubview:self.nameLabel];
 
     [NSLayoutConstraint activateConstraints:@[
-        [self.nameLabel.topAnchor constraintEqualToAnchor:self.iconView.topAnchor],
-        [self.nameLabel.leadingAnchor constraintEqualToAnchor:self.iconView.trailingAnchor constant:12],
-        [self.nameLabel.trailingAnchor constraintEqualToAnchor:cardView.trailingAnchor constant:-12]
+        [self.nameLabel.topAnchor constraintEqualToAnchor:self.iconView.bottomAnchor constant:12],
+        [self.nameLabel.leadingAnchor constraintEqualToAnchor:self.cardView.leadingAnchor constant:8],
+        [self.nameLabel.trailingAnchor constraintEqualToAnchor:self.cardView.trailingAnchor constant:-8]
     ]];
 
-    // Bundle ID label
-    self.idLabel = [[UILabel alloc] init];
-    self.idLabel.font = [UIFont systemFontOfSize:11];
-    self.idLabel.textColor = [UIColor grayColor];
-    self.idLabel.numberOfLines = 2;
-    self.idLabel.translatesAutoresizingMaskIntoConstraints = NO;
-    [cardView addSubview:self.idLabel];
+    // Bundle ID - Small gray text
+    self.bundleLabel = [[UILabel alloc] init];
+    self.bundleLabel.font = [UIFont systemFontOfSize:10];
+    self.bundleLabel.textColor = [UIColor colorWithRed:0.6 green:0.6 blue:0.6 alpha:1.0];
+    self.bundleLabel.textAlignment = NSTextAlignmentCenter;
+    self.bundleLabel.numberOfLines = 1;
+    self.bundleLabel.translatesAutoresizingMaskIntoConstraints = NO;
+    [self.cardView addSubview:self.bundleLabel];
 
     [NSLayoutConstraint activateConstraints:@[
-        [self.idLabel.topAnchor constraintEqualToAnchor:self.nameLabel.bottomAnchor constant:4],
-        [self.idLabel.leadingAnchor constraintEqualToAnchor:self.nameLabel.leadingAnchor],
-        [self.idLabel.trailingAnchor constraintEqualToAnchor:cardView.trailingAnchor constant:-12]
+        [self.bundleLabel.topAnchor constraintEqualToAnchor:self.nameLabel.bottomAnchor constant:4],
+        [self.bundleLabel.leadingAnchor constraintEqualToAnchor:self.cardView.leadingAnchor constant:8],
+        [self.bundleLabel.trailingAnchor constraintEqualToAnchor:self.cardView.trailingAnchor constant:-8],
+        [self.bundleLabel.bottomAnchor constraintGreaterThanOrEqualToAnchor:self.cardView.bottomAnchor constant:-12]
     ]];
+}
 
-    // Status label
-    self.statusLabel = [[UILabel alloc] init];
-    self.statusLabel.font = [UIFont systemFontOfSize:10];
-    self.statusLabel.textColor = [UIColor colorWithRed:0.2 green:0.8 blue:0.2 alpha:1.0];
-    self.statusLabel.translatesAutoresizingMaskIntoConstraints = NO;
-    [cardView addSubview:self.statusLabel];
+// Smooth touch animation
+- (void)touchesBegan:(NSSet<UITouch *> *)touches withEvent:(UIEvent *)event {
+    [super touchesBegan:touches withEvent:event];
+    [UIView animateWithDuration:0.1 animations:^{
+        self.cardView.transform = CGAffineTransformMakeScale(0.95, 0.95);
+    }];
+}
 
-    [NSLayoutConstraint activateConstraints:@[
-        [self.statusLabel.bottomAnchor constraintEqualToAnchor:cardView.bottomAnchor constant:-12],
-        [self.statusLabel.leadingAnchor constraintEqualToAnchor:cardView.leadingAnchor constant:12]
-    ]];
+- (void)touchesEnded:(NSSet<UITouch *> *)touches withEvent:(UIEvent *)event {
+    [super touchesEnded:touches withEvent:event];
+    [UIView animateWithDuration:0.1 animations:^{
+        self.cardView.transform = CGAffineTransformIdentity;
+    }];
+}
+
+- (void)touchesCancelled:(NSSet<UITouch *> *)touches withEvent:(UIEvent *)event {
+    [super touchesCancelled:touches withEvent:event];
+    [UIView animateWithDuration:0.1 animations:^{
+        self.cardView.transform = CGAffineTransformIdentity;
+    }];
 }
 
 @end
@@ -136,14 +134,14 @@
         @"com.dts.freefiremax": @"Free Fire Max",
         @"com.dts.freefireth": @"Free Fire Thường"
     };
-    self.view.backgroundColor = [UIColor colorWithRed:0.97 green:0.97 blue:0.98 alpha:1.0];
+    self.view.backgroundColor = [UIColor colorWithRed:0.98 green:0.98 blue:0.99 alpha:1.0];
 
     // Setup collection view with flow layout
     UICollectionViewFlowLayout *layout = [[UICollectionViewFlowLayout alloc] init];
-    layout.itemSize = CGSizeMake((self.view.bounds.size.width - 30) / 2, 160);
-    layout.minimumLineSpacing = 12;
-    layout.minimumInteritemSpacing = 12;
-    layout.sectionInset = UIEdgeInsetsMake(12, 12, 12, 12);
+    layout.itemSize = CGSizeMake((self.view.bounds.size.width - 32) / 2, 200);
+    layout.minimumLineSpacing = 16;
+    layout.minimumInteritemSpacing = 16;
+    layout.sectionInset = UIEdgeInsetsMake(16, 16, 16, 16);
 
     self.collectionView = [[UICollectionView alloc] initWithFrame:self.view.bounds
                                               collectionViewLayout:layout];
@@ -281,22 +279,12 @@
     UIImage *icon = [checker iconForApp:appID];
     cell.iconView.image = icon ?: [UIImage systemImageNamed:@"square.and.pencil"];
 
-    // Set name - use custom display names
+    // Set app name - use custom display names
     NSString *displayName = self.appDisplayNames[appID] ?: appID;
     cell.nameLabel.text = displayName;
 
     // Set bundle ID
-    cell.idLabel.text = appID;
-
-    // Set status
-    BOOL isRunning = [checker isAppRunning:appID];
-    if (isRunning) {
-        cell.statusIndicator.backgroundColor = [UIColor colorWithRed:0.2 green:0.8 blue:0.2 alpha:1.0];
-        cell.statusLabel.text = @"🟢 Running";
-    } else {
-        cell.statusIndicator.backgroundColor = [UIColor colorWithRed:0.8 green:0.8 blue:0.8 alpha:0.5];
-        cell.statusLabel.text = @"⚫ Not running";
-    }
+    cell.bundleLabel.text = appID;
 
     return cell;
 }
