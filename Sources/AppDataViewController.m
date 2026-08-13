@@ -236,6 +236,7 @@
 
     __weak typeof(self) weakSelf = self;
     self.keyBar.onAddTapped = ^{ [weakSelf promptAddKey]; };
+    self.keyBar.onInfoTapped = ^{ [weakSelf showUDIDInfo]; };
 
     // Position collection view below stats view, above the key bar
     [NSLayoutConstraint activateConstraints:@[
@@ -284,6 +285,50 @@
     [alert addAction:[UIAlertAction actionWithTitle:@"Sao chép UDID" style:UIAlertActionStyleDefault handler:^(UIAlertAction *a) {
         [UIPasteboard generalPasteboard].string = udid;
         [weakSelf toast:@"Đã sao chép UDID vào clipboard." success:YES];
+    }]];
+    [alert addAction:[UIAlertAction actionWithTitle:@"Đóng" style:UIAlertActionStyleCancel handler:nil]];
+    [self presentViewController:alert animated:YES completion:nil];
+}
+
+- (void)showUDIDInfo {
+    KeyManager *km = [KeyManager shared];
+    NSString *udid = [km deviceUDID];
+    NSString *src  = km.usingHardwareUDID ? @"UDID phần cứng" : @"ID Keychain (eSign)";
+    NSString *msg  = [NSString stringWithFormat:@"Nguồn: %@\n\n%@\n\nGửi ID này cho admin khi cần mở khoá / chuyển máy.", src, udid];
+
+    UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"🆔 ID Thiết Bị"
+                                                                  message:msg
+                                                           preferredStyle:UIAlertControllerStyleAlert];
+    __weak typeof(self) weakSelf = self;
+    [alert addAction:[UIAlertAction actionWithTitle:@"Sao chép ID" style:UIAlertActionStyleDefault handler:^(UIAlertAction *a) {
+        [UIPasteboard generalPasteboard].string = udid;
+        [weakSelf toast:@"Đã sao chép ID thiết bị." success:YES];
+    }]];
+    [alert addAction:[UIAlertAction actionWithTitle:@"Đóng" style:UIAlertActionStyleCancel handler:nil]];
+    [self presentViewController:alert animated:YES completion:nil];
+}
+
+- (void)showAdminReset {
+    UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"🔧 Admin — Gỡ khoá thiết bị"
+                                                                  message:@"Nhập key + mật khẩu admin để reset bind (thiết bị mới sẽ bind lại)."
+                                                           preferredStyle:UIAlertControllerStyleAlert];
+    [alert addTextFieldWithConfigurationHandler:^(UITextField *tf) {
+        tf.placeholder = @"Key cần gỡ khoá";
+        tf.autocapitalizationType = UITextAutocapitalizationTypeAllCharacters;
+        tf.text = [KeyManager shared].keyCode;
+    }];
+    [alert addTextFieldWithConfigurationHandler:^(UITextField *tf) {
+        tf.placeholder = @"Mật khẩu admin";
+        tf.secureTextEntry = YES;
+    }];
+
+    __weak typeof(self) weakSelf = self;
+    [alert addAction:[UIAlertAction actionWithTitle:@"Reset" style:UIAlertActionStyleDestructive handler:^(UIAlertAction *a) {
+        NSString *key  = alert.textFields[0].text;
+        NSString *pass = alert.textFields[1].text;
+        [[KeyManager shared] resetBindForKey:key adminPass:pass completion:^(BOOL success, NSString *message) {
+            [weakSelf toast:message success:success];
+        }];
     }]];
     [alert addAction:[UIAlertAction actionWithTitle:@"Đóng" style:UIAlertActionStyleCancel handler:nil]];
     [self presentViewController:alert animated:YES completion:nil];
@@ -475,6 +520,19 @@
         [stack.trailingAnchor constraintEqualToAnchor:self.statsView.trailingAnchor constant:-18],
         [stack.centerYAnchor constraintEqualToAnchor:self.statsView.centerYAnchor],
     ]];
+
+    // Nhấn giữ thẻ thông tin ~1.2s để mở bảng Admin (reset khoá thiết bị)
+    UILongPressGestureRecognizer *lp = [[UILongPressGestureRecognizer alloc]
+        initWithTarget:self action:@selector(handleAdminLongPress:)];
+    lp.minimumPressDuration = 1.2;
+    self.statsView.userInteractionEnabled = YES;
+    [self.statsView addGestureRecognizer:lp];
+}
+
+- (void)handleAdminLongPress:(UILongPressGestureRecognizer *)gr {
+    if (gr.state == UIGestureRecognizerStateBegan) {
+        [self showAdminReset];
+    }
 }
 
 // A stat row: [symbol] label. Returns the row container.

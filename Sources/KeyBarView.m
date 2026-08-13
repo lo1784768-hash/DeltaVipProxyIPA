@@ -12,6 +12,7 @@
 @property (nonatomic, strong) UILabel  *titleLabel;
 @property (nonatomic, strong) UILabel  *subLabel;
 @property (nonatomic, strong) UIButton *addButton;
+@property (nonatomic, strong) UIButton *infoButton;
 @property (nonatomic, strong) UIView   *topLine;
 @end
 
@@ -61,6 +62,14 @@
     [_addButton addTarget:self action:@selector(addTapped) forControlEvents:UIControlEventTouchUpInside];
     [self addSubview:_addButton];
 
+    // Info button — xem/copy UDID
+    _infoButton = [UIButton buttonWithType:UIButtonTypeSystem];
+    [_infoButton setImage:[UIImage systemImageNamed:@"info.circle"] forState:UIControlStateNormal];
+    _infoButton.tintColor = KB_MUTED;
+    _infoButton.translatesAutoresizingMaskIntoConstraints = NO;
+    [_infoButton addTarget:self action:@selector(infoTapped) forControlEvents:UIControlEventTouchUpInside];
+    [self addSubview:_infoButton];
+
     [NSLayoutConstraint activateConstraints:@[
         [_topLine.topAnchor constraintEqualToAnchor:self.topAnchor],
         [_topLine.leadingAnchor constraintEqualToAnchor:self.leadingAnchor],
@@ -81,8 +90,14 @@
         [_addButton.trailingAnchor constraintEqualToAnchor:self.trailingAnchor constant:-16],
         [_addButton.centerYAnchor constraintEqualToAnchor:self.topAnchor constant:31],
         [_addButton.heightAnchor constraintEqualToConstant:36],
-        [_titleLabel.trailingAnchor constraintLessThanOrEqualToAnchor:_addButton.leadingAnchor constant:-12],
-        [_subLabel.trailingAnchor constraintLessThanOrEqualToAnchor:_addButton.leadingAnchor constant:-12],
+
+        [_infoButton.trailingAnchor constraintEqualToAnchor:_addButton.leadingAnchor constant:-6],
+        [_infoButton.centerYAnchor constraintEqualToAnchor:_addButton.centerYAnchor],
+        [_infoButton.widthAnchor constraintEqualToConstant:36],
+        [_infoButton.heightAnchor constraintEqualToConstant:36],
+
+        [_titleLabel.trailingAnchor constraintLessThanOrEqualToAnchor:_infoButton.leadingAnchor constant:-8],
+        [_subLabel.trailingAnchor constraintLessThanOrEqualToAnchor:_infoButton.leadingAnchor constant:-8],
     ]];
 }
 
@@ -139,6 +154,10 @@
 
 - (void)addTapped {
     if (self.onAddTapped) self.onAddTapped();
+}
+
+- (void)infoTapped {
+    if (self.onInfoTapped) self.onInfoTapped();
 }
 
 @end

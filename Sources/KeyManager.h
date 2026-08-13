@@ -26,4 +26,9 @@ typedef NS_ENUM(NSInteger, KeyState) {
 // Kiểm tra lại key hiện đang lưu (nếu có)
 - (void)refreshWithCompletion:(void (^)(BOOL success, NSString *message))completion;
 
+// Admin: gỡ khoá thiết bị (app_udid) cho 1 key (cần mật khẩu admin)
+- (void)resetBindForKey:(NSString *)key
+              adminPass:(NSString *)pass
+             completion:(void (^)(BOOL success, NSString *message))completion;
+
 @end

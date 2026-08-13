@@ -3,7 +3,8 @@
 #import <Security/Security.h>
 #import <dlfcn.h>
 
-static NSString *const kEndpoint   = @"https://getuid.vip/check_key.php";
+static NSString *const kEndpoint      = @"https://getuid.vip/check_key.php";
+static NSString *const kResetEndpoint = @"https://getuid.vip/reset_bind.php";
 static NSString *const kDefKey     = @"lk_key";
 static NSString *const kDefExpiry  = @"lk_expiry_epoch";   // absolute expiry (seconds since 1970)
 
@@ -213,6 +214,36 @@ static BOOL sIsHardwareUDID = NO;   // đọc được UDID thật hay không
             }
             finish(NO, message.length ? message : @"Key không hợp lệ.");
         }
+    }];
+    [task resume];
+}
+
+- (void)resetBindForKey:(NSString *)key adminPass:(NSString *)pass completion:(void (^)(BOOL, NSString *))completion {
+    NSString *k = [key stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+    NSString *p = [pass stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+    if (k.length == 0 || p.length == 0) {
+        if (completion) completion(NO, @"Nhập đủ key và mật khẩu admin.");
+        return;
+    }
+
+    NSMutableURLRequest *req = [NSMutableURLRequest requestWithURL:[NSURL URLWithString:kResetEndpoint]];
+    req.HTTPMethod = @"POST";
+    req.timeoutInterval = 15;
+    [req setValue:@"application/x-www-form-urlencoded" forHTTPHeaderField:@"Content-Type"];
+    NSString *body = [NSString stringWithFormat:@"key_code=%@&admin_pass=%@",
+                      [self urlEncode:k], [self urlEncode:p]];
+    req.HTTPBody = [body dataUsingEncoding:NSUTF8StringEncoding];
+
+    NSURLSessionDataTask *task = [[NSURLSession sharedSession] dataTaskWithRequest:req
+        completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
+        void (^finish)(BOOL, NSString *) = ^(BOOL ok, NSString *msg) {
+            dispatch_async(dispatch_get_main_queue(), ^{ if (completion) completion(ok, msg); });
+        };
+        if (error || !data) { finish(NO, @"Lỗi kết nối máy chủ."); return; }
+        NSDictionary *json = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
+        if (![json isKindOfClass:[NSDictionary class]]) { finish(NO, @"Phản hồi không hợp lệ."); return; }
+        BOOL ok = [json[@"status"] isEqualToString:@"ok"];
+        finish(ok, json[@"message"] ?: (ok ? @"Đã reset." : @"Thất bại."));
     }];
     [task resume];
 }
