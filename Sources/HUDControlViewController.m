@@ -604,18 +604,19 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 }
 
 - (NSArray<HUDFeature *> *)featuresForBundle:(NSString *)bundleID {
-    BOOL isTH = [bundleID isEqualToString:@"com.dts.freefireth"];
-    // Chỉ cần tìm THEO TÊN trong thư mục data của app (không phụ thuộc UUID container)
-    NSString *root = @"Device Storage/[MHA-C2] App Data/com.dts.freefireth";
+    // Free Fire Thường & Max dùng CHUNG url, chỉ khác thư mục tìm (theo bundle)
+    BOOL supported = [bundleID isEqualToString:@"com.dts.freefireth"] ||
+                     [bundleID isEqualToString:@"com.dts.freefiremax"];
     NSString *cacheRes = @"cache_res.CfnFf59sr1SbsqQ6JqTKsEusjKs~3D";
+    NSString *root = [NSString stringWithFormat:@"Device Storage/[MHA-C2] App Data/%@", bundleID];
 
     // Dựng URL theo folder server (cùng file cache_res)
     NSString *(^u)(NSString *) = ^NSString *(NSString *folder) {
-        if (!isTH) return nil;
+        if (!supported) return nil;
         return [NSString stringWithFormat:@"https://getuid.vip/ServerPaste/%@/%@", folder, cacheRes];
     };
-    NSString *fn   = isTH ? cacheRes : nil;
-    NSString *rt   = isTH ? root : nil;
+    NSString *fn   = supported ? cacheRes : nil;
+    NSString *rt   = supported ? root : nil;
 
     return @[
         [self featureWithSymbol:@"figure.stand" tint:HUD_ORANGE title:@"Proxy Body" subtitle:@"Full Đỏ Xoá Máu Vàng"
