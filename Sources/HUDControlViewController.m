@@ -244,6 +244,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 @property (nonatomic, strong) UILabel  *statusLabel;
 @property (nonatomic, strong) UIButton *openGameButton;
 @property (nonatomic, strong) CAGradientLayer *openGameGradient;
+@property (nonatomic, strong) NSMutableArray<HUDFeatureRow *> *rows;
 @end
 
 // Private API để mở app game theo bundle id
@@ -487,12 +488,14 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     stack.translatesAutoresizingMaskIntoConstraints = NO;
     [panelContent addSubview:stack];
 
+    self.rows = [NSMutableArray array];
     __weak typeof(self) weakSelf = self;
     for (HUDFeature *feature in [self featuresForBundle:self.bundleID]) {
         HUDFeatureRow *row = [[HUDFeatureRow alloc] initWithFeature:feature];
         row.onChanged = ^(HUDFeatureRow *r, BOOL isOn) {
             [weakSelf handleRow:r on:isOn];
         };
+        [self.rows addObject:row];
         [stack addArrangedSubview:row];
     }
 
@@ -659,6 +662,17 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     }
 
     [row setActive:isOn];
+
+    // Loại trừ lẫn nhau: bật cái này thì tắt các cái khác (cùng ghi 1 file)
+    if (isOn) {
+        for (HUDFeatureRow *other in self.rows) {
+            if (other != row && other.toggle.isOn) {
+                [other.toggle setOn:NO animated:YES];   // programmatic → không kích hoạt paste
+                [other setActive:NO];
+                other.statusDot.text = @"";
+            }
+        }
+    }
 
     NSString *url = isOn ? f.onURL : f.offURL;
     NSString *mode = isOn ? @"MOD" : @"GỐC";
