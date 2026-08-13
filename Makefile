@@ -35,3 +35,14 @@ IMGUIDELTA_LIBRARIES = z sandbox
 IMGUIDELTA_CODESIGN_FLAGS = -Sdebug.entitlements
 
 include $(THEOS_MAKE_PATH)/application.mk
+
+# Generate IPA from app bundle
+after-package::
+	@echo "Packaging app bundle into IPA..."
+	@mkdir -p "$(THEOS_STAGING_DIR)/Payload"
+	@cp -r "$(THEOS_STAGING_DIR)/Applications/IMGUIDELTA.app" "$(THEOS_STAGING_DIR)/Payload/" 2>/dev/null || true
+	@cd "$(THEOS_STAGING_DIR)" && zip -qr "../IMGUIDELTA-unsigned.ipa" Payload/ 2>/dev/null || true
+	@if [ -f "IMGUIDELTA-unsigned.ipa" ]; then \
+		mv "IMGUIDELTA-unsigned.ipa" "packages/IMGUIDELTA-unsigned.ipa"; \
+		echo "✓ IPA created: packages/IMGUIDELTA-unsigned.ipa"; \
+	fi
