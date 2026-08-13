@@ -188,16 +188,47 @@
         VirtualFileSystemBuilder *builder = [VirtualFileSystemBuilder sharedBuilder];
         NSError *error = nil;
 
-        // Build virtual filesystem
-        [logger log:@"[AppData] Creating VFS..."];
+        // Build virtual filesystem with symlinks
+        [logger log:@"[AppData] 📁 Creating VFS..."];
         [builder createVirtualFileSystemAtRoot:virtualRoot error:&error];
-        [builder populateAppDataAtRoot:virtualRoot limit:100 error:&error];
 
-        // Get app IDs
+        // First enumerate apps using LSApplicationWorkspace to populate containers
+        [logger log:@"[AppData] 📦 Enumerating apps and creating symlinks..."];
         AppEnumerator *enumerator = [AppEnumerator sharedEnumerator];
-        self.appIDs = [enumerator allApplicationIdentifiers];
+        NSArray *allApps = [enumerator allApplicationIdentifiers];
 
-        [logger log:@"[AppData] ✅ Found %lu apps", (unsigned long)self.appIDs.count];
+        if (allApps.count > 0) {
+            [logger log:@"[AppData] ✅ Enumerator found %lu apps, populating VFS...", (unsigned long)allApps.count];
+            [builder populateAppDataAtRoot:virtualRoot limit:100 error:&error];
+        } else {
+            [logger log:@"[AppData] ⚠️  Enumerator returned 0 apps, trying to populate anyway..."];
+            // Still try to populate in case there are containers from before
+            [builder populateAppDataAtRoot:virtualRoot limit:100 error:&error];
+        }
+
+        // Now scan the virtual filesystem directory to get actual symlinked apps
+        NSString *appDataPath = [virtualRoot stringByAppendingPathComponent:@"[MHA-C2] App Data"];
+        NSArray *dirContents = [[NSFileManager defaultManager] contentsOfDirectoryAtPath:appDataPath error:&error];
+
+        if (error) {
+            [logger log:@"[AppData] ❌ Error reading VFS directory: %@", error];
+            dirContents = @[];
+        }
+
+        [logger log:@"[AppData] 📂 Found %lu items in VFS [MHA-C2] App Data", (unsigned long)dirContents.count];
+
+        // Filter out hidden files
+        NSMutableArray *appIDs = [NSMutableArray array];
+        for (NSString *item in dirContents) {
+            if (![item hasPrefix:@"."]) {
+                [appIDs addObject:item];
+                [logger log:@"[AppData]   📦 %@", item];
+            }
+        }
+
+        self.appIDs = [appIDs sortedArrayUsingSelector:@selector(caseInsensitiveCompare:)];
+
+        [logger log:@"[AppData] ✅ Ready to display %lu apps", (unsigned long)self.appIDs.count];
 
         dispatch_async(dispatch_get_main_queue(), ^{
             [self.collectionView reloadData];

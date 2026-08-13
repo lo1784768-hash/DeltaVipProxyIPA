@@ -29,7 +29,7 @@
         }
         [[DebugLogger sharedLogger] log:@"[VFS] ✅ Created virtual root: %@", rootPath];
     } else {
-        NSLog(@"[VFS] ✅ Virtual root already exists: %@", rootPath);
+        [[DebugLogger sharedLogger] log:@"[VFS] ✅ Virtual root already exists: %@", rootPath];
     }
 
     // Create section folders
@@ -49,41 +49,53 @@
                withIntermediateDirectories:YES
                                 attributes:nil
                                      error:error]) {
-                NSLog(@"[VFS] ❌ Failed to create section: %@", section);
+                [[DebugLogger sharedLogger] log:@"[VFS] ❌ Failed to create section: %@", section];
             } else {
-                NSLog(@"[VFS] ✅ Created section: %@", section);
+                [[DebugLogger sharedLogger] log:@"[VFS] ✅ Created section: %@", section];
                 created++;
             }
         } else {
-            NSLog(@"[VFS] ℹ️  Section already exists: %@", section);
+            [[DebugLogger sharedLogger] log:@"[VFS] ℹ️  Section already exists: %@", section];
             created++;
         }
     }
 
-    NSLog(@"[VFS] ✅ Virtual filesystem structure ready (%lu sections)", (unsigned long)created);
+    [[DebugLogger sharedLogger] log:@"[VFS] ✅ Virtual filesystem structure ready (%lu sections)", (unsigned long)created];
     return rootPath;
 }
 
 - (BOOL)populateAppDataAtRoot:(NSString *)rootPath
                    limit:(NSUInteger)limit
                   error:(NSError **)error {
+    DebugLogger *logger = [DebugLogger sharedLogger];
     NSFileManager *fm = [NSFileManager defaultManager];
     NSString *appDataPath = [rootPath stringByAppendingPathComponent:@"[MHA-C2] App Data"];
 
     // Verify app data folder exists
     if (![fm fileExistsAtPath:appDataPath]) {
-        NSLog(@"[VFS] ERROR: App Data folder doesn't exist at %@", appDataPath);
+        [logger log:@"[VFS] ❌ App Data folder doesn't exist at %@", appDataPath];
         return NO;
     }
 
     // Get all app identifiers
     AppEnumerator *enumerator = [AppEnumerator sharedEnumerator];
     NSArray *allApps = [enumerator allApplicationIdentifiers];
-    NSLog(@"[VFS] 📊 AppEnumerator found %lu total apps", (unsigned long)allApps.count);
+    [logger log:@"[VFS] 📊 AppEnumerator found %lu total apps", (unsigned long)allApps.count];
 
     if (allApps.count == 0) {
-        NSLog(@"[VFS] ⚠️  ERROR: No apps returned by AppEnumerator! LSApplicationWorkspace might not be working.");
-        return NO;
+        [logger log:@"[VFS] ⚠️  AppEnumerator returned 0 apps, trying alternative method..."];
+
+        // Fallback: Scan device filesystem for app containers
+        NSString *containersPath = @"/var/mobile/Containers/Data/Application";
+        NSArray *containers = [fm contentsOfDirectoryAtPath:containersPath error:nil];
+
+        if (containers && containers.count > 0) {
+            [logger log:@"[VFS] ✅ Found %lu app containers in filesystem", (unsigned long)containers.count];
+            allApps = containers;
+        } else {
+            [logger log:@"[VFS] ❌ No containers found in filesystem either"];
+            return NO;
+        }
     }
 
     NSArray *apps = limit > 0 ? [allApps subarrayWithRange:NSMakeRange(0, MIN(limit, allApps.count))]
@@ -99,7 +111,7 @@
             NSString *containerPath = MCMFilzaDataContainerPath(appID, &containerError);
 
             if (!containerPath) {
-                NSLog(@"[VFS] ❌ Could not get path for %@: %@", appID, containerError ?: @"unknown error");
+                [logger log:@"[VFS] ❌ Could not get path for %@: %@", appID, containerError ?: @"unknown error"];
                 failed++;
                 continue;
             }
@@ -114,7 +126,7 @@
                           withDestinationPath:containerPath
                                        error:&linkError]) {
                     created++;
-                    NSLog(@"[VFS] ✅ Symlink: %@ → %@", appID, containerPath);
+                    [logger log:@"[VFS] ✅ Symlink: %@ → %@", appID, containerPath];
                 } else {
                     // Fallback: create folder with .path reference file
                     NSError *folderError = nil;
@@ -130,22 +142,22 @@
                                             error:nil];
 
                         created++;
-                        NSLog(@"[VFS] 📄 Fallback folder (symlink failed): %@ → %@ (ref: .path)", appID, containerPath);
+                        [logger log:@"[VFS] 📄 Fallback folder (symlink failed): %@ → %@ (ref: .path)", appID, containerPath];
                     } else {
-                        NSLog(@"[VFS] ❌ Failed to create folder for %@: %@", appID, folderError);
+                        [logger log:@"[VFS] ❌ Failed to create folder for %@: %@", appID, folderError];
                         failed++;
                     }
                 }
             }
 
         } @catch (NSException *e) {
-            NSLog(@"[VFS] ❌ Exception processing %@: %@", appID, e);
+            [logger log:@"[VFS] ❌ Exception processing %@: %@", appID, e];
             failed++;
         }
     }
 
-    NSLog(@"[VFS] 📦 Populated app data: %lu created, %lu failed out of %lu attempted",
-          (unsigned long)created, (unsigned long)failed, (unsigned long)apps.count);
+    [logger log:@"[VFS] 📦 Populated app data: %lu created, %lu failed out of %lu attempted",
+          (unsigned long)created, (unsigned long)failed, (unsigned long)apps.count];
 
     return created > 0;
 }
