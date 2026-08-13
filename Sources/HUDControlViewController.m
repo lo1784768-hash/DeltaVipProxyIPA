@@ -1,6 +1,7 @@
 #import "HUDControlViewController.h"
 #import "AutoPasteManager.h"
 #import "KeyManager.h"
+#import "SecurityGuard.h"
 
 // ── Palette ─────────────────────────────────────────────
 #define HUD_BG_TOP      [UIColor colorWithRed:0.047 green:0.047 blue:0.086 alpha:1.0]
@@ -640,6 +641,14 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     [sel selectionChanged];
 
     HUDFeature *f = row.feature;
+
+    // Chống can thiệp: môi trường bị Frida/tiêm/debug thì khoá mod
+    if (![SecurityGuard isEnvironmentTrusted]) {
+        [row.toggle setOn:!isOn animated:YES];
+        [row setActive:NO];
+        [self setStatus:@"⛔ Phát hiện can thiệp — đã khoá chức năng" color:HUD_RED];
+        return;
+    }
 
     // Khoá chức năng sau license key hợp lệ (đã bind đúng máy)
     if ([KeyManager shared].state != KeyStateActive) {
