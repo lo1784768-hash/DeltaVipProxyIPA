@@ -114,25 +114,58 @@ jobs:
           path: ${{ env.IPA_PATH }}
           retention-days: 30
 
+      # Create auto-tag from version
+      - name: Create Release Tag
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          VERSION=$(grep "Version:" control | awk '{print $2}')
+          TAG="v${VERSION}"
+          echo "Creating tag: $TAG"
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git tag -a "$TAG" -m "Release $TAG - Build ${{ github.run_number }}" || echo "Tag already exists"
+          git push origin "$TAG" 2>/dev/null || true
+          echo "TAG=$TAG" >> $GITHUB_ENV
+
       # Create release on successful build
       - name: Create Release
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && success()
         uses: softprops/action-gh-release@v1
         with:
+          tag_name: ${{ env.TAG }}
           files: ${{ env.IPA_PATH }}
           draft: false
           prerelease: false
           body: |
-            Unsigned IPA build from commit ${{ github.sha }}
+            **IMGUIDELTA Build ${{ github.run_number }}**
 
-            **Installation:**
-            - Use Sideloadly with your Apple ID
-            - Use AltStore
-            - Use TrollStore (on jailbroken devices)
+            Unsigned IPA generated from commit ${{ github.sha }}
+
+            **Installation Methods:**
+            - **Sideloadly** (recommended for most users)
+              1. Download Sideloadly from https://sideloadly.io
+              2. Open this IPA with Sideloadly
+              3. Sign in with your Apple ID
+              4. Click Start to auto-sign & install
+
+            - **AltStore**
+              1. Install AltStore from https://altstore.io
+              2. Download IPA and open with AltStore
+              3. AltStore handles signing & installation
+
+            - **TrollStore** (jailbroken devices only)
+              1. Install TrollStore on jailbroken device
+              2. Download IPA
+              3. Open with TrollStore app to install
+
+            **Requirements:**
+            - iOS 15.0 or later
+            - Free Apple Developer account (for Sideloadly/AltStore)
+            - Jailbroken device (for TrollStore)
 
             **Notes:**
-            - This is an unsigned IPA (debug)
-            - Requires iOS 15.0 or later
-            - Device must not have Face ID (app-level limitation - can be modified)
+            - This is an **unsigned debug IPA**
+            - Sandbox escape features depend on iOS version
+            - Some features may not work on all iOS versions
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
