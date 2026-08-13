@@ -1,5 +1,6 @@
 #import "HUDControlViewController.h"
 #import "AutoPasteManager.h"
+#import "KeyManager.h"
 
 // ── Palette ─────────────────────────────────────────────
 #define HUD_BG_TOP      [UIColor colorWithRed:0.047 green:0.047 blue:0.086 alpha:1.0]
@@ -571,6 +572,20 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     [sel selectionChanged];
 
     HUDFeature *f = row.feature;
+
+    // Khoá chức năng sau license key hợp lệ (đã bind đúng máy)
+    if ([KeyManager shared].state != KeyStateActive) {
+        [row.toggle setOn:!isOn animated:YES];
+        [row setActive:NO];
+        NSString *msg = ([KeyManager shared].state == KeyStateExpired)
+            ? @"🔒 Key đã hết hạn — vui lòng gia hạn"
+            : @"🔒 Cần nhập license key hợp lệ để dùng";
+        [self setStatus:msg color:HUD_RED];
+        UINotificationFeedbackGenerator *nfb = [[UINotificationFeedbackGenerator alloc] init];
+        [nfb notificationOccurred:UINotificationFeedbackTypeError];
+        return;
+    }
+
     if (!f.configured) {
         [row.toggle setOn:!isOn animated:YES];
         [row setActive:NO];

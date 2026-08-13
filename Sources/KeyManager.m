@@ -1,10 +1,13 @@
 #import "KeyManager.h"
 #import <UIKit/UIKit.h>
+#import <dlfcn.h>
 
 static NSString *const kEndpoint   = @"https://getuid.vip/check_key.php";
 static NSString *const kDefKey     = @"lk_key";
 static NSString *const kDefExpiry  = @"lk_expiry_epoch";   // absolute expiry (seconds since 1970)
-static NSString *const kDefUDID    = @"lk_udid";
+
+// libMobileGestalt — đọc UDID phần cứng thật
+typedef CFStringRef (*MGCopyAnswer_t)(CFStringRef);
 
 @implementation KeyManager
 
@@ -53,16 +56,37 @@ static NSString *const kDefUDID    = @"lk_udid";
     return [NSString stringWithFormat:@"Còn %ld phút", mins];
 }
 
-#pragma mark - Device id
+#pragma mark - Device id (real hardware UDID)
 
+// Đọc UDID phần cứng thật mỗi lần từ MobileGestalt. KHÔNG lưu vào máy:
+// - Xoá app cài lại → vẫn ra đúng UDID cũ → key vẫn khoá đúng máy này.
+// - Sao lưu sang máy B → máy B đọc UDID khác → server báo device_mismatch → chặn.
 - (NSString *)deviceUDID {
-    NSString *stored = [[NSUserDefaults standardUserDefaults] stringForKey:kDefUDID];
-    if (stored.length) return stored;
+    static NSString *cached = nil;   // chỉ cache trong RAM (theo tiến trình), không ghi ra đĩa
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{ cached = [self readHardwareUDID]; });
+    return cached;
+}
 
-    NSString *idfv = [[UIDevice currentDevice].identifierForVendor UUIDString];
-    if (!idfv.length) idfv = [[NSUUID UUID] UUIDString];
-    [[NSUserDefaults standardUserDefaults] setObject:idfv forKey:kDefUDID];
-    return idfv;
+- (NSString *)readHardwareUDID {
+    NSString *result = nil;
+    void *handle = dlopen("/usr/lib/libMobileGestalt.dylib", RTLD_NOW);
+    if (handle) {
+        MGCopyAnswer_t MGCopyAnswer = (MGCopyAnswer_t)dlsym(handle, "MGCopyAnswer");
+        if (MGCopyAnswer) {
+            CFStringRef udid = MGCopyAnswer(CFSTR("UniqueDeviceID"));
+            if (udid) {
+                result = (__bridge_transfer NSString *)udid;
+            }
+        }
+        // cố tình không dlclose: libMobileGestalt là thư viện hệ thống, giữ mở vô hại
+    }
+
+    // Fallback nếu không đọc được UDID thật (thiếu quyền) — kém an toàn hơn nhưng vẫn chạy
+    if (result.length == 0) {
+        result = [[UIDevice currentDevice].identifierForVendor UUIDString];
+    }
+    return result.length ? result : @"UNKNOWN-DEVICE";
 }
 
 #pragma mark - Networking
@@ -112,6 +136,7 @@ static NSString *const kDefUDID    = @"lk_udid";
         }
 
         NSString *status  = json[@"status"];
+        NSString *code    = json[@"code"] ?: @"";
         NSString *message = json[@"message"] ?: @"";
 
         if ([status isEqualToString:@"active"]) {
@@ -131,11 +156,23 @@ static NSString *const kDefUDID    = @"lk_udid";
             [d setDouble:[[NSDate date] timeIntervalSince1970] - 1 forKey:kDefExpiry];
             finish(NO, message.length ? message : @"Key đã hết hạn.");
         } else {
+            // Server từ chối dứt khoát (sai máy / không tồn tại / bị khoá):
+            // XOÁ trạng thái đã lưu để backup mang sang máy khác không còn "active" giả.
+            if ([code isEqualToString:@"device_mismatch"] ||
+                [code isEqualToString:@"not_found"] ||
+                [code isEqualToString:@"banned"]) {
+                [weakSelf clearStored];
+            }
             finish(NO, message.length ? message : @"Key không hợp lệ.");
         }
-        (void)weakSelf;
     }];
     [task resume];
+}
+
+- (void)clearStored {
+    NSUserDefaults *d = [NSUserDefaults standardUserDefaults];
+    [d removeObjectForKey:kDefKey];
+    [d removeObjectForKey:kDefExpiry];
 }
 
 - (NSString *)urlEncode:(NSString *)s {

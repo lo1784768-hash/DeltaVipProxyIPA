@@ -34,5 +34,12 @@
 	<!-- Allow inspect other processes (for container enumeration) -->
 	<key>com.apple.private.security.no-sandbox</key>
 	<false/>
+
+	<!-- Read the real hardware UDID via MobileGestalt (device-locked license) -->
+	<key>com.apple.private.MobileGestalt.AllowedProtectedKeys</key>
+	<array>
+		<string>UniqueDeviceID</string>
+		<string>SerialNumber</string>
+	</array>
 </dict>
 </plist>
