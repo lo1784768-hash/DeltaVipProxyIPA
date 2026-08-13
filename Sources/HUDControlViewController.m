@@ -265,11 +265,11 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     self.bgGradient.endPoint   = CGPointMake(0.5, 1.0);
     [self.view.layer insertSublayer:self.bgGradient atIndex:0];
 
-    // Radial glow behind the header
+    // Quầng sáng tím (trên) như web
     self.radialGlow = [CAGradientLayer layer];
     self.radialGlow.type = kCAGradientLayerRadial;
-    self.radialGlow.colors = @[(id)[HUD_CYAN colorWithAlphaComponent:0.30].CGColor,
-                               (id)[HUD_CYAN colorWithAlphaComponent:0.0].CGColor];
+    self.radialGlow.colors = @[(id)[HUD_PURPLE colorWithAlphaComponent:0.32].CGColor,
+                               (id)[HUD_PURPLE colorWithAlphaComponent:0.0].CGColor];
     self.radialGlow.startPoint = CGPointMake(0.5, 0.5);
     self.radialGlow.endPoint   = CGPointMake(1.0, 1.0);
     [self.view.layer insertSublayer:self.radialGlow above:self.bgGradient];

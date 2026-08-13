@@ -1,5 +1,6 @@
 #import "KeyBarView.h"
 #import "KeyManager.h"
+#import "BrandTheme.h"
 
 #define KB_GREEN [UIColor colorWithRed:0.204 green:0.780 blue:0.349 alpha:1.0]
 #define KB_RED   [UIColor colorWithRed:1.000 green:0.231 blue:0.322 alpha:1.0]
@@ -14,6 +15,8 @@
 @property (nonatomic, strong) UIButton *addButton;
 @property (nonatomic, strong) UIButton *infoButton;
 @property (nonatomic, strong) UIView   *topLine;
+@property (nonatomic, strong) CAGradientLayer *addGradient;
+@property (nonatomic, strong) CAGradientLayer *lineGradient;
 @end
 
 @implementation KeyBarView
@@ -27,11 +30,19 @@
 - (void)build {
     self.backgroundColor = [UIColor colorWithRed:0.078 green:0.086 blue:0.157 alpha:0.98];
 
-    // neon top border
+    // vạch trên gradient tím→cyan
     _topLine = [[UIView alloc] init];
-    _topLine.backgroundColor = [KB_CYAN colorWithAlphaComponent:0.5];
+    _topLine.backgroundColor = [UIColor clearColor];
     _topLine.translatesAutoresizingMaskIntoConstraints = NO;
     [self addSubview:_topLine];
+    _lineGradient = [CAGradientLayer layer];
+    _lineGradient.colors = @[(id)[BRAND_PURPLE colorWithAlphaComponent:0.0].CGColor,
+                             (id)BRAND_PURPLE.CGColor,
+                             (id)BRAND_CYAN.CGColor,
+                             (id)[BRAND_CYAN colorWithAlphaComponent:0.0].CGColor];
+    _lineGradient.startPoint = CGPointMake(0, 0.5);
+    _lineGradient.endPoint   = CGPointMake(1, 0.5);
+    [_topLine.layer addSublayer:_lineGradient];
 
     _dot = [[UIView alloc] init];
     _dot.layer.cornerRadius = 5;
@@ -51,16 +62,19 @@
     [self addSubview:_subLabel];
 
     _addButton = [UIButton buttonWithType:UIButtonTypeSystem];
-    _addButton.titleLabel.font = [UIFont systemFontOfSize:13 weight:UIFontWeightBold];
-    _addButton.backgroundColor = [KB_CYAN colorWithAlphaComponent:0.16];
-    [_addButton setTitleColor:KB_CYAN forState:UIControlStateNormal];
-    _addButton.layer.cornerRadius = 10;
-    _addButton.layer.borderColor = [KB_CYAN colorWithAlphaComponent:0.55].CGColor;
-    _addButton.layer.borderWidth = 1;
-    _addButton.contentEdgeInsets = UIEdgeInsetsMake(0, 14, 0, 14);
+    _addButton.titleLabel.font = [UIFont systemFontOfSize:13 weight:UIFontWeightHeavy];
+    [_addButton setTitleColor:[UIColor colorWithRed:0.04 green:0.06 blue:0.13 alpha:1.0] forState:UIControlStateNormal];
+    _addButton.layer.cornerRadius = 11;
+    _addButton.layer.cornerCurve = kCACornerCurveContinuous;
+    _addButton.clipsToBounds = YES;
+    _addButton.contentEdgeInsets = UIEdgeInsetsMake(0, 16, 0, 16);
     _addButton.translatesAutoresizingMaskIntoConstraints = NO;
     [_addButton addTarget:self action:@selector(addTapped) forControlEvents:UIControlEventTouchUpInside];
     [self addSubview:_addButton];
+
+    _addGradient = BrandGradient();
+    _addGradient.cornerRadius = 11;
+    [_addButton.layer insertSublayer:_addGradient atIndex:0];
 
     // Info button — xem/copy UDID
     _infoButton = [UIButton buttonWithType:UIButtonTypeSystem];
@@ -99,6 +113,12 @@
         [_titleLabel.trailingAnchor constraintLessThanOrEqualToAnchor:_infoButton.leadingAnchor constant:-8],
         [_subLabel.trailingAnchor constraintLessThanOrEqualToAnchor:_infoButton.leadingAnchor constant:-8],
     ]];
+}
+
+- (void)layoutSubviews {
+    [super layoutSubviews];
+    _addGradient.frame = _addButton.bounds;
+    _lineGradient.frame = _topLine.bounds;
 }
 
 - (void)update {

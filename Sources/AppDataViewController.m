@@ -9,6 +9,37 @@
 #import "HUDControlViewController.h"
 #import "KeyManager.h"
 #import "KeyBarView.h"
+#import "BrandTheme.h"
+
+#pragma mark - GlassView (frosted card khớp web)
+
+@interface GlassView : UIView
+@end
+@implementation GlassView {
+    CAGradientLayer *_sheen;
+}
+- (instancetype)initWithFrame:(CGRect)frame {
+    self = [super initWithFrame:frame];
+    if (self) {
+        self.backgroundColor = [UIColor colorWithRed:0.055 green:0.06 blue:0.11 alpha:0.55];
+        self.layer.borderColor = [UIColor colorWithWhite:1 alpha:0.11].CGColor;
+        self.layer.borderWidth = 1;
+        self.layer.cornerCurve = kCACornerCurveContinuous;
+        _sheen = [CAGradientLayer layer];
+        _sheen.colors = @[(id)[UIColor colorWithWhite:1 alpha:0.075].CGColor,
+                          (id)[UIColor colorWithWhite:1 alpha:0.015].CGColor];
+        _sheen.startPoint = CGPointMake(0.5, 0.0);
+        _sheen.endPoint   = CGPointMake(0.5, 1.0);
+        [self.layer addSublayer:_sheen];
+    }
+    return self;
+}
+- (void)layoutSubviews {
+    [super layoutSubviews];
+    _sheen.frame = self.bounds;
+    _sheen.cornerRadius = self.layer.cornerRadius;
+}
+@end
 
 @interface AppDataCell : UICollectionViewCell
 @property (nonatomic, strong) UIView *cardView;
@@ -32,17 +63,13 @@
     self.backgroundColor = [UIColor clearColor];
     self.contentView.backgroundColor = [UIColor clearColor];
 
-    // Dark neon card
-    self.cardView = [[UIView alloc] init];
-    self.cardView.backgroundColor = [UIColor colorWithRed:0.086 green:0.094 blue:0.169 alpha:1.0];
-    self.cardView.layer.cornerRadius = 20;
-    self.cardView.layer.cornerCurve = kCACornerCurveContinuous;
-    self.cardView.layer.borderColor = [UIColor colorWithRed:0 green:0.831 blue:1 alpha:0.28].CGColor;
-    self.cardView.layer.borderWidth = 1;
-    self.cardView.layer.shadowColor = [UIColor colorWithRed:0 green:0.831 blue:1 alpha:1].CGColor;
-    self.cardView.layer.shadowOpacity = 0.28;
-    self.cardView.layer.shadowOffset = CGSizeMake(0, 6);
-    self.cardView.layer.shadowRadius = 16;
+    // Frosted glass card (khớp web)
+    self.cardView = [[GlassView alloc] init];
+    self.cardView.layer.cornerRadius = 24;
+    self.cardView.layer.shadowColor = BRAND_PURPLE.CGColor;
+    self.cardView.layer.shadowOpacity = 0.30;
+    self.cardView.layer.shadowOffset = CGSizeMake(0, 8);
+    self.cardView.layer.shadowRadius = 18;
     self.cardView.translatesAutoresizingMaskIntoConstraints = NO;
     [self.contentView addSubview:self.cardView];
 
@@ -55,7 +82,8 @@
 
     // Top colored banner section
     UIView *bannerView = [[UIView alloc] init];
-    bannerView.layer.cornerRadius = 20;
+    bannerView.layer.cornerRadius = 24;
+    bannerView.layer.cornerCurve = kCACornerCurveContinuous;
     bannerView.layer.maskedCorners = kCALayerMinXMinYCorner | kCALayerMaxXMinYCorner;
     bannerView.clipsToBounds = YES;
     bannerView.translatesAutoresizingMaskIntoConstraints = NO;
@@ -152,6 +180,8 @@
 @property (nonatomic, strong) NSDictionary<NSString *, NSString *> *customAppImages;
 @property (nonatomic, strong) UIView *statsView;
 @property (nonatomic, strong) CAGradientLayer *bgGradient;
+@property (nonatomic, strong) CAGradientLayer *purpleGlow;
+@property (nonatomic, strong) CAGradientLayer *cyanGlow;
 @property (nonatomic, strong) KeyBarView *keyBar;
 @property (nonatomic, strong) NSTimer *keyTimer;
 @end
@@ -175,22 +205,28 @@
         @"com.dts.freefiremax": @"FreeFireMax",
         @"com.dts.freefireth": @"FreeFireTH"
     };
-    self.view.backgroundColor = [UIColor colorWithRed:0.047 green:0.047 blue:0.086 alpha:1.0];
+    self.view.backgroundColor = BRAND_BG;
 
-    // Dark gradient background
+    // Nền đen + gradient rất nhẹ
     CAGradientLayer *bg = [CAGradientLayer layer];
-    bg.colors = @[(id)[UIColor colorWithRed:0.047 green:0.047 blue:0.086 alpha:1.0].CGColor,
-                  (id)[UIColor colorWithRed:0.063 green:0.094 blue:0.196 alpha:1.0].CGColor];
+    bg.colors = @[(id)BRAND_BG.CGColor,
+                  (id)[UIColor colorWithRed:0.035 green:0.043 blue:0.078 alpha:1.0].CGColor];
     bg.startPoint = CGPointMake(0.5, 0.0);
     bg.endPoint   = CGPointMake(0.5, 1.0);
     bg.frame = self.view.bounds;
     [self.view.layer insertSublayer:bg atIndex:0];
     self.bgGradient = bg;
 
-    // Faint grid overlay
+    // Quầng sáng tím (trên-trái) + cyan (dưới-phải) — như web
+    self.purpleGlow = BrandRadialGlow([BRAND_PURPLE colorWithAlphaComponent:0.30]);
+    self.cyanGlow   = BrandRadialGlow([BRAND_CYAN   colorWithAlphaComponent:0.20]);
+    [self.view.layer insertSublayer:self.purpleGlow above:bg];
+    [self.view.layer insertSublayer:self.cyanGlow above:self.purpleGlow];
+
+    // Lưới mờ
     UIView *grid = [[UIView alloc] initWithFrame:self.view.bounds];
     grid.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
-    grid.backgroundColor = [self gridPatternColor];
+    grid.backgroundColor = BrandGridPattern();
     grid.userInteractionEnabled = NO;
     [self.view addSubview:grid];
 
@@ -481,13 +517,9 @@
 }
 
 - (void)createStatsView {
-    // Dark neon stats card
-    self.statsView = [[UIView alloc] init];
-    self.statsView.backgroundColor = [UIColor colorWithRed:0.086 green:0.094 blue:0.169 alpha:0.85];
-    self.statsView.layer.cornerRadius = 16;
-    self.statsView.layer.cornerCurve = kCACornerCurveContinuous;
-    self.statsView.layer.borderColor = [UIColor colorWithRed:0 green:0.831 blue:1 alpha:0.28].CGColor;
-    self.statsView.layer.borderWidth = 1;
+    // Frosted glass stats card
+    self.statsView = [[GlassView alloc] init];
+    self.statsView.layer.cornerRadius = 20;
     self.statsView.translatesAutoresizingMaskIntoConstraints = NO;
     [self.view addSubview:self.statsView];
 
@@ -498,16 +530,12 @@
         [self.statsView.heightAnchor constraintEqualToConstant:104]
     ]];
 
-    UIColor *muted = [UIColor colorWithRed:0.561 green:0.561 blue:0.659 alpha:1.0];
-    UIColor *cyan  = [UIColor colorWithRed:0 green:0.831 blue:1 alpha:1.0];
-    UIColor *green = [UIColor colorWithRed:0.204 green:0.780 blue:0.349 alpha:1.0];
-
     UIView *iosRow  = [self statRowText:[NSString stringWithFormat:@"iOS  %@", [[UIDevice currentDevice] systemVersion]]
-                                 symbol:@"applelogo" tint:cyan valueColor:muted labelTag:0];
+                                 symbol:@"applelogo" tint:BRAND_PURPLE valueColor:BRAND_MUTED labelTag:0];
     UIView *devRow  = [self statRowText:[NSString stringWithFormat:@"Device  %@", [[UIDevice currentDevice] name]]
-                                 symbol:@"iphone" tint:cyan valueColor:muted labelTag:0];
+                                 symbol:@"iphone" tint:BRAND_CYAN valueColor:BRAND_MUTED labelTag:0];
     UIView *keysRow = [self statRowText:@"Active Keys  0"
-                                 symbol:@"key.fill" tint:green valueColor:green labelTag:999];
+                                 symbol:@"key.fill" tint:BRAND_GREEN valueColor:BRAND_GREEN labelTag:999];
 
     UIStackView *stack = [[UIStackView alloc] initWithArrangedSubviews:@[iosRow, devRow, keysRow]];
     stack.axis = UILayoutConstraintAxisVertical;
@@ -598,7 +626,15 @@
 
 - (void)viewDidLayoutSubviews {
     [super viewDidLayoutSubviews];
+    CGFloat W = self.view.bounds.size.width;
+    CGFloat H = self.view.bounds.size.height;
     self.bgGradient.frame = self.view.bounds;
+
+    CGFloat ps = W * 1.5;   // quầng tím trên-trái
+    self.purpleGlow.frame = CGRectMake(0.15 * W - ps / 2, -0.05 * H - ps / 2, ps, ps);
+
+    CGFloat cs = W * 1.4;   // quầng cyan dưới-phải
+    self.cyanGlow.frame = CGRectMake(0.90 * W - cs / 2, 1.02 * H - cs / 2, cs, cs);
 }
 
 - (UIColor *)gridPatternColor {
