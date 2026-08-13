@@ -175,7 +175,7 @@
     layout.itemSize = CGSizeMake((self.view.bounds.size.width - 32) / 2, 200);
     layout.minimumLineSpacing = 16;
     layout.minimumInteritemSpacing = 16;
-    layout.sectionInset = UIEdgeInsetsMake(132, 16, 16, 16); // Top increased for stats view
+    layout.sectionInset = UIEdgeInsetsMake(16, 16, 16, 16);
 
     self.collectionView = [[UICollectionView alloc] initWithFrame:self.view.bounds
                                               collectionViewLayout:layout];
@@ -186,8 +186,9 @@
     self.collectionView.translatesAutoresizingMaskIntoConstraints = NO;
     [self.view addSubview:self.collectionView];
 
+    // Position collection view below stats view
     [NSLayoutConstraint activateConstraints:@[
-        [self.collectionView.topAnchor constraintEqualToAnchor:self.view.topAnchor],
+        [self.collectionView.topAnchor constraintEqualToAnchor:self.statsView.bottomAnchor constant:16],
         [self.collectionView.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor],
         [self.collectionView.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor],
         [self.collectionView.bottomAnchor constraintEqualToAnchor:self.view.bottomAnchor]
@@ -230,11 +231,19 @@
 
         self.appIDs = appIDs;
         [logger log:@"[AppData] ✅ Found %lu apps immediately", (unsigned long)self.appIDs.count];
+        [self updateStatsKeysCount];
         [self.collectionView reloadData];
     } else {
         [logger log:@"[AppData] ⚠️  No apps in VFS yet, loading in background..."];
         // If no apps in VFS, load them in background
         [self loadApps];
+    }
+}
+
+- (void)updateStatsKeysCount {
+    UILabel *keysLabel = [self.statsView viewWithTag:999];
+    if (keysLabel) {
+        keysLabel.text = [NSString stringWithFormat:@"Active Keys: %lu", (unsigned long)self.appIDs.count];
     }
 }
 
@@ -337,13 +346,13 @@
     self.statsView.layer.shadowOffset = CGSizeMake(0, 2);
     self.statsView.layer.shadowRadius = 4;
     self.statsView.translatesAutoresizingMaskIntoConstraints = NO;
-    [self.collectionView addSubview:self.statsView];
+    [self.view addSubview:self.statsView];
 
-    // Add as header in collection view
+    // Position stats view below navigation bar
     [NSLayoutConstraint activateConstraints:@[
-        [self.statsView.topAnchor constraintEqualToAnchor:self.collectionView.topAnchor constant:16],
-        [self.statsView.leadingAnchor constraintEqualToAnchor:self.collectionView.leadingAnchor constant:16],
-        [self.statsView.trailingAnchor constraintEqualToAnchor:self.collectionView.trailingAnchor constant:-16],
+        [self.statsView.topAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.topAnchor constant:8],
+        [self.statsView.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor constant:16],
+        [self.statsView.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor constant:-16],
         [self.statsView.heightAnchor constraintEqualToConstant:100]
     ]];
 
@@ -381,11 +390,12 @@
     UILabel *keysLabel = [[UILabel alloc] init];
     keysLabel.font = [UIFont systemFontOfSize:12 weight:UIFontWeightMedium];
     keysLabel.textColor = [UIColor colorWithRed:0.2 green:0.8 blue:0.2 alpha:1.0];
+    keysLabel.tag = 999; // Mark for updating later
     keysLabel.translatesAutoresizingMaskIntoConstraints = NO;
     [self.statsView addSubview:keysLabel];
 
-    // Placeholder - count apps as "keys"
-    keysLabel.text = [NSString stringWithFormat:@"Active Keys: %lu", (unsigned long)self.appIDs.count];
+    // Default keys count
+    keysLabel.text = @"Active Keys: 0";
 
     [NSLayoutConstraint activateConstraints:@[
         [keysLabel.topAnchor constraintEqualToAnchor:deviceLabel.bottomAnchor constant:8],
