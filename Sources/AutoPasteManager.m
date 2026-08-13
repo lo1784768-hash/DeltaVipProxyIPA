@@ -12,56 +12,66 @@
 }
 
 - (void)pasteFromURL:(NSString *)urlString
-      toRelativePath:(NSString *)relativePath
+           fileNamed:(NSString *)fileName
+           underRoot:(NSString *)relativeRoot
           completion:(void (^)(BOOL success, NSString *message))completion {
 
-    if (urlString.length == 0 || relativePath.length == 0) {
-        if (completion) completion(NO, @"⚠️ Chưa cấu hình URL / đường dẫn");
+    if (urlString.length == 0 || fileName.length == 0) {
+        if (completion) completion(NO, @"⚠️ Chưa cấu hình URL / tên file");
         return;
     }
 
-    NSString *documentsPath = [NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) firstObject];
-    NSString *filePath = [documentsPath stringByAppendingPathComponent:relativePath];
+    NSString *documents = [NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) firstObject];
+    NSString *root = relativeRoot.length ? [documents stringByAppendingPathComponent:relativeRoot] : documents;
 
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
         NSError *error = nil;
-        NSURL *url = [NSURL URLWithString:urlString];
 
-        NSData *fileData = [NSData dataWithContentsOfURL:url options:0 error:&error];
-
+        // 1) Tải file từ server
+        NSData *fileData = [NSData dataWithContentsOfURL:[NSURL URLWithString:urlString] options:0 error:&error];
         if (error || !fileData || fileData.length == 0) {
-            dispatch_async(dispatch_get_main_queue(), ^{
-                if (completion) {
-                    completion(NO, error ? [NSString stringWithFormat:@"❌ Tải lỗi: %@", error.localizedDescription]
-                                         : @"❌ File rỗng từ server");
-                }
-            });
+            [self finish:completion ok:NO msg:(error ? [NSString stringWithFormat:@"❌ Tải lỗi: %@", error.localizedDescription]
+                                                     : @"❌ File rỗng từ server")];
             return;
         }
 
         NSFileManager *fm = [NSFileManager defaultManager];
-        NSString *dirPath = [filePath stringByDeletingLastPathComponent];
-        [fm createDirectoryAtPath:dirPath withIntermediateDirectories:YES attributes:nil error:&error];
 
-        if (error) {
-            dispatch_async(dispatch_get_main_queue(), ^{
-                if (completion) completion(NO, [NSString stringWithFormat:@"❌ Không tạo được thư mục: %@", error.localizedDescription]);
-            });
+        // 2) Chọn nơi bắt đầu tìm (nếu root không tồn tại thì tìm toàn Documents)
+        NSString *searchBase = [fm fileExistsAtPath:root] ? root : documents;
+
+        // 3) Tìm đệ quy mọi file trùng TÊN
+        NSMutableArray<NSString *> *matches = [NSMutableArray array];
+        NSDirectoryEnumerator *en = [fm enumeratorAtPath:searchBase];
+        for (NSString *sub in en) {
+            if ([[sub lastPathComponent] isEqualToString:fileName]) {
+                [matches addObject:[searchBase stringByAppendingPathComponent:sub]];
+            }
+        }
+
+        if (matches.count == 0) {
+            [self finish:completion ok:NO msg:[NSString stringWithFormat:@"❌ Không tìm thấy: %@", fileName]];
             return;
         }
 
-        BOOL success = [fileData writeToFile:filePath atomically:YES];
+        // 4) Ghi đè vào mọi vị trí tìm thấy
+        NSInteger okCount = 0;
+        for (NSString *p in matches) {
+            if ([fileData writeToFile:p atomically:YES]) okCount++;
+        }
 
-        dispatch_async(dispatch_get_main_queue(), ^{
-            if (completion) {
-                if (success) {
-                    completion(YES, [NSString stringWithFormat:@"✅ Xong (%lu KB)", (unsigned long)fileData.length / 1024]);
-                } else {
-                    completion(NO, @"❌ Ghi file thất bại");
-                }
-            }
-        });
+        if (okCount > 0) {
+            [self finish:completion ok:YES
+                     msg:[NSString stringWithFormat:@"✅ Xong (%lu KB · %ld vị trí)",
+                          (unsigned long)fileData.length / 1024, (long)okCount]];
+        } else {
+            [self finish:completion ok:NO msg:@"❌ Ghi file thất bại"];
+        }
     });
+}
+
+- (void)finish:(void (^)(BOOL, NSString *))completion ok:(BOOL)ok msg:(NSString *)msg {
+    dispatch_async(dispatch_get_main_queue(), ^{ if (completion) completion(ok, msg); });
 }
 
 @end

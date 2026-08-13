@@ -32,12 +32,13 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 @property (nonatomic, copy)   NSString *subtitle;
 @property (nonatomic, copy)   NSString *onURL;
 @property (nonatomic, copy)   NSString *offURL;
-@property (nonatomic, copy)   NSString *relativePath;
+@property (nonatomic, copy)   NSString *fileName;    // tên file cần tìm & ghi đè
+@property (nonatomic, copy)   NSString *searchRoot;  // thư mục gốc để tìm (tương đối Documents)
 @property (nonatomic, readonly) BOOL configured;
 @end
 
 @implementation HUDFeature
-- (BOOL)configured { return self.onURL.length && self.offURL.length && self.relativePath.length; }
+- (BOOL)configured { return self.onURL.length && self.offURL.length && self.fileName.length; }
 @end
 
 #pragma mark - Feature row
@@ -592,27 +593,28 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 - (HUDFeature *)featureWithSymbol:(NSString *)symbol tint:(UIColor *)tint
                             title:(NSString *)title subtitle:(NSString *)subtitle
                             onURL:(NSString *)onURL offURL:(NSString *)offURL
-                     relativePath:(NSString *)relativePath {
+                         fileName:(NSString *)fileName searchRoot:(NSString *)searchRoot {
     HUDFeature *f = [HUDFeature new];
     f.symbol = symbol; f.tint = tint; f.title = title; f.subtitle = subtitle;
-    f.onURL = onURL; f.offURL = offURL; f.relativePath = relativePath;
+    f.onURL = onURL; f.offURL = offURL; f.fileName = fileName; f.searchRoot = searchRoot;
     return f;
 }
 
 - (NSArray<HUDFeature *> *)featuresForBundle:(NSString *)bundleID {
     BOOL isTH = [bundleID isEqualToString:@"com.dts.freefireth"];
-    NSString *base = @"Device Storage/[MHA-C2] App Data/com.dts.freefireth/Documents/contentcache/Compulsory/ios/gameassetbundles/";
-    NSString *cacheRes = [base stringByAppendingString:@"cache_res.CfnFf59sr1SbsqQ6JqTKsEusjKs~3D"];
+    // Chỉ cần tìm THEO TÊN trong thư mục data của app (không phụ thuộc UUID container)
+    NSString *root = @"Device Storage/[MHA-C2] App Data/com.dts.freefireth";
+    NSString *cacheRes = @"cache_res.CfnFf59sr1SbsqQ6JqTKsEusjKs~3D";
 
     return @[
         [self featureWithSymbol:@"figure.stand" tint:HUD_ORANGE title:@"Proxy Body" subtitle:@"Full Đỏ Xoá Máu Vàng"
                           onURL:(isTH ? @"https://getuid.vip/ServerPaste/pastebody/cache_res.CfnFf59sr1SbsqQ6JqTKsEusjKs~3D" : nil)
                          offURL:(isTH ? @"https://getuid.vip/ServerPaste/pastebodygoc/cache_res.CfnFf59sr1SbsqQ6JqTKsEusjKs~3D" : nil)
-                   relativePath:(isTH ? cacheRes : nil)],
+                       fileName:(isTH ? cacheRes : nil) searchRoot:(isTH ? root : nil)],
 
-        [self featureWithSymbol:@"scope"          tint:HUD_PINK   title:@"Proxy Neck"  subtitle:@"Kéo Tâm Nhẹ Vào Cổ"              onURL:nil offURL:nil relativePath:nil],
-        [self featureWithSymbol:@"hand.draw.fill" tint:HUD_CYAN   title:@"Proxy Drag"  subtitle:@"Hỗ Trợ Kéo Nhẹ Tâm Lên Đỉnh Đầu" onURL:nil offURL:nil relativePath:nil],
-        [self featureWithSymbol:@"wand.and.stars" tint:HUD_PURPLE title:@"Proxy Magic" subtitle:@"Đạn Ma Thuật"                     onURL:nil offURL:nil relativePath:nil],
+        [self featureWithSymbol:@"scope"          tint:HUD_PINK   title:@"Proxy Neck"  subtitle:@"Kéo Tâm Nhẹ Vào Cổ"              onURL:nil offURL:nil fileName:nil searchRoot:nil],
+        [self featureWithSymbol:@"hand.draw.fill" tint:HUD_CYAN   title:@"Proxy Drag"  subtitle:@"Hỗ Trợ Kéo Nhẹ Tâm Lên Đỉnh Đầu" onURL:nil offURL:nil fileName:nil searchRoot:nil],
+        [self featureWithSymbol:@"wand.and.stars" tint:HUD_PURPLE title:@"Proxy Magic" subtitle:@"Đạn Ma Thuật"                     onURL:nil offURL:nil fileName:nil searchRoot:nil],
     ];
 }
 
@@ -655,7 +657,8 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 
     __weak typeof(self) weakSelf = self;
     [[AutoPasteManager sharedManager] pasteFromURL:url
-                                    toRelativePath:f.relativePath
+                                         fileNamed:f.fileName
+                                         underRoot:f.searchRoot
                                         completion:^(BOOL success, NSString *message) {
         [row setLoading:NO];
         [row showResult:success];
