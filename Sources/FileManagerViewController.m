@@ -37,10 +37,35 @@
     NSFileManager *fm = [NSFileManager defaultManager];
     NSError *error = nil;
 
-    self.fileList = [fm contentsOfDirectoryAtPath:self.currentPath error:&error];
-    if (error) {
-        NSLog(@"Error reading directory: %@", error);
+    NSLog(@"[FileMgr] 📂 Loading files from: %@", self.currentPath);
+
+    // Check if path exists
+    BOOL pathExists = [fm fileExistsAtPath:self.currentPath];
+    if (!pathExists) {
+        NSLog(@"[FileMgr] ❌ Path does not exist: %@", self.currentPath);
         self.fileList = @[];
+        [self.tableView reloadData];
+        return;
+    }
+    NSLog(@"[FileMgr] ✅ Path exists");
+
+    // Check if readable
+    BOOL isReadable = [fm isReadableFileAtPath:self.currentPath];
+    NSLog(@"[FileMgr] 🔐 Path readable: %@", isReadable ? @"YES" : @"NO");
+
+    self.fileList = [fm contentsOfDirectoryAtPath:self.currentPath error:&error];
+
+    if (error) {
+        NSLog(@"[FileMgr] ❌ Error reading directory: %@", error);
+        self.fileList = @[];
+    } else {
+        NSLog(@"[FileMgr] ✅ Found %lu items in directory", (unsigned long)self.fileList.count);
+        for (NSString *file in self.fileList) {
+            NSString *fullPath = [self.currentPath stringByAppendingPathComponent:file];
+            BOOL isDir = NO;
+            [fm fileExistsAtPath:fullPath isDirectory:&isDir];
+            NSLog(@"[FileMgr]   %c %@", isDir ? 'D' : 'F', file);
+        }
     }
 
     [self.tableView reloadData];
