@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>application-identifier</key>
+	<string>$(BUNDLE_IDENTIFIER)</string>
+
+	<!-- Private Container Manager APIs access -->
+	<key>com.apple.private.mobilecontainermanager.allowed</key>
+	<true/>
+
+	<!-- Allow access to MCM services -->
+	<key>com.apple.private.security.container-required</key>
+	<false/>
+
+	<!-- Application groups for container access -->
+	<key>com.apple.security.application-groups</key>
+	<array>
+		<string>group.com.imguidelta</string>
+	</array>
+
+	<!-- File system access -->
+	<key>com.apple.security.files.user-selected.read-write</key>
+	<true/>
+
+	<!-- Downloads access -->
+	<key>com.apple.security.files.downloads.read-write</key>
+	<true/>
+
+	<!-- Debugger for development -->
+	<key>get-task-allow</key>
+	<true/>
+
+	<!-- Allow inspect other processes (for container enumeration) -->
+	<key>com.apple.private.security.no-sandbox</key>
+	<false/>
+</dict>
+</plist>
