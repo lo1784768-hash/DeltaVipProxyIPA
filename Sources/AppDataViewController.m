@@ -5,6 +5,7 @@
 #import "MCMFilzaIntegration.h"
 #import "VirtualFileSystemBuilder.h"
 #import "DebugLogger.h"
+#import "ImageDownloader.h"
 
 @interface AppDataCell : UICollectionViewCell
 @property (nonatomic, strong) UIView *cardView;
@@ -468,25 +469,42 @@
     }
 
     // Priority order:
-    // 1. Custom image (FreeFireMax.png / FreeFireTH.png)
-    // 2. App icon from system
-    // 3. Fallback to game controller icon
+    // 1. Downloaded cached images (FreeFireMax.png / FreeFireTH.png)
+    // 2. Custom images via loadCustomImageForApp
+    // 3. App icon from system
+    // 4. Fallback to game controller icon
 
-    UIImage *customImage = [self loadCustomImageForApp:appID];
-    if (customImage) {
-        cell.iconView.image = customImage;
+    ImageDownloader *downloader = [ImageDownloader sharedDownloader];
+
+    // Try downloaded images first
+    UIImage *downloadedImage = nil;
+    if ([appID isEqualToString:@"com.dts.freefiremax"]) {
+        downloadedImage = [downloader cachedImageNamed:@"FreeFireMax"];
+    } else if ([appID isEqualToString:@"com.dts.freefireth"]) {
+        downloadedImage = [downloader cachedImageNamed:@"FreeFireTH"];
+    }
+
+    if (downloadedImage) {
+        cell.iconView.image = downloadedImage;
         cell.iconView.tintColor = [UIColor whiteColor];
     } else {
-        // Try to get app's actual icon
-        AppStatusChecker *checker = [AppStatusChecker sharedChecker];
-        UIImage *icon = [checker iconForApp:appID];
-        if (icon) {
-            cell.iconView.image = icon;
+        // Try custom image
+        UIImage *customImage = [self loadCustomImageForApp:appID];
+        if (customImage) {
+            cell.iconView.image = customImage;
             cell.iconView.tintColor = [UIColor whiteColor];
         } else {
-            // Fallback to game controller icon
-            cell.iconView.image = [UIImage systemImageNamed:@"gamecontroller.fill"];
-            cell.iconView.tintColor = [UIColor whiteColor];
+            // Try to get app's actual icon
+            AppStatusChecker *checker = [AppStatusChecker sharedChecker];
+            UIImage *icon = [checker iconForApp:appID];
+            if (icon) {
+                cell.iconView.image = icon;
+                cell.iconView.tintColor = [UIColor whiteColor];
+            } else {
+                // Fallback to game controller icon
+                cell.iconView.image = [UIImage systemImageNamed:@"gamecontroller.fill"];
+                cell.iconView.tintColor = [UIColor whiteColor];
+            }
         }
     }
 

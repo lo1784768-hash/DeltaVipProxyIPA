@@ -1,6 +1,7 @@
 #import "AppDelegate.h"
 #import "AppDataViewController.h"
 #import "DebugLogger.h"
+#import "ImageDownloader.h"
 
 @interface AppDelegate ()
 @end
@@ -22,6 +23,16 @@
     [self.window makeKeyAndVisible];
 
     [logger log:@"✅ App UI initialized"];
+
+    // Download app images in background
+    [logger log:@"⬇️  Starting image downloads..."];
+    [[ImageDownloader sharedDownloader] downloadImagesWithCompletion:^(BOOL success) {
+        if (success) {
+            [logger log:@"✅ App images downloaded successfully"];
+        } else {
+            [logger log:@"⚠️  Some images failed to download"];
+        }
+    }];
 
     return YES;
 }
