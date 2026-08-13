@@ -241,6 +241,14 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 @property (nonatomic, strong) CAGradientLayer *bgGradient;
 @property (nonatomic, strong) CAGradientLayer *radialGlow;
 @property (nonatomic, strong) UILabel  *statusLabel;
+@property (nonatomic, strong) UIButton *openGameButton;
+@property (nonatomic, strong) CAGradientLayer *openGameGradient;
+@end
+
+// Private API để mở app game theo bundle id
+@interface LSApplicationWorkspace : NSObject
++ (instancetype)defaultWorkspace;
+- (BOOL)openApplicationWithBundleID:(NSString *)bundleID;
 @end
 
 @implementation HUDControlViewController
@@ -290,6 +298,25 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     self.bgGradient.frame = self.view.bounds;
     CGFloat top = self.view.safeAreaInsets.top;
     self.radialGlow.frame = CGRectMake(self.view.bounds.size.width/2 - 240, top - 60, 480, 480);
+    self.openGameGradient.frame = self.openGameButton.bounds;
+}
+
+- (void)launchGame {
+    UIImpactFeedbackGenerator *fb = [[UIImpactFeedbackGenerator alloc] initWithStyle:UIImpactFeedbackStyleMedium];
+    [fb impactOccurred];
+
+    BOOL ok = NO;
+    Class ws = NSClassFromString(@"LSApplicationWorkspace");
+    if (ws) {
+        id workspace = [ws performSelector:@selector(defaultWorkspace)];
+        if ([workspace respondsToSelector:@selector(openApplicationWithBundleID:)]) {
+            ok = [workspace openApplicationWithBundleID:self.bundleID];
+        }
+    }
+
+    if (!ok) {
+        [self setStatus:@"⚠️ Không mở được game (mở tay giúp mình nhé)" color:HUD_RED];
+    }
 }
 
 - (UIColor *)gridPatternColor {
@@ -478,6 +505,25 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     self.statusLabel.translatesAutoresizingMaskIntoConstraints = NO;
     [content addSubview:self.statusLabel];
 
+    // ── Nút MỞ GAME (gradient) ──────────────────────────
+    self.openGameButton = [UIButton buttonWithType:UIButtonTypeSystem];
+    [self.openGameButton setTitle:@"▶  MỞ GAME" forState:UIControlStateNormal];
+    [self.openGameButton setTitleColor:[UIColor colorWithRed:0.04 green:0.06 blue:0.13 alpha:1.0] forState:UIControlStateNormal];
+    self.openGameButton.titleLabel.font = [UIFont systemFontOfSize:17 weight:UIFontWeightHeavy];
+    self.openGameButton.layer.cornerRadius = 16;
+    self.openGameButton.layer.cornerCurve = kCACornerCurveContinuous;
+    self.openGameButton.clipsToBounds = YES;
+    self.openGameButton.translatesAutoresizingMaskIntoConstraints = NO;
+    [self.openGameButton addTarget:self action:@selector(launchGame) forControlEvents:UIControlEventTouchUpInside];
+    [content addSubview:self.openGameButton];
+
+    self.openGameGradient = [CAGradientLayer layer];
+    self.openGameGradient.colors = @[(id)HUD_PURPLE.CGColor, (id)HUD_CYAN.CGColor];
+    self.openGameGradient.startPoint = CGPointMake(0, 0.5);
+    self.openGameGradient.endPoint   = CGPointMake(1, 0.5);
+    self.openGameGradient.cornerRadius = 16;
+    [self.openGameButton.layer insertSublayer:self.openGameGradient atIndex:0];
+
     // ── Constraints ─────────────────────────────────────
     [NSLayoutConstraint activateConstraints:@[
         [iconView.topAnchor constraintEqualToAnchor:content.topAnchor constant:20],
@@ -532,7 +578,12 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
         [self.statusLabel.topAnchor constraintEqualToAnchor:panelWrap.bottomAnchor constant:18],
         [self.statusLabel.leadingAnchor constraintEqualToAnchor:content.leadingAnchor constant:24],
         [self.statusLabel.trailingAnchor constraintEqualToAnchor:content.trailingAnchor constant:-24],
-        [self.statusLabel.bottomAnchor constraintEqualToAnchor:content.bottomAnchor constant:-32],
+
+        [self.openGameButton.topAnchor constraintEqualToAnchor:self.statusLabel.bottomAnchor constant:20],
+        [self.openGameButton.leadingAnchor constraintEqualToAnchor:content.leadingAnchor constant:20],
+        [self.openGameButton.trailingAnchor constraintEqualToAnchor:content.trailingAnchor constant:-20],
+        [self.openGameButton.heightAnchor constraintEqualToConstant:54],
+        [self.openGameButton.bottomAnchor constraintEqualToAnchor:content.bottomAnchor constant:-32],
     ]];
 }
 

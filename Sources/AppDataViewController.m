@@ -47,9 +47,6 @@
 @property (nonatomic, strong) UIImageView *iconView;
 @property (nonatomic, strong) UILabel *nameLabel;
 @property (nonatomic, strong) UILabel *bundleLabel;
-@property (nonatomic, strong) UIButton *openButton;
-@property (nonatomic, strong) CAGradientLayer *openGradient;
-@property (nonatomic, copy)   void (^onOpenTapped)(void);
 @end
 
 @implementation AppDataCell
@@ -147,41 +144,9 @@
     [NSLayoutConstraint activateConstraints:@[
         [self.bundleLabel.topAnchor constraintEqualToAnchor:self.nameLabel.bottomAnchor constant:6],
         [self.bundleLabel.leadingAnchor constraintEqualToAnchor:self.cardView.leadingAnchor constant:12],
-        [self.bundleLabel.trailingAnchor constraintEqualToAnchor:self.cardView.trailingAnchor constant:-12]
+        [self.bundleLabel.trailingAnchor constraintEqualToAnchor:self.cardView.trailingAnchor constant:-12],
+        [self.bundleLabel.bottomAnchor constraintGreaterThanOrEqualToAnchor:self.cardView.bottomAnchor constant:-16]
     ]];
-
-    // Nút "MỞ GAME" — gradient tím→cyan, mở thẳng menu
-    self.openButton = [UIButton buttonWithType:UIButtonTypeSystem];
-    [self.openButton setTitle:@"MỞ GAME" forState:UIControlStateNormal];
-    [self.openButton setTitleColor:[UIColor colorWithRed:0.04 green:0.06 blue:0.13 alpha:1.0] forState:UIControlStateNormal];
-    self.openButton.titleLabel.font = [UIFont systemFontOfSize:13 weight:UIFontWeightHeavy];
-    self.openButton.layer.cornerRadius = 12;
-    self.openButton.layer.cornerCurve = kCACornerCurveContinuous;
-    self.openButton.clipsToBounds = YES;
-    self.openButton.translatesAutoresizingMaskIntoConstraints = NO;
-    [self.openButton addTarget:self action:@selector(openTapped) forControlEvents:UIControlEventTouchUpInside];
-    [self.cardView addSubview:self.openButton];
-
-    self.openGradient = BrandGradient();
-    self.openGradient.cornerRadius = 12;
-    [self.openButton.layer insertSublayer:self.openGradient atIndex:0];
-
-    [NSLayoutConstraint activateConstraints:@[
-        [self.openButton.topAnchor constraintGreaterThanOrEqualToAnchor:self.bundleLabel.bottomAnchor constant:10],
-        [self.openButton.leadingAnchor constraintEqualToAnchor:self.cardView.leadingAnchor constant:14],
-        [self.openButton.trailingAnchor constraintEqualToAnchor:self.cardView.trailingAnchor constant:-14],
-        [self.openButton.heightAnchor constraintEqualToConstant:38],
-        [self.openButton.bottomAnchor constraintEqualToAnchor:self.cardView.bottomAnchor constant:-14]
-    ]];
-}
-
-- (void)layoutSubviews {
-    [super layoutSubviews];
-    self.openGradient.frame = self.openButton.bounds;
-}
-
-- (void)openTapped {
-    if (self.onOpenTapped) self.onOpenTapped();
 }
 
 // Smooth touch animation
@@ -286,7 +251,7 @@
 
     // Setup collection view with flow layout
     UICollectionViewFlowLayout *layout = [[UICollectionViewFlowLayout alloc] init];
-    layout.itemSize = CGSizeMake((self.view.bounds.size.width - 32) / 2, 226);
+    layout.itemSize = CGSizeMake((self.view.bounds.size.width - 32) / 2, 200);
     layout.minimumLineSpacing = 16;
     layout.minimumInteritemSpacing = 16;
     layout.sectionInset = UIEdgeInsetsMake(16, 16, 16, 16);
@@ -797,13 +762,6 @@
 
     // Set bundle ID
     cell.bundleLabel.text = appID;
-
-    // Nút MỞ GAME → mở HUD menu cho app này
-    __weak typeof(self) wself = self;
-    __weak AppDataCell *wcell = cell;
-    cell.onOpenTapped = ^{
-        [wself openHUDForAppID:appID displayName:displayName icon:wcell.iconView.image];
-    };
 
     return cell;
 }
