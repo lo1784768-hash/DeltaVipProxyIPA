@@ -501,7 +501,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 
     // ── Status line ─────────────────────────────────────
     self.statusLabel = [[UILabel alloc] init];
-    self.statusLabel.text = @"Sẵn sàng — gạt công tắc để tự động paste";
+    self.statusLabel.text = @"Đã Sẵn Sàng - Bạn Đã Có Thể Bắt Đầu Kích Hoạt Proxy";
     self.statusLabel.font = [UIFont systemFontOfSize:13 weight:UIFontWeightMedium];
     self.statusLabel.textColor = HUD_MUTED;
     self.statusLabel.textAlignment = NSTextAlignmentCenter;
@@ -678,10 +678,8 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
         }
     }
 
-    NSString *mode = isOn ? @"MOD" : @"GỐC";
-
     [row setLoading:YES];
-    [self setStatus:[NSString stringWithFormat:@"⏳ %@ → %@ …", f.title, mode] color:HUD_MUTED];
+    [self setStatus:@"⏳ Đang Kích Hoạt" color:HUD_MUTED];
 
     __weak typeof(self) weakSelf = self;
     [[AutoPasteManager sharedManager] pasteFeature:f.featureKey
