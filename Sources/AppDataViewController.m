@@ -165,19 +165,31 @@
 }
 
 - (void)loadApps {
+    static BOOL isLoading = NO;
+
+    if (isLoading) {
+        [[DebugLogger sharedLogger] log:@"[AppData] ⚠️  Already loading, skipping..."];
+        return;
+    }
+
+    isLoading = YES;
+
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
         DebugLogger *logger = [DebugLogger sharedLogger];
-        [logger log:@"[AppData] Loading app list..."];
+        [logger log:@"[AppData] 🚀 Loading app list..."];
 
         // Initialize MCM
         MCMFilzaStart();
 
         // Get virtual root
         NSString *virtualRoot = MCMFilzaVirtualRoot();
+        [logger log:@"[AppData] Virtual root: %@", virtualRoot];
+
         VirtualFileSystemBuilder *builder = [VirtualFileSystemBuilder sharedBuilder];
         NSError *error = nil;
 
         // Build virtual filesystem
+        [logger log:@"[AppData] Creating VFS..."];
         [builder createVirtualFileSystemAtRoot:virtualRoot error:&error];
         [builder populateAppDataAtRoot:virtualRoot limit:100 error:&error];
 
@@ -185,10 +197,11 @@
         AppEnumerator *enumerator = [AppEnumerator sharedEnumerator];
         self.appIDs = [enumerator allApplicationIdentifiers];
 
-        [logger log:@"[AppData] Found %lu apps", (unsigned long)self.appIDs.count];
+        [logger log:@"[AppData] ✅ Found %lu apps", (unsigned long)self.appIDs.count];
 
         dispatch_async(dispatch_get_main_queue(), ^{
             [self.collectionView reloadData];
+            isLoading = NO;
         });
     });
 }

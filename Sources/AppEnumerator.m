@@ -1,4 +1,5 @@
 #import "AppEnumerator.h"
+#import "DebugLogger.h"
 
 @interface LSApplicationWorkspace : NSObject
 + (instancetype)defaultWorkspace;
@@ -28,32 +29,32 @@
     @try {
         Class LSAppWorkspaceClass = NSClassFromString(@"LSApplicationWorkspace");
         if (!LSAppWorkspaceClass) {
-            NSLog(@"[AppEnum] ❌ LSApplicationWorkspace class not available!");
+            [[DebugLogger sharedLogger] log:@"[AppEnum] ❌ LSApplicationWorkspace class not available!"];
             return identifiers;
         }
-        NSLog(@"[AppEnum] ✅ LSApplicationWorkspace class found");
+        [[DebugLogger sharedLogger] log:@"[AppEnum] ✅ LSApplicationWorkspace class found"];
 
         SEL defaultWorkspaceSelector = NSSelectorFromString(@"defaultWorkspace");
         id workspace = [LSAppWorkspaceClass performSelector:defaultWorkspaceSelector];
 
         if (!workspace) {
-            NSLog(@"[AppEnum] ❌ Could not get defaultWorkspace");
+            [[DebugLogger sharedLogger] log:@"[AppEnum] ❌ Could not get defaultWorkspace"];
             return identifiers;
         }
-        NSLog(@"[AppEnum] ✅ Got workspace instance");
+        [[DebugLogger sharedLogger] log:@"[AppEnum] ✅ Got workspace instance"];
 
         SEL allAppsSelector = NSSelectorFromString(@"allApplications");
         if (![workspace respondsToSelector:allAppsSelector]) {
-            NSLog(@"[AppEnum] ❌ allApplications selector not found");
+            [[DebugLogger sharedLogger] log:@"[AppEnum] ❌ allApplications selector not found"];
             return identifiers;
         }
-        NSLog(@"[AppEnum] ✅ allApplications selector available");
+        [[DebugLogger sharedLogger] log:@"[AppEnum] ✅ allApplications selector available"];
 
         NSArray *allApps = [workspace performSelector:allAppsSelector];
-        NSLog(@"[AppEnum] 📊 Retrieved %lu app proxies", (unsigned long)allApps.count);
+        [[DebugLogger sharedLogger] log:@"[AppEnum] 📊 Retrieved %lu app proxies", (unsigned long)allApps.count];
 
         if (!allApps || allApps.count == 0) {
-            NSLog(@"[AppEnum] ⚠️  allApplications returned nil or empty!");
+            [[DebugLogger sharedLogger] log:@"[AppEnum] ⚠️  allApplications returned nil or empty!"];
             return identifiers;
         }
 
@@ -67,14 +68,14 @@
                     }
                 }
             } @catch (NSException *e) {
-                NSLog(@"[AppEnum] ❌ Error getting bundle ID: %@", e);
+                [[DebugLogger sharedLogger] log:@"[AppEnum] ❌ Error getting bundle ID: %@", e];
             }
         }
 
-        NSLog(@"[AppEnum] ✅ Successfully extracted %lu bundle identifiers", (unsigned long)identifiers.count);
+        [[DebugLogger sharedLogger] log:@"[AppEnum] ✅ Successfully extracted %lu bundle identifiers", (unsigned long)identifiers.count];
 
     } @catch (NSException *e) {
-        NSLog(@"[AppEnum] ❌ Exception during app enumeration: %@", e);
+        [[DebugLogger sharedLogger] log:@"[AppEnum] ❌ Exception during app enumeration: %@", e];
     }
 
     return identifiers;
@@ -103,7 +104,7 @@
             }
         }
     } @catch (NSException *e) {
-        NSLog(@"Error getting display name: %@", e);
+        [[DebugLogger sharedLogger] log:@"Error getting display name: %@", e];
     }
 
     return identifier;
