@@ -1,0 +1,118 @@
+name: Build IMGUIDELTA IPA
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout IMGUIDELTA
+        uses: actions/checkout@v4
+
+      # Setup Theos framework
+      - name: Setup Theos
+        run: |
+          git clone --depth 1 https://github.com/theos/theos.git ~/theos
+          echo "THEOS=~/theos" >> $GITHUB_ENV
+
+      # Install dependencies
+      - name: Install Theos Dependencies
+        run: |
+          brew install ldid
+          cd ~/theos
+          ./bin/bootstrap.sh
+
+      # Download exploit code from FilzaSlop reference
+      - name: Download Exploit Code
+        run: |
+          echo "Downloading exploit components from FilzaSlop..."
+
+          # Create directories if they don't exist
+          mkdir -p kexploit kpf XPF/src XPF/external/ChOma/src utils compat/sys
+
+          # Download kexploit files
+          for file in kexploit_opa334.m krw.m kutils.m offsets.m vnode.m kexploit.h; do
+            curl -sL "https://raw.githubusercontent.com/0xjohnnydev/FilzaSlop/main/kexploit/$file" -o "kexploit/$file" || echo "Warning: Could not download $file"
+          done
+
+          # Download kpf (patchfinder)
+          curl -sL "https://raw.githubusercontent.com/0xjohnnydev/FilzaSlop/main/kpf/patchfinder.m" -o "kpf/patchfinder.m" || echo "Warning: Could not download patchfinder.m"
+
+          # Download sandbox_escape files
+          curl -sL "https://raw.githubusercontent.com/0xjohnnydev/FilzaSlop/main/sandbox_escape.h" -o "sandbox_escape.h" || true
+          curl -sL "https://raw.githubusercontent.com/0xjohnnydev/FilzaSlop/main/sandbox_escape.m" -o "sandbox_escape.m" || true
+          curl -sL "https://raw.githubusercontent.com/0xjohnnydev/FilzaSlop/main/apfs_own.h" -o "apfs_own.h" || true
+          curl -sL "https://raw.githubusercontent.com/0xjohnnydev/FilzaSlop/main/apfs_own.m" -o "apfs_own.m" || true
+
+          # Download utils
+          curl -sL "https://raw.githubusercontent.com/0xjohnnydev/FilzaSlop/main/utils/file.c" -o "utils/file.c" || true
+          curl -sL "https://raw.githubusercontent.com/0xjohnnydev/FilzaSlop/main/utils/hexdump.c" -o "utils/hexdump.c" || true
+          curl -sL "https://raw.githubusercontent.com/0xjohnnydev/FilzaSlop/main/utils/process.c" -o "utils/process.c" || true
+
+          # Download XPF framework
+          for file in xpf.c common.c decompress.c bad_recovery.c non_ppl.c ppl.c; do
+            curl -sL "https://raw.githubusercontent.com/0xjohnnydev/FilzaSlop/main/XPF/src/$file" -o "XPF/src/$file" || echo "Warning: Could not download XPF/$file"
+          done
+
+          echo "✓ Exploit code downloaded"
+
+      # Build app with Theos
+      - name: Build IMGUIDELTA
+        run: |
+          export THEOS=~/theos
+          make clean
+          make package FINALPACKAGE=1
+
+      # Find and rename the built IPA
+      - name: Prepare IPA Artifact
+        run: |
+          IPA_FILE=$(find . -name "*.ipa" -type f | head -1)
+          if [ -z "$IPA_FILE" ]; then
+            echo "Error: No IPA file found after build!"
+            exit 1
+          fi
+
+          # Rename to versioned filename
+          VERSION=$(grep "Version:" control | awk '{print $2}')
+          DEST_NAME="IMGUIDELTA-v${VERSION}-unsigned.ipa"
+          cp "$IPA_FILE" "$DEST_NAME"
+          echo "IPA_PATH=$DEST_NAME" >> $GITHUB_ENV
+          echo "IPA built: $DEST_NAME"
+
+      # Upload artifact to GitHub Actions
+      - name: Upload IPA Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: IMGUIDELTA-IPA
+          path: ${{ env.IPA_PATH }}
+          retention-days: 30
+
+      # Create release on successful build
+      - name: Create Release
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v1
+        with:
+          files: ${{ env.IPA_PATH }}
+          draft: false
+          prerelease: false
+          body: |
+            Unsigned IPA build from commit ${{ github.sha }}
+
+            **Installation:**
+            - Use Sideloadly with your Apple ID
+            - Use AltStore
+            - Use TrollStore (on jailbroken devices)
+
+            **Notes:**
+            - This is an unsigned IPA (debug)
+            - Requires iOS 15.0 or later
+            - Device must not have Face ID (app-level limitation - can be modified)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

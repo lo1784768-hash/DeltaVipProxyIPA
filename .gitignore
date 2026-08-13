@@ -1,0 +1,33 @@
+# Theos
+.theos/
+packages/
+obj/
+*.o
+*.a
+*.dylib
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Xcode
+*.xcodeproj
+*.xcworkspace
+DerivedData/
+*.swiftpm/
+
+# Build artifacts
+*.ipa
+*.deb
+build/
+
+# IDE
+.vscode/
+*.swp
+*.swo
+*~
+
+# System
+__pycache__/
+*.pyc
