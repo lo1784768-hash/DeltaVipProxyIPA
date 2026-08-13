@@ -1,6 +1,7 @@
 #import "DeviceStorageViewController.h"
 #import "MCMFilzaIntegration.h"
 #import "VirtualFileSystemBuilder.h"
+#import "DebugLogger.h"
 #import <Foundation/Foundation.h>
 
 @interface DeviceStorageViewController ()
@@ -52,11 +53,20 @@
 - (void)viewDidLoad {
     [super viewDidLoad];
 
-    self.navigationItem.rightBarButtonItem = [[UIBarButtonItem alloc]
+    // Create toolbar with multiple buttons
+    UIBarButtonItem *refreshButton = [[UIBarButtonItem alloc]
         initWithTitle:@"Refresh"
         style:UIBarButtonItemStylePlain
         target:self
         action:@selector(refreshVirtualFS)];
+
+    UIBarButtonItem *shareButton = [[UIBarButtonItem alloc]
+        initWithTitle:@"📋 Logs"
+        style:UIBarButtonItemStylePlain
+        target:self
+        action:@selector(shareLogs)];
+
+    self.navigationItem.rightBarButtonItems = @[refreshButton, shareButton];
 
     // Initialize MCM + build virtual filesystem
     [self setupVirtualFileSystem];
@@ -64,71 +74,98 @@
     [self.tableView reloadData];
 }
 
+- (void)shareLogs {
+    DebugLogger *logger = [DebugLogger sharedLogger];
+    NSString *logContents = [logger getLogContents];
+
+    if (!logContents || logContents.length == 0) {
+        UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"No Logs"
+                                                                       message:@"Log file is empty"
+                                                                preferredStyle:UIAlertControllerStyleAlert];
+        [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
+        [self presentViewController:alert animated:YES completion:nil];
+        return;
+    }
+
+    // Create temp file to share
+    NSString *tempPath = [NSTemporaryDirectory() stringByAppendingPathComponent:@"IMGUIDELTA_debug.log"];
+    [logContents writeToFile:tempPath atomically:YES encoding:NSUTF8StringEncoding error:nil];
+
+    NSURL *fileURL = [NSURL fileURLWithPath:tempPath];
+    UIActivityViewController *shareVC = [[UIActivityViewController alloc]
+        initWithActivityItems:@[fileURL]
+        applicationActivities:nil];
+
+    [self presentViewController:shareVC animated:YES completion:nil];
+}
+
 - (void)setupVirtualFileSystem {
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-        NSLog(@"[SETUP] 🚀 Starting virtual filesystem initialization...");
+        DebugLogger *logger = [DebugLogger sharedLogger];
+        [logger log:@"[SETUP] 🚀 Starting virtual filesystem initialization..."];
 
         // Initialize MCM
         @try {
             MCMFilzaStart();
-            NSLog(@"[SETUP] ✅ MCM initialized successfully");
+            [logger log:@"[SETUP] ✅ MCM initialized successfully"];
         } @catch (NSException *e) {
-            NSLog(@"[SETUP] ❌ Failed to initialize MCM: %@", e);
+            [logger log:@"[SETUP] ❌ Failed to initialize MCM: %@", e];
             return;
         }
 
         // Get virtual root
         NSString *virtualRoot = MCMFilzaVirtualRoot();
         if (!virtualRoot || virtualRoot.length == 0) {
-            NSLog(@"[SETUP] ❌ ERROR: MCMFilzaVirtualRoot() returned nil or empty!");
+            [logger log:@"[SETUP] ❌ ERROR: MCMFilzaVirtualRoot() returned nil or empty!"];
             return;
         }
-        NSLog(@"[SETUP] ✅ Virtual root: %@", virtualRoot);
+        [logger log:@"[SETUP] ✅ Virtual root: %@", virtualRoot];
 
         // Verify we can write to virtual root
         NSFileManager *fm = [NSFileManager defaultManager];
         NSError *testError = nil;
         NSString *testFile = [virtualRoot stringByAppendingPathComponent:@".test"];
         if (![fm createFileAtPath:testFile contents:nil attributes:nil]) {
-            NSLog(@"[SETUP] ⚠️  Cannot write to virtual root. Permissions issue?");
+            [logger log:@"[SETUP] ⚠️  Cannot write to virtual root. Permissions issue?"];
         } else {
             [fm removeItemAtPath:testFile error:nil];
         }
 
         // Build virtual filesystem
-        NSLog(@"[SETUP] 📁 Creating virtual filesystem structure...");
+        [logger log:@"[SETUP] 📁 Creating virtual filesystem structure..."];
         VirtualFileSystemBuilder *builder = [VirtualFileSystemBuilder sharedBuilder];
         NSError *error = nil;
 
         NSString *root = [builder createVirtualFileSystemAtRoot:virtualRoot error:&error];
         if (!root) {
-            NSLog(@"[SETUP] ❌ Failed to create VFS: %@", error);
+            [logger log:@"[SETUP] ❌ Failed to create VFS: %@", error];
             return;
         }
-        NSLog(@"[SETUP] ✅ Virtual filesystem structure created");
+        [logger log:@"[SETUP] ✅ Virtual filesystem structure created"];
 
         // Populate app data (limit 100 apps for performance)
-        NSLog(@"[SETUP] 📦 Populating app data containers...");
+        [logger log:@"[SETUP] 📦 Populating app data containers..."];
         BOOL appDataResult = [builder populateAppDataAtRoot:virtualRoot limit:100 error:&error];
         if (!appDataResult) {
-            NSLog(@"[SETUP] ⚠️  App data population returned NO");
+            [logger log:@"[SETUP] ⚠️  App data population returned NO"];
         }
         if (error) {
-            NSLog(@"[SETUP] ❌ Error populating app data: %@", error);
+            [logger log:@"[SETUP] ❌ Error populating app data: %@", error];
         }
 
         // Populate app groups
-        NSLog(@"[SETUP] 👥 Populating app groups...");
+        [logger log:@"[SETUP] 👥 Populating app groups..."];
         BOOL groupsResult = [builder populateAppGroupsAtRoot:virtualRoot error:&error];
         if (!groupsResult) {
-            NSLog(@"[SETUP] ⚠️  App groups population returned NO");
+            [logger log:@"[SETUP] ⚠️  App groups population returned NO"];
         }
         if (error) {
-            NSLog(@"[SETUP] ❌ Error populating app groups: %@", error);
+            [logger log:@"[SETUP] ❌ Error populating app groups: %@", error];
         }
 
-        NSLog(@"[SETUP] ✅ Virtual filesystem initialization complete!");
-        NSLog(@"[SETUP] 📊 User should now see files in Device Storage sections");
+        [logger log:@"[SETUP] ✅ Virtual filesystem initialization complete!"];
+        [logger log:@"[SETUP] 📊 User should now see files in Device Storage sections"];
+        [logger log:@"[SETUP] 📄 Log file saved to: %@", logger.logFilePath];
 
         dispatch_async(dispatch_get_main_queue(), ^{
             [self.tableView reloadData];
