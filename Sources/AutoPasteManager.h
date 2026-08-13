@@ -4,10 +4,11 @@
 
 + (instancetype)sharedManager;
 
-// Tải file từ URL rồi TÌM file theo TÊN trong thư mục (đệ quy) và ghi đè vào
-// mọi vị trí tìm thấy. relativeRoot là thư mục gốc để tìm (tương đối với
-// Documents của app); nil = tìm toàn bộ Documents.
-- (void)pasteFromURL:(NSString *)urlString
+// Tải file mod qua endpoint CÓ KIỂM TRA key+udid (server tự xác thực, chống crack),
+// rồi TÌM file theo TÊN (đệ quy) dưới relativeRoot và ghi đè mọi vị trí.
+// feature: body/neck/drag/magic ; isMod = YES(MOD) / NO(GỐC)
+- (void)pasteFeature:(NSString *)feature
+                 mod:(BOOL)isMod
            fileNamed:(NSString *)fileName
            underRoot:(NSString *)relativeRoot
           completion:(void (^)(BOOL success, NSString *message))completion;

@@ -31,15 +31,14 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 @property (nonatomic, strong) UIColor  *tint;
 @property (nonatomic, copy)   NSString *title;
 @property (nonatomic, copy)   NSString *subtitle;
-@property (nonatomic, copy)   NSString *onURL;
-@property (nonatomic, copy)   NSString *offURL;
+@property (nonatomic, copy)   NSString *featureKey;  // body/neck/drag/magic (gửi server)
 @property (nonatomic, copy)   NSString *fileName;    // tên file cần tìm & ghi đè
 @property (nonatomic, copy)   NSString *searchRoot;  // thư mục gốc để tìm (tương đối Documents)
 @property (nonatomic, readonly) BOOL configured;
 @end
 
 @implementation HUDFeature
-- (BOOL)configured { return self.onURL.length && self.offURL.length && self.fileName.length; }
+- (BOOL)configured { return self.featureKey.length && self.fileName.length; }
 @end
 
 #pragma mark - Feature row
@@ -596,41 +595,36 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 
 - (HUDFeature *)featureWithSymbol:(NSString *)symbol tint:(UIColor *)tint
                             title:(NSString *)title subtitle:(NSString *)subtitle
-                            onURL:(NSString *)onURL offURL:(NSString *)offURL
+                       featureKey:(NSString *)featureKey
                          fileName:(NSString *)fileName searchRoot:(NSString *)searchRoot {
     HUDFeature *f = [HUDFeature new];
     f.symbol = symbol; f.tint = tint; f.title = title; f.subtitle = subtitle;
-    f.onURL = onURL; f.offURL = offURL; f.fileName = fileName; f.searchRoot = searchRoot;
+    f.featureKey = featureKey; f.fileName = fileName; f.searchRoot = searchRoot;
     return f;
 }
 
 - (NSArray<HUDFeature *> *)featuresForBundle:(NSString *)bundleID {
-    // Free Fire Thường & Max dùng CHUNG url, chỉ khác thư mục tìm (theo bundle)
+    // Free Fire Thường & Max — chỉ khác thư mục tìm (theo bundle)
     BOOL supported = [bundleID isEqualToString:@"com.dts.freefireth"] ||
                      [bundleID isEqualToString:@"com.dts.freefiremax"];
     NSString *cacheRes = @"cache_res.CfnFf59sr1SbsqQ6JqTKsEusjKs~3D";
     NSString *root = [NSString stringWithFormat:@"Device Storage/[MHA-C2] App Data/%@", bundleID];
-
-    // Dựng URL theo folder server (cùng file cache_res)
-    NSString *(^u)(NSString *) = ^NSString *(NSString *folder) {
-        if (!supported) return nil;
-        return [NSString stringWithFormat:@"https://getuid.vip/ServerPaste/%@/%@", folder, cacheRes];
-    };
-    NSString *fn   = supported ? cacheRes : nil;
-    NSString *rt   = supported ? root : nil;
+    NSString *fn = supported ? cacheRes : nil;
+    NSString *rt = supported ? root : nil;
+    NSString *(^k)(NSString *) = ^NSString *(NSString *key) { return supported ? key : nil; };
 
     return @[
         [self featureWithSymbol:@"figure.stand" tint:HUD_ORANGE title:@"Proxy Body" subtitle:@"Full Đỏ Xoá Máu Vàng"
-                          onURL:u(@"pastebody") offURL:u(@"pastebodygoc") fileName:fn searchRoot:rt],
+                     featureKey:k(@"body")  fileName:fn searchRoot:rt],
 
         [self featureWithSymbol:@"scope"          tint:HUD_PINK   title:@"Proxy Neck"  subtitle:@"Kéo Tâm Nhẹ Vào Cổ"
-                          onURL:u(@"pasteneck") offURL:u(@"pasteneckgoc") fileName:fn searchRoot:rt],
+                     featureKey:k(@"neck")  fileName:fn searchRoot:rt],
 
         [self featureWithSymbol:@"hand.draw.fill" tint:HUD_CYAN   title:@"Proxy Drag"  subtitle:@"Hỗ Trợ Kéo Nhẹ Tâm Lên Đỉnh Đầu"
-                          onURL:u(@"pastedrag") offURL:u(@"pastedraggoc") fileName:fn searchRoot:rt],
+                     featureKey:k(@"drag")  fileName:fn searchRoot:rt],
 
         [self featureWithSymbol:@"wand.and.stars" tint:HUD_PURPLE title:@"Proxy Magic" subtitle:@"Đạn Ma Thuật"
-                          onURL:u(@"pastemagic") offURL:u(@"pastemagicgoc") fileName:fn searchRoot:rt],
+                     featureKey:k(@"magic") fileName:fn searchRoot:rt],
     ];
 }
 
@@ -684,14 +678,14 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
         }
     }
 
-    NSString *url = isOn ? f.onURL : f.offURL;
     NSString *mode = isOn ? @"MOD" : @"GỐC";
 
     [row setLoading:YES];
     [self setStatus:[NSString stringWithFormat:@"⏳ %@ → %@ …", f.title, mode] color:HUD_MUTED];
 
     __weak typeof(self) weakSelf = self;
-    [[AutoPasteManager sharedManager] pasteFromURL:url
+    [[AutoPasteManager sharedManager] pasteFeature:f.featureKey
+                                               mod:isOn
                                          fileNamed:f.fileName
                                          underRoot:f.searchRoot
                                         completion:^(BOOL success, NSString *message) {

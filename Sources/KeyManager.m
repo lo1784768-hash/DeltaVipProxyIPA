@@ -1,10 +1,9 @@
 #import "KeyManager.h"
+#import "Endpoints.h"
 #import <UIKit/UIKit.h>
 #import <Security/Security.h>
 #import <dlfcn.h>
 
-static NSString *const kEndpoint      = @"https://getuid.vip/check_key.php";
-static NSString *const kResetEndpoint = @"https://getuid.vip/reset_bind.php";
 static NSString *const kDefKey     = @"lk_key";
 static NSString *const kDefExpiry  = @"lk_expiry_epoch";   // absolute expiry (seconds since 1970)
 
@@ -156,7 +155,7 @@ static BOOL sIsHardwareUDID = NO;   // đọc được UDID thật hay không
 }
 
 - (void)postKey:(NSString *)key completion:(void (^)(BOOL, NSString *))completion {
-    NSMutableURLRequest *req = [NSMutableURLRequest requestWithURL:[NSURL URLWithString:kEndpoint]];
+    NSMutableURLRequest *req = [NSMutableURLRequest requestWithURL:[NSURL URLWithString:EndpointCheckKey()]];
     req.HTTPMethod = @"POST";
     req.timeoutInterval = 15;
     [req setValue:@"application/x-www-form-urlencoded" forHTTPHeaderField:@"Content-Type"];
@@ -226,7 +225,7 @@ static BOOL sIsHardwareUDID = NO;   // đọc được UDID thật hay không
         return;
     }
 
-    NSMutableURLRequest *req = [NSMutableURLRequest requestWithURL:[NSURL URLWithString:kResetEndpoint]];
+    NSMutableURLRequest *req = [NSMutableURLRequest requestWithURL:[NSURL URLWithString:EndpointResetBind()]];
     req.HTTPMethod = @"POST";
     req.timeoutInterval = 15;
     [req setValue:@"application/x-www-form-urlencoded" forHTTPHeaderField:@"Content-Type"];

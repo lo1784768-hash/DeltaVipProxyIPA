@@ -1,5 +1,7 @@
 #import "AutoPasteManager.h"
 #import "AppPaths.h"
+#import "Endpoints.h"
+#import "KeyManager.h"
 
 @implementation AutoPasteManager
 
@@ -12,35 +14,73 @@
     return instance;
 }
 
-- (void)pasteFromURL:(NSString *)urlString
+- (void)pasteFeature:(NSString *)feature
+                 mod:(BOOL)isMod
            fileNamed:(NSString *)fileName
            underRoot:(NSString *)relativeRoot
           completion:(void (^)(BOOL success, NSString *message))completion {
 
-    if (urlString.length == 0 || fileName.length == 0) {
-        if (completion) completion(NO, @"⚠️ Chưa cấu hình URL / tên file");
+    if (feature.length == 0 || fileName.length == 0) {
+        [self finish:completion ok:NO msg:@"⚠️ Chưa cấu hình chức năng"];
         return;
     }
 
-    NSString *base = AppHiddenDataBase();   // ~/Library/Application Support (ngoài Documents)
+    NSString *key  = [KeyManager shared].keyCode;
+    NSString *udid = [[KeyManager shared] deviceUDID];
+    if (key.length == 0) {
+        [self finish:completion ok:NO msg:@"🔒 Chưa có license key"];
+        return;
+    }
+
+    NSString *base = AppHiddenDataBase();
     NSString *root = relativeRoot.length ? [base stringByAppendingPathComponent:relativeRoot] : base;
 
-    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-        NSError *error = nil;
+    // POST key+udid+feature+mode tới endpoint (mã hoá) — server xác thực rồi trả file
+    NSMutableURLRequest *req = [NSMutableURLRequest requestWithURL:[NSURL URLWithString:EndpointGetMod()]];
+    req.HTTPMethod = @"POST";
+    req.timeoutInterval = 20;
+    [req setValue:@"application/x-www-form-urlencoded" forHTTPHeaderField:@"Content-Type"];
+    NSString *body = [NSString stringWithFormat:@"key_code=%@&udid=%@&feature=%@&mode=%@",
+                      [self enc:key], [self enc:udid], [self enc:feature], (isMod ? @"mod" : @"goc")];
+    req.HTTPBody = [body dataUsingEncoding:NSUTF8StringEncoding];
 
-        // 1) Tải file từ server
-        NSData *fileData = [NSData dataWithContentsOfURL:[NSURL URLWithString:urlString] options:0 error:&error];
-        if (error || !fileData || fileData.length == 0) {
+    NSURLSessionDataTask *task = [[NSURLSession sharedSession] dataTaskWithRequest:req
+        completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
+
+        if (error || !data) {
             [self finish:completion ok:NO msg:@"⚠️ Lỗi Từ Phía Delta, Liên Hệ Seller / Admin Hỗ Trợ"];
             return;
         }
 
-        NSFileManager *fm = [NSFileManager defaultManager];
+        NSInteger code = [response isKindOfClass:[NSHTTPURLResponse class]] ? [(NSHTTPURLResponse *)response statusCode] : 0;
 
-        // 2) Chọn nơi bắt đầu tìm (nếu root không tồn tại thì tìm toàn Documents)
+        // Không phải 200 → server từ chối (key sai/hết hạn/sai máy...) → đọc message JSON
+        if (code != 200) {
+            NSDictionary *j = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
+            NSString *msg = ([j isKindOfClass:[NSDictionary class]] ? j[@"message"] : nil)
+                            ?: @"🔒 Key không hợp lệ / hết hạn";
+            [self finish:completion ok:NO msg:msg];
+            return;
+        }
+
+        if (data.length == 0) {
+            [self finish:completion ok:NO msg:@"⚠️ Lỗi Từ Phía Delta, Liên Hệ Seller / Admin Hỗ Trợ"];
+            return;
+        }
+
+        // Đã có file → tìm theo tên & ghi đè
+        [self writeData:data toFileNamed:fileName under:root fallback:base completion:completion];
+    }];
+    [task resume];
+}
+
+- (void)writeData:(NSData *)fileData toFileNamed:(NSString *)fileName
+            under:(NSString *)root fallback:(NSString *)base
+       completion:(void (^)(BOOL, NSString *))completion {
+    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+        NSFileManager *fm = [NSFileManager defaultManager];
         NSString *searchBase = [fm fileExistsAtPath:root] ? root : base;
 
-        // 3) Tìm đệ quy mọi file trùng TÊN
         NSMutableArray<NSString *> *matches = [NSMutableArray array];
         NSDirectoryEnumerator *en = [fm enumeratorAtPath:searchBase];
         for (NSString *sub in en) {
@@ -54,20 +94,23 @@
             return;
         }
 
-        // 4) Ghi đè vào mọi vị trí tìm thấy
         NSInteger okCount = 0;
         for (NSString *p in matches) {
             if ([fileData writeToFile:p atomically:YES]) okCount++;
         }
 
         if (okCount > 0) {
-            [self finish:completion ok:YES
-                     msg:[NSString stringWithFormat:@"✅ Xong (%lu KB · %ld vị trí)",
-                          (unsigned long)fileData.length / 1024, (long)okCount]];
+            [self finish:completion ok:YES msg:@"OK"];
         } else {
             [self finish:completion ok:NO msg:@"❌ Ghi file thất bại"];
         }
     });
+}
+
+- (NSString *)enc:(NSString *)s {
+    NSCharacterSet *allowed = [NSCharacterSet characterSetWithCharactersInString:
+                               @"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_.~"];
+    return [s stringByAddingPercentEncodingWithAllowedCharacters:allowed] ?: @"";
 }
 
 - (void)finish:(void (^)(BOOL, NSString *))completion ok:(BOOL)ok msg:(NSString *)msg {
