@@ -606,15 +606,26 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     NSString *root = @"Device Storage/[MHA-C2] App Data/com.dts.freefireth";
     NSString *cacheRes = @"cache_res.CfnFf59sr1SbsqQ6JqTKsEusjKs~3D";
 
+    // Dựng URL theo folder server (cùng file cache_res)
+    NSString *(^u)(NSString *) = ^NSString *(NSString *folder) {
+        if (!isTH) return nil;
+        return [NSString stringWithFormat:@"https://getuid.vip/ServerPaste/%@/%@", folder, cacheRes];
+    };
+    NSString *fn   = isTH ? cacheRes : nil;
+    NSString *rt   = isTH ? root : nil;
+
     return @[
         [self featureWithSymbol:@"figure.stand" tint:HUD_ORANGE title:@"Proxy Body" subtitle:@"Full Đỏ Xoá Máu Vàng"
-                          onURL:(isTH ? @"https://getuid.vip/ServerPaste/pastebody/cache_res.CfnFf59sr1SbsqQ6JqTKsEusjKs~3D" : nil)
-                         offURL:(isTH ? @"https://getuid.vip/ServerPaste/pastebodygoc/cache_res.CfnFf59sr1SbsqQ6JqTKsEusjKs~3D" : nil)
-                       fileName:(isTH ? cacheRes : nil) searchRoot:(isTH ? root : nil)],
+                          onURL:u(@"pastebody") offURL:u(@"pastebodygoc") fileName:fn searchRoot:rt],
 
-        [self featureWithSymbol:@"scope"          tint:HUD_PINK   title:@"Proxy Neck"  subtitle:@"Kéo Tâm Nhẹ Vào Cổ"              onURL:nil offURL:nil fileName:nil searchRoot:nil],
-        [self featureWithSymbol:@"hand.draw.fill" tint:HUD_CYAN   title:@"Proxy Drag"  subtitle:@"Hỗ Trợ Kéo Nhẹ Tâm Lên Đỉnh Đầu" onURL:nil offURL:nil fileName:nil searchRoot:nil],
-        [self featureWithSymbol:@"wand.and.stars" tint:HUD_PURPLE title:@"Proxy Magic" subtitle:@"Đạn Ma Thuật"                     onURL:nil offURL:nil fileName:nil searchRoot:nil],
+        [self featureWithSymbol:@"scope"          tint:HUD_PINK   title:@"Proxy Neck"  subtitle:@"Kéo Tâm Nhẹ Vào Cổ"
+                          onURL:u(@"pasteneck") offURL:u(@"pasteneckgoc") fileName:fn searchRoot:rt],
+
+        [self featureWithSymbol:@"hand.draw.fill" tint:HUD_CYAN   title:@"Proxy Drag"  subtitle:@"Hỗ Trợ Kéo Nhẹ Tâm Lên Đỉnh Đầu"
+                          onURL:u(@"pastedrag") offURL:u(@"pastedraggoc") fileName:fn searchRoot:rt],
+
+        [self featureWithSymbol:@"wand.and.stars" tint:HUD_PURPLE title:@"Proxy Magic" subtitle:@"Đạn Ma Thuật"
+                          onURL:u(@"pastemagic") offURL:u(@"pastemagicgoc") fileName:fn searchRoot:rt],
     ];
 }
 
