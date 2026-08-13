@@ -25,6 +25,29 @@
 
 - (BOOL)isAppRunning:(NSString *)bundleID {
     @try {
+        // Try method 1: Check if app process is running using UIApplication
+        Class UIAppClass = NSClassFromString(@"UIApplication");
+        if (UIAppClass) {
+            SEL sharedAppSelector = NSSelectorFromString(@"sharedApplication");
+            id sharedApp = [UIAppClass performSelector:sharedAppSelector];
+            if (sharedApp) {
+                SEL applicationsSelector = NSSelectorFromString(@"_runningApplications");
+                if ([sharedApp respondsToSelector:applicationsSelector]) {
+                    NSArray *runningApps = [sharedApp performSelector:applicationsSelector];
+                    for (id app in runningApps) {
+                        SEL bundleIDSelector = NSSelectorFromString(@"bundleIdentifier");
+                        if ([app respondsToSelector:bundleIDSelector]) {
+                            NSString *appBundleID = [app performSelector:bundleIDSelector];
+                            if ([appBundleID isEqualToString:bundleID]) {
+                                return YES;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Try method 2: LSApplicationWorkspace
         Class LSAppWorkspaceClass = NSClassFromString(@"LSApplicationWorkspace");
         if (!LSAppWorkspaceClass) return NO;
 
@@ -36,9 +59,15 @@
         id appProxy = [workspace performSelector:appProxySelector withObject:bundleID];
         if (!appProxy) return NO;
 
+        // Try different selectors for running status
         SEL isRunningSelector = NSSelectorFromString(@"isRunning");
         if ([appProxy respondsToSelector:isRunningSelector]) {
             return [[appProxy performSelector:isRunningSelector] boolValue];
+        }
+
+        SEL isActiveSelector = NSSelectorFromString(@"isActive");
+        if ([appProxy respondsToSelector:isActiveSelector]) {
+            return [[appProxy performSelector:isActiveSelector] boolValue];
         }
 
         return NO;

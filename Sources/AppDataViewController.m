@@ -128,7 +128,7 @@
 - (void)viewDidLoad {
     [super viewDidLoad];
 
-    self.title = @"App Data";
+    self.title = @"Free Fire 🔥";
     self.view.backgroundColor = [UIColor colorWithRed:0.97 green:0.97 blue:0.98 alpha:1.0];
 
     // Setup collection view with flow layout
@@ -217,16 +217,32 @@
 
         [logger log:@"[AppData] 📂 Found %lu items in VFS [MHA-C2] App Data", (unsigned long)dirContents.count];
 
-        // Filter out hidden files
+        // Only show Free Fire apps
+        NSArray *targetApps = @[@"com.dts.freefiremax", @"com.dts.freefireth"];
         NSMutableArray *appIDs = [NSMutableArray array];
-        for (NSString *item in dirContents) {
-            if (![item hasPrefix:@"."]) {
-                [appIDs addObject:item];
-                [logger log:@"[AppData]   📦 %@", item];
+
+        for (NSString *targetApp in targetApps) {
+            // Check if the app exists in VFS or in all available apps
+            BOOL exists = NO;
+
+            // Check in VFS directory
+            for (NSString *item in dirContents) {
+                if ([item isEqualToString:targetApp]) {
+                    exists = YES;
+                    break;
+                }
+            }
+
+            // If exists, add it
+            if (exists) {
+                [appIDs addObject:targetApp];
+                [logger log:@"[AppData]   📦 %@", targetApp];
+            } else {
+                [logger log:@"[AppData]   ⚠️  %@ not found in VFS", targetApp];
             }
         }
 
-        self.appIDs = [appIDs sortedArrayUsingSelector:@selector(caseInsensitiveCompare:)];
+        self.appIDs = appIDs;
 
         [logger log:@"[AppData] ✅ Ready to display %lu apps", (unsigned long)self.appIDs.count];
 
