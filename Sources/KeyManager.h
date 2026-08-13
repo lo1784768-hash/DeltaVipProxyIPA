@@ -15,6 +15,7 @@ typedef NS_ENUM(NSInteger, KeyState) {
 @property (nonatomic, readonly) KeyState  state;
 
 - (NSString *)deviceUDID;                 // định danh thiết bị gửi lên server
+@property (nonatomic, readonly) BOOL usingHardwareUDID;  // YES = UDID thật, NO = fallback IDFV
 - (NSTimeInterval)secondsLeft;            // >0 nếu còn hạn
 - (NSString *)formattedRemaining;         // "Còn 4 ngày 3 giờ" / "Hết hạn"
 

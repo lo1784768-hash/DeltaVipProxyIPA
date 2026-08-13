@@ -258,8 +258,13 @@
 #pragma mark - License key
 
 - (void)promptAddKey {
+    KeyManager *km = [KeyManager shared];
+    NSString *udid = [km deviceUDID];
+    NSString *src  = km.usingHardwareUDID ? @"UDID thật ✅" : @"⚠️ FALLBACK (không đọc được UDID thật)";
+    NSString *msg  = [NSString stringWithFormat:@"Dán key để kích hoạt.\n\nMáy này (%@):\n%@", src, udid];
+
     UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"License Key"
-                                                                  message:@"Dán key của bạn để kích hoạt"
+                                                                  message:msg
                                                            preferredStyle:UIAlertControllerStyleAlert];
     [alert addTextFieldWithConfigurationHandler:^(UITextField *tf) {
         tf.placeholder = @"Nhập / dán key…";
@@ -275,6 +280,10 @@
             [weakSelf.keyBar update];
             [weakSelf toast:message success:success];
         }];
+    }]];
+    [alert addAction:[UIAlertAction actionWithTitle:@"Sao chép UDID" style:UIAlertActionStyleDefault handler:^(UIAlertAction *a) {
+        [UIPasteboard generalPasteboard].string = udid;
+        [weakSelf toast:@"Đã sao chép UDID vào clipboard." success:YES];
     }]];
     [alert addAction:[UIAlertAction actionWithTitle:@"Đóng" style:UIAlertActionStyleCancel handler:nil]];
     [self presentViewController:alert animated:YES completion:nil];

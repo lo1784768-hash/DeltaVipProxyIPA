@@ -9,6 +9,8 @@ static NSString *const kDefExpiry  = @"lk_expiry_epoch";   // absolute expiry (s
 // libMobileGestalt — đọc UDID phần cứng thật
 typedef CFStringRef (*MGCopyAnswer_t)(CFStringRef);
 
+static BOOL sIsHardwareUDID = NO;   // đọc được UDID thật hay không
+
 @implementation KeyManager
 
 + (instancetype)shared {
@@ -82,11 +84,20 @@ typedef CFStringRef (*MGCopyAnswer_t)(CFStringRef);
         // cố tình không dlclose: libMobileGestalt là thư viện hệ thống, giữ mở vô hại
     }
 
-    // Fallback nếu không đọc được UDID thật (thiếu quyền) — kém an toàn hơn nhưng vẫn chạy
-    if (result.length == 0) {
-        result = [[UIDevice currentDevice].identifierForVendor UUIDString];
+    if (result.length > 0) {
+        sIsHardwareUDID = YES;
+        return result;
     }
-    return result.length ? result : @"UNKNOWN-DEVICE";
+
+    // Fallback nếu không đọc được UDID thật (thiếu quyền) — kém an toàn hơn nhưng vẫn chạy
+    sIsHardwareUDID = NO;
+    NSString *idfv = [[UIDevice currentDevice].identifierForVendor UUIDString];
+    return idfv.length ? idfv : @"UNKNOWN-DEVICE";
+}
+
+- (BOOL)usingHardwareUDID {
+    [self deviceUDID];   // đảm bảo đã đọc UDID (dispatch_once)
+    return sIsHardwareUDID;
 }
 
 #pragma mark - Networking
