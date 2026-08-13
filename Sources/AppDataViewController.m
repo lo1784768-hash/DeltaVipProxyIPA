@@ -6,6 +6,8 @@
 #import "VirtualFileSystemBuilder.h"
 #import "DebugLogger.h"
 #import "ImageDownloader.h"
+#import "HUDPanelView.h"
+#import "AutoPasteManager.h"
 
 @interface AppDataCell : UICollectionViewCell
 @property (nonatomic, strong) UIView *cardView;
@@ -13,6 +15,9 @@
 @property (nonatomic, strong) UIImageView *iconView;
 @property (nonatomic, strong) UILabel *nameLabel;
 @property (nonatomic, strong) UILabel *bundleLabel;
+@property (nonatomic, strong) HUDPanelView *hudPanel;
+@property (nonatomic, strong) NSString *bundleID;
+@property (nonatomic, copy) NSString *appDisplayName;
 @end
 
 @implementation AppDataCell
@@ -106,6 +111,37 @@
         [self.bundleLabel.trailingAnchor constraintEqualToAnchor:self.cardView.trailingAnchor constant:-12],
         [self.bundleLabel.bottomAnchor constraintGreaterThanOrEqualToAnchor:self.cardView.bottomAnchor constant:-16]
     ]];
+
+    // HUD Panel
+    self.hudPanel = [[HUDPanelView alloc] initWithFrame:CGRectMake(0, 0, 280, 200)
+                                                 appName:@"Free Fire"
+                                                bundleID:@"com.dts.freefireth"];
+    self.hudPanel.translatesAutoresizingMaskIntoConstraints = NO;
+    [self.cardView addSubview:self.hudPanel];
+
+    [NSLayoutConstraint activateConstraints:@[
+        [self.hudPanel.topAnchor constraintEqualToAnchor:self.bundleLabel.bottomAnchor constant:12],
+        [self.hudPanel.leadingAnchor constraintEqualToAnchor:self.cardView.leadingAnchor constant:12],
+        [self.hudPanel.trailingAnchor constraintEqualToAnchor:self.cardView.trailingAnchor constant:-12],
+        [self.hudPanel.bottomAnchor constraintEqualToAnchor:self.cardView.bottomAnchor constant:-12]
+    ]];
+
+    // Setup HUD panel toggle handler
+    __weak AppDataCell *weakSelf = self;
+    self.hudPanel.onToggleChanged = ^(BOOL isOn) {
+        [weakSelf performPasteWithServer1:isOn];
+    };
+}
+
+- (void)performPasteWithServer1:(BOOL)isServer1 {
+    [self.hudPanel setLoading:YES];
+
+    [[AutoPasteManager sharedManager] pasteFileWithServerMode:isServer1
+                                                      bundleID:self.bundleID
+                                                    completion:^(BOOL success, NSString *message) {
+        [self.hudPanel setLoading:NO];
+        [self.hudPanel updateStatus:message];
+    }];
 }
 
 // Smooth touch animation
@@ -515,24 +551,23 @@
     // Set bundle ID
     cell.bundleLabel.text = appID;
 
+    // Set bundleID and appName for HUD panel
+    cell.bundleID = appID;
+    cell.appDisplayName = displayName;
+
+    // Update HUD panel with current app info
+    cell.hudPanel.onToggleChanged = ^(BOOL isOn) {
+        [cell performPasteWithServer1:isOn];
+    };
+
     return cell;
 }
 
 #pragma mark - UICollectionViewDelegate
 
 - (void)collectionView:(UICollectionView *)collectionView didSelectItemAtIndexPath:(NSIndexPath *)indexPath {
-    NSString *appID = self.appIDs[indexPath.item];
-
-    // Navigate to file browser
-    NSString *virtualRoot = MCMFilzaVirtualRoot();
-    NSString *appDataPath = [virtualRoot stringByAppendingPathComponent:@"[MHA-C2] App Data"];
-    NSString *containerPath = [appDataPath stringByAppendingPathComponent:appID];
-
-    FileManagerViewController *nextVC = [[FileManagerViewController alloc] init];
-    nextVC.currentPath = containerPath;
-    nextVC.sectionName = appID;
-
-    [self.navigationController pushViewController:nextVC animated:YES];
+    // Navigation removed - use HUD panel instead
+    [collectionView deselectItemAtIndexPath:indexPath animated:YES];
 }
 
 @end
