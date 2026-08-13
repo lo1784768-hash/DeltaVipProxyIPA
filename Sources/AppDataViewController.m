@@ -151,11 +151,10 @@
         @"com.dts.freefireth": @"Free Fire Thường"
     };
 
-    // Custom image mapping - these should be bundled in app or in documents
-    // For now, we'll use display names as keys
+    // Custom image mapping - specific filenames
     self.customAppImages = @{
-        @"com.dts.freefiremax": @"freefire_max",
-        @"com.dts.freefireth": @"freefire_normal"
+        @"com.dts.freefiremax": @"FreeFireMax",
+        @"com.dts.freefireth": @"FreeFireTH"
     };
     self.view.backgroundColor = [UIColor colorWithRed:0.98 green:0.98 blue:0.99 alpha:1.0];
 
@@ -340,24 +339,29 @@
 
     // Try to load from documents/AppImages directory
     NSString *appImagesDir = [documentsPath stringByAppendingPathComponent:@"AppImages"];
-    NSString *imagePath = [appImagesDir stringByAppendingPathComponent:[NSString stringWithFormat:@"%@.webp", imageName]];
 
+    // Priority 1: Try PNG version first (FreeFireMax.png, FreeFireTH.png)
+    NSString *imagePath = [appImagesDir stringByAppendingPathComponent:[NSString stringWithFormat:@"%@.png", imageName]];
     if ([fm fileExistsAtPath:imagePath]) {
+        [[DebugLogger sharedLogger] log:@"[AppData] ✅ Loaded custom image from: %@", imagePath];
         return [UIImage imageWithContentsOfFile:imagePath];
     }
 
-    // Try PNG version
-    imagePath = [appImagesDir stringByAppendingPathComponent:[NSString stringWithFormat:@"%@.png", imageName]];
+    // Priority 2: Try WEBP version
+    imagePath = [appImagesDir stringByAppendingPathComponent:[NSString stringWithFormat:@"%@.webp", imageName]];
     if ([fm fileExistsAtPath:imagePath]) {
+        [[DebugLogger sharedLogger] log:@"[AppData] ✅ Loaded custom image from: %@", imagePath];
         return [UIImage imageWithContentsOfFile:imagePath];
     }
 
-    // Try from bundle (if images are added to app)
+    // Priority 3: Try from bundle (if images are added to app)
     UIImage *bundledImage = [UIImage imageNamed:imageName];
     if (bundledImage) {
+        [[DebugLogger sharedLogger] log:@"[AppData] ✅ Loaded bundled image: %@", imageName];
         return bundledImage;
     }
 
+    [[DebugLogger sharedLogger] log:@"[AppData] ⚠️  Custom image not found: %@", imageName];
     return nil;
 }
 
@@ -382,17 +386,24 @@
         cell.bannerView.backgroundColor = [UIColor colorWithRed:1.0 green:0.6 blue:0.2 alpha:1.0];
     }
 
-    // Try custom image first, then fall back to app icon
+    // Priority order:
+    // 1. Custom image (FreeFireMax.png / FreeFireTH.png)
+    // 2. App icon from system
+    // 3. Fallback to game controller icon
+
     UIImage *customImage = [self loadCustomImageForApp:appID];
     if (customImage) {
         cell.iconView.image = customImage;
+        cell.iconView.tintColor = [UIColor whiteColor];
     } else {
+        // Try to get app's actual icon
         AppStatusChecker *checker = [AppStatusChecker sharedChecker];
         UIImage *icon = [checker iconForApp:appID];
         if (icon) {
             cell.iconView.image = icon;
+            cell.iconView.tintColor = [UIColor whiteColor];
         } else {
-            // Use custom icon if no app icon
+            // Fallback to game controller icon
             cell.iconView.image = [UIImage systemImageNamed:@"gamecontroller.fill"];
             cell.iconView.tintColor = [UIColor whiteColor];
         }
