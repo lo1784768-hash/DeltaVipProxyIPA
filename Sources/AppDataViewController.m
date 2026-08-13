@@ -193,20 +193,8 @@
 - (void)viewDidLoad {
     [super viewDidLoad];
 
-    self.title = @"DELTA PROXY";
-
-    // Logo trên navbar (tải từ URL, fallback về chữ nếu lỗi)
-    UIImageView *logo = [[UIImageView alloc] initWithFrame:CGRectMake(0, 0, 150, 32)];
-    logo.contentMode = UIViewContentModeScaleAspectFit;
-    self.navigationItem.titleView = logo;
-    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-        NSData *d = [NSData dataWithContentsOfURL:[NSURL URLWithString:@"https://getuid.vip/Logo-Delta.png"]];
-        UIImage *img = d ? [UIImage imageWithData:d] : nil;
-        dispatch_async(dispatch_get_main_queue(), ^{
-            if (img) { logo.image = img; }
-            else { self.navigationItem.titleView = nil; self.title = @"DELTA PROXY"; }
-        });
-    });
+    self.title = @"DELTA PROXY VN";
+    self.navigationItem.titleView = nil;
 
     // Display name mapping
     self.appDisplayNames = @{
