@@ -35,6 +35,10 @@ IMGUIDELTA_LIBRARIES = z sandbox
 
 IMGUIDELTA_CODESIGN_FLAGS = -Sdebug.entitlements
 
+# Tell Theos to install our app and bundle resources
+IMGUIDELTA_INSTALL_TARGET_PROCESSES = IMGUIDELTA
+INSTALL_TARGET_PROCESSES = IMGUIDELTA
+
 include $(THEOS_MAKE_PATH)/application.mk
 
 # Generate IPA from app bundle
