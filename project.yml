@@ -55,6 +55,21 @@ targets:
 
         GCC_PREPROCESSOR_DEFINITIONS: $(inherited) DEBUG=1
 
+      configs:
+        Debug:
+          COPY_PHASE_STRIP: NO
+        Release:
+          # Chống reverse: strip toàn bộ symbol/debug khỏi binary release
+          DEPLOYMENT_POSTPROCESSING: YES
+          STRIP_INSTALLED_PRODUCT: YES
+          STRIP_STYLE: all
+          COPY_PHASE_STRIP: YES
+          GCC_GENERATE_DEBUGGING_SYMBOLS: NO
+          DEBUG_INFORMATION_FORMAT: dwarf
+          GCC_OPTIMIZATION_LEVEL: s
+          DEAD_CODE_STRIPPING: YES
+          ENABLE_BITCODE: NO
+
     dependencies:
       - sdk: UIKit.framework
       - sdk: Foundation.framework
@@ -65,12 +80,6 @@ targets:
       - sdk: libobjc.tbd
       - sdk: libz.tbd
       - sdk: libsandbox.tbd
-
-    buildSettings:
-      Debug:
-        COPY_PHASE_STRIP: NO
-      Release:
-        COPY_PHASE_STRIP: YES
 
     scheme:
       testTargets: []
