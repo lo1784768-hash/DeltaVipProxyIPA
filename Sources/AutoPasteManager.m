@@ -35,7 +35,7 @@
         }
     } else {
         if (completion) {
-            completion(NO, @"Unsupported app");
+            completion(NO, @"⚠️ App này chưa cấu hình server paste");
         }
         return;
     }

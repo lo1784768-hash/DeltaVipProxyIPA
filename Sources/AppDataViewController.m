@@ -6,8 +6,7 @@
 #import "VirtualFileSystemBuilder.h"
 #import "DebugLogger.h"
 #import "ImageDownloader.h"
-#import "HUDPanelView.h"
-#import "AutoPasteManager.h"
+#import "HUDControlViewController.h"
 
 @interface AppDataCell : UICollectionViewCell
 @property (nonatomic, strong) UIView *cardView;
@@ -15,9 +14,6 @@
 @property (nonatomic, strong) UIImageView *iconView;
 @property (nonatomic, strong) UILabel *nameLabel;
 @property (nonatomic, strong) UILabel *bundleLabel;
-@property (nonatomic, strong) HUDPanelView *hudPanel;
-@property (nonatomic, strong) NSString *bundleID;
-@property (nonatomic, copy) NSString *appDisplayName;
 @end
 
 @implementation AppDataCell
@@ -68,17 +64,24 @@
         [bannerView.heightAnchor constraintEqualToConstant:100]
     ]];
 
-    // Large app icon in banner
+    // Large app icon in banner - rounded like a real app icon
     self.iconView = [[UIImageView alloc] init];
-    self.iconView.contentMode = UIViewContentModeScaleAspectFit;
+    self.iconView.contentMode = UIViewContentModeScaleAspectFill;
+    self.iconView.clipsToBounds = YES;
+    self.iconView.layer.cornerRadius = 16;
+    self.iconView.layer.cornerCurve = kCACornerCurveContinuous;
+    self.iconView.layer.borderColor = [UIColor colorWithWhite:1 alpha:0.25].CGColor;
+    self.iconView.layer.borderWidth = 1;
+    self.iconView.layer.magnificationFilter = kCAFilterTrilinear;
+    self.iconView.layer.minificationFilter = kCAFilterTrilinear;
     self.iconView.translatesAutoresizingMaskIntoConstraints = NO;
     [bannerView addSubview:self.iconView];
 
     [NSLayoutConstraint activateConstraints:@[
         [self.iconView.centerXAnchor constraintEqualToAnchor:bannerView.centerXAnchor],
         [self.iconView.centerYAnchor constraintEqualToAnchor:bannerView.centerYAnchor],
-        [self.iconView.widthAnchor constraintEqualToConstant:80],
-        [self.iconView.heightAnchor constraintEqualToConstant:80]
+        [self.iconView.widthAnchor constraintEqualToConstant:72],
+        [self.iconView.heightAnchor constraintEqualToConstant:72]
     ]];
 
     // App name - Bold
@@ -111,37 +114,6 @@
         [self.bundleLabel.trailingAnchor constraintEqualToAnchor:self.cardView.trailingAnchor constant:-12],
         [self.bundleLabel.bottomAnchor constraintGreaterThanOrEqualToAnchor:self.cardView.bottomAnchor constant:-16]
     ]];
-
-    // HUD Panel
-    self.hudPanel = [[HUDPanelView alloc] initWithFrame:CGRectMake(0, 0, 280, 200)
-                                                 appName:@"Free Fire"
-                                                bundleID:@"com.dts.freefireth"];
-    self.hudPanel.translatesAutoresizingMaskIntoConstraints = NO;
-    [self.cardView addSubview:self.hudPanel];
-
-    [NSLayoutConstraint activateConstraints:@[
-        [self.hudPanel.topAnchor constraintEqualToAnchor:self.bundleLabel.bottomAnchor constant:12],
-        [self.hudPanel.leadingAnchor constraintEqualToAnchor:self.cardView.leadingAnchor constant:12],
-        [self.hudPanel.trailingAnchor constraintEqualToAnchor:self.cardView.trailingAnchor constant:-12],
-        [self.hudPanel.bottomAnchor constraintEqualToAnchor:self.cardView.bottomAnchor constant:-12]
-    ]];
-
-    // Setup HUD panel toggle handler
-    __weak AppDataCell *weakSelf = self;
-    self.hudPanel.onToggleChanged = ^(BOOL isOn) {
-        [weakSelf performPasteWithServer1:isOn];
-    };
-}
-
-- (void)performPasteWithServer1:(BOOL)isServer1 {
-    [self.hudPanel setLoading:YES];
-
-    [[AutoPasteManager sharedManager] pasteFileWithServerMode:isServer1
-                                                      bundleID:self.bundleID
-                                                    completion:^(BOOL success, NSString *message) {
-        [self.hudPanel setLoading:NO];
-        [self.hudPanel updateStatus:message];
-    }];
 }
 
 // Smooth touch animation
@@ -551,23 +523,25 @@
     // Set bundle ID
     cell.bundleLabel.text = appID;
 
-    // Set bundleID and appName for HUD panel
-    cell.bundleID = appID;
-    cell.appDisplayName = displayName;
-
-    // Update HUD panel with current app info
-    cell.hudPanel.onToggleChanged = ^(BOOL isOn) {
-        [cell performPasteWithServer1:isOn];
-    };
-
     return cell;
 }
 
 #pragma mark - UICollectionViewDelegate
 
 - (void)collectionView:(UICollectionView *)collectionView didSelectItemAtIndexPath:(NSIndexPath *)indexPath {
-    // Navigation removed - use HUD panel instead
     [collectionView deselectItemAtIndexPath:indexPath animated:YES];
+
+    NSString *appID = self.appIDs[indexPath.item];
+    NSString *displayName = self.appDisplayNames[appID] ?: appID;
+
+    // Grab the already-loaded icon from the tapped cell for a crisp HUD header
+    AppDataCell *cell = (AppDataCell *)[collectionView cellForItemAtIndexPath:indexPath];
+    UIImage *icon = cell.iconView.image;
+
+    HUDControlViewController *hud = [[HUDControlViewController alloc] initWithBundleID:appID
+                                                                              appName:displayName
+                                                                                 icon:icon];
+    [self.navigationController pushViewController:hud animated:YES];
 }
 
 @end
