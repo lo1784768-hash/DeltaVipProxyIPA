@@ -429,7 +429,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     [titleBar addSubview:bolt];
 
     UILabel *menuTitle = [[UILabel alloc] init];
-    menuTitle.text = @"PROXY MOD MENU";
+    menuTitle.text = @"PROXY DELTA VIP";
     menuTitle.font = [UIFont systemFontOfSize:14 weight:UIFontWeightHeavy];
     menuTitle.textColor = HUD_CYAN;
     menuTitle.layer.shadowColor = HUD_CYAN.CGColor;
