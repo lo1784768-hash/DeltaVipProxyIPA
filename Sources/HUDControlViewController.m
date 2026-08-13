@@ -4,10 +4,10 @@
 // ── Palette ─────────────────────────────────────────────
 #define HUD_BG_TOP      [UIColor colorWithRed:0.055 green:0.055 blue:0.094 alpha:1.0]
 #define HUD_BG_BOTTOM   [UIColor colorWithRed:0.075 green:0.106 blue:0.204 alpha:1.0]
-#define HUD_PANEL       [UIColor colorWithRed:0.086 green:0.090 blue:0.157 alpha:0.96]
-#define HUD_ROW         [UIColor colorWithWhite:1 alpha:0.035]
 #define HUD_ORANGE      [UIColor colorWithRed:1.000 green:0.361 blue:0.169 alpha:1.0]
 #define HUD_CYAN        [UIColor colorWithRed:0.000 green:0.831 blue:1.000 alpha:1.0]
+#define HUD_PINK        [UIColor colorWithRed:1.000 green:0.231 blue:0.400 alpha:1.0]
+#define HUD_PURPLE      [UIColor colorWithRed:0.659 green:0.333 blue:0.969 alpha:1.0]
 #define HUD_MUTED       [UIColor colorWithRed:0.561 green:0.561 blue:0.659 alpha:1.0]
 #define HUD_GREEN       [UIColor colorWithRed:0.204 green:0.780 blue:0.349 alpha:1.0]
 #define HUD_RED         [UIColor colorWithRed:1.000 green:0.231 blue:0.322 alpha:1.0]
@@ -16,11 +16,12 @@
 #pragma mark - Feature model
 
 @interface HUDFeature : NSObject
-@property (nonatomic, copy) NSString *emoji;
-@property (nonatomic, copy) NSString *title;
-@property (nonatomic, copy) NSString *onURL;        // file to paste when switched ON  (MOD)
-@property (nonatomic, copy) NSString *offURL;       // file to paste when switched OFF (GỐC)
-@property (nonatomic, copy) NSString *relativePath; // target under app Documents
+@property (nonatomic, copy)   NSString *symbol;       // SF Symbol name
+@property (nonatomic, strong) UIColor  *tint;
+@property (nonatomic, copy)   NSString *title;
+@property (nonatomic, copy)   NSString *onURL;        // paste when ON  (MOD)
+@property (nonatomic, copy)   NSString *offURL;       // paste when OFF (GỐC)
+@property (nonatomic, copy)   NSString *relativePath; // target under app Documents
 @property (nonatomic, readonly) BOOL configured;
 @end
 
@@ -51,11 +52,22 @@
         _feature = feature;
         self.translatesAutoresizingMaskIntoConstraints = NO;
 
-        UILabel *emoji = [[UILabel alloc] init];
-        emoji.text = feature.emoji;
-        emoji.font = [UIFont systemFontOfSize:20];
-        emoji.translatesAutoresizingMaskIntoConstraints = NO;
-        [self addSubview:emoji];
+        // Icon chip (rounded square, tinted bg + SF Symbol)
+        UIView *chip = [[UIView alloc] init];
+        chip.backgroundColor = [feature.tint colorWithAlphaComponent:0.18];
+        chip.layer.cornerRadius = 9;
+        chip.layer.cornerCurve = kCACornerCurveContinuous;
+        chip.layer.borderColor = [feature.tint colorWithAlphaComponent:0.45].CGColor;
+        chip.layer.borderWidth = 1;
+        chip.translatesAutoresizingMaskIntoConstraints = NO;
+        [self addSubview:chip];
+
+        UIImageConfiguration *cfg = [UIImageSymbolConfiguration configurationWithPointSize:16 weight:UIImageSymbolWeightSemibold];
+        UIImageView *symbol = [[UIImageView alloc] initWithImage:[UIImage systemImageNamed:feature.symbol withConfiguration:cfg]];
+        symbol.tintColor = feature.tint;
+        symbol.contentMode = UIViewContentModeScaleAspectFit;
+        symbol.translatesAutoresizingMaskIntoConstraints = NO;
+        [chip addSubview:symbol];
 
         UILabel *title = [[UILabel alloc] init];
         title.text = feature.title;
@@ -83,12 +95,17 @@
         [self addSubview:_toggle];
 
         [NSLayoutConstraint activateConstraints:@[
-            [self.heightAnchor constraintEqualToConstant:54],
+            [self.heightAnchor constraintEqualToConstant:56],
 
-            [emoji.leadingAnchor constraintEqualToAnchor:self.leadingAnchor constant:16],
-            [emoji.centerYAnchor constraintEqualToAnchor:self.centerYAnchor],
+            [chip.leadingAnchor constraintEqualToAnchor:self.leadingAnchor constant:16],
+            [chip.centerYAnchor constraintEqualToAnchor:self.centerYAnchor],
+            [chip.widthAnchor constraintEqualToConstant:34],
+            [chip.heightAnchor constraintEqualToConstant:34],
 
-            [title.leadingAnchor constraintEqualToAnchor:emoji.trailingAnchor constant:12],
+            [symbol.centerXAnchor constraintEqualToAnchor:chip.centerXAnchor],
+            [symbol.centerYAnchor constraintEqualToAnchor:chip.centerYAnchor],
+
+            [title.leadingAnchor constraintEqualToAnchor:chip.trailingAnchor constant:12],
             [title.centerYAnchor constraintEqualToAnchor:self.centerYAnchor],
 
             [_toggle.trailingAnchor constraintEqualToAnchor:self.trailingAnchor constant:-16],
@@ -104,7 +121,7 @@
 
         // bottom hairline
         UIView *line = [[UIView alloc] init];
-        line.backgroundColor = [UIColor colorWithWhite:1 alpha:0.06];
+        line.backgroundColor = [UIColor colorWithWhite:1 alpha:0.07];
         line.translatesAutoresizingMaskIntoConstraints = NO;
         [self addSubview:line];
         [NSLayoutConstraint activateConstraints:@[
@@ -170,12 +187,34 @@
     self.bgGradient.endPoint   = CGPointMake(0.5, 1.0);
     [self.view.layer insertSublayer:self.bgGradient atIndex:0];
 
+    [self setupNavBarAppearance];
     [self buildUI];
 }
 
 - (void)viewDidLayoutSubviews {
     [super viewDidLayoutSubviews];
     self.bgGradient.frame = self.view.bounds;
+}
+
+// White title + cyan back chevron on the dark HUD, scoped to this screen only
+- (void)setupNavBarAppearance {
+    UINavigationBarAppearance *ap = [[UINavigationBarAppearance alloc] init];
+    [ap configureWithTransparentBackground];
+    ap.titleTextAttributes = @{NSForegroundColorAttributeName: HUD_TEXT,
+                               NSFontAttributeName: [UIFont systemFontOfSize:17 weight:UIFontWeightBold]};
+    self.navigationItem.standardAppearance = ap;
+    self.navigationItem.scrollEdgeAppearance = ap;
+    self.navigationItem.compactAppearance = ap;
+}
+
+- (void)viewWillAppear:(BOOL)animated {
+    [super viewWillAppear:animated];
+    self.navigationController.navigationBar.tintColor = HUD_CYAN; // back chevron
+}
+
+- (void)viewWillDisappear:(BOOL)animated {
+    [super viewWillDisappear:animated];
+    self.navigationController.navigationBar.tintColor = nil; // restore for the list screen
 }
 
 - (void)buildUI {
@@ -234,20 +273,21 @@
     bundleLabel.translatesAutoresizingMaskIntoConstraints = NO;
     [content addSubview:bundleLabel];
 
-    // ── Panel (mod menu) ────────────────────────────────
-    UIView *panel = [[UIView alloc] init];
-    panel.backgroundColor = HUD_PANEL;
+    // ── Panel (blur → hoà vào nền gradient) ─────────────
+    UIVisualEffectView *panel = [[UIVisualEffectView alloc] initWithEffect:[UIBlurEffect effectWithStyle:UIBlurEffectStyleSystemThinMaterialDark]];
+    panel.clipsToBounds = YES;
     panel.layer.cornerRadius = 18;
     panel.layer.cornerCurve = kCACornerCurveContinuous;
     panel.layer.borderColor = [HUD_CYAN colorWithAlphaComponent:0.30].CGColor;
     panel.layer.borderWidth = 1;
     panel.translatesAutoresizingMaskIntoConstraints = NO;
     [content addSubview:panel];
+    UIView *panelContent = panel.contentView;
 
     // Neon title bar
     UIView *titleBar = [[UIView alloc] init];
     titleBar.translatesAutoresizingMaskIntoConstraints = NO;
-    [panel addSubview:titleBar];
+    [panelContent addSubview:titleBar];
 
     UIView *accent = [[UIView alloc] init];
     accent.backgroundColor = HUD_CYAN;
@@ -255,8 +295,14 @@
     accent.translatesAutoresizingMaskIntoConstraints = NO;
     [titleBar addSubview:accent];
 
+    UIImageView *bolt = [[UIImageView alloc] initWithImage:[UIImage systemImageNamed:@"bolt.fill"]];
+    bolt.tintColor = HUD_CYAN;
+    bolt.contentMode = UIViewContentModeScaleAspectFit;
+    bolt.translatesAutoresizingMaskIntoConstraints = NO;
+    [titleBar addSubview:bolt];
+
     UILabel *menuTitle = [[UILabel alloc] init];
-    menuTitle.text = @"⚡ PROXY MOD MENU";
+    menuTitle.text = @"PROXY MOD MENU";
     menuTitle.font = [UIFont systemFontOfSize:14 weight:UIFontWeightHeavy];
     menuTitle.textColor = HUD_CYAN;
     menuTitle.translatesAutoresizingMaskIntoConstraints = NO;
@@ -274,7 +320,7 @@
     stack.axis = UILayoutConstraintAxisVertical;
     stack.spacing = 0;
     stack.translatesAutoresizingMaskIntoConstraints = NO;
-    [panel addSubview:stack];
+    [panelContent addSubview:stack];
 
     __weak typeof(self) weakSelf = self;
     for (HUDFeature *feature in [self featuresForBundle:self.bundleID]) {
@@ -314,9 +360,9 @@
         [panel.leadingAnchor constraintEqualToAnchor:content.leadingAnchor constant:16],
         [panel.trailingAnchor constraintEqualToAnchor:content.trailingAnchor constant:-16],
 
-        [titleBar.topAnchor constraintEqualToAnchor:panel.topAnchor],
-        [titleBar.leadingAnchor constraintEqualToAnchor:panel.leadingAnchor],
-        [titleBar.trailingAnchor constraintEqualToAnchor:panel.trailingAnchor],
+        [titleBar.topAnchor constraintEqualToAnchor:panelContent.topAnchor],
+        [titleBar.leadingAnchor constraintEqualToAnchor:panelContent.leadingAnchor],
+        [titleBar.trailingAnchor constraintEqualToAnchor:panelContent.trailingAnchor],
         [titleBar.heightAnchor constraintEqualToConstant:44],
 
         [accent.leadingAnchor constraintEqualToAnchor:titleBar.leadingAnchor constant:16],
@@ -324,16 +370,21 @@
         [accent.widthAnchor constraintEqualToConstant:4],
         [accent.heightAnchor constraintEqualToConstant:16],
 
-        [menuTitle.leadingAnchor constraintEqualToAnchor:accent.trailingAnchor constant:10],
+        [bolt.leadingAnchor constraintEqualToAnchor:accent.trailingAnchor constant:10],
+        [bolt.centerYAnchor constraintEqualToAnchor:titleBar.centerYAnchor],
+        [bolt.widthAnchor constraintEqualToConstant:15],
+        [bolt.heightAnchor constraintEqualToConstant:15],
+
+        [menuTitle.leadingAnchor constraintEqualToAnchor:bolt.trailingAnchor constant:7],
         [menuTitle.centerYAnchor constraintEqualToAnchor:titleBar.centerYAnchor],
 
         [hint.trailingAnchor constraintEqualToAnchor:titleBar.trailingAnchor constant:-16],
         [hint.centerYAnchor constraintEqualToAnchor:titleBar.centerYAnchor],
 
         [stack.topAnchor constraintEqualToAnchor:titleBar.bottomAnchor],
-        [stack.leadingAnchor constraintEqualToAnchor:panel.leadingAnchor],
-        [stack.trailingAnchor constraintEqualToAnchor:panel.trailingAnchor],
-        [stack.bottomAnchor constraintEqualToAnchor:panel.bottomAnchor constant:-4],
+        [stack.leadingAnchor constraintEqualToAnchor:panelContent.leadingAnchor],
+        [stack.trailingAnchor constraintEqualToAnchor:panelContent.trailingAnchor],
+        [stack.bottomAnchor constraintEqualToAnchor:panelContent.bottomAnchor constant:-4],
 
         [self.statusLabel.topAnchor constraintEqualToAnchor:panel.bottomAnchor constant:18],
         [self.statusLabel.leadingAnchor constraintEqualToAnchor:content.leadingAnchor constant:24],
@@ -344,40 +395,31 @@
 
 #pragma mark - Feature config
 
-- (HUDFeature *)featureWithEmoji:(NSString *)emoji title:(NSString *)title
-                           onURL:(NSString *)onURL offURL:(NSString *)offURL
-                    relativePath:(NSString *)relativePath {
+- (HUDFeature *)featureWithSymbol:(NSString *)symbol tint:(UIColor *)tint title:(NSString *)title
+                            onURL:(NSString *)onURL offURL:(NSString *)offURL
+                     relativePath:(NSString *)relativePath {
     HUDFeature *f = [HUDFeature new];
-    f.emoji = emoji; f.title = title;
+    f.symbol = symbol; f.tint = tint; f.title = title;
     f.onURL = onURL; f.offURL = offURL; f.relativePath = relativePath;
     return f;
 }
 
 - (NSArray<HUDFeature *> *)featuresForBundle:(NSString *)bundleID {
-    if ([bundleID isEqualToString:@"com.dts.freefireth"]) {
-        NSString *base = @"Device Storage/[MHA-C2] App Data/com.dts.freefireth/Documents/contentcache/Compulsory/ios/gameassetbundles/";
-        NSString *cacheRes = [base stringByAppendingString:@"cache_res.CfnFf59sr1SbsqQ6JqTKsEusjKs~3D"];
+    BOOL isTH = [bundleID isEqualToString:@"com.dts.freefireth"];
+    NSString *base = @"Device Storage/[MHA-C2] App Data/com.dts.freefireth/Documents/contentcache/Compulsory/ios/gameassetbundles/";
+    NSString *cacheRes = [base stringByAppendingString:@"cache_res.CfnFf59sr1SbsqQ6JqTKsEusjKs~3D"];
 
-        return @[
-            // Body — đã cấu hình (dùng server pastebody / pastebodygoc)
-            [self featureWithEmoji:@"🧍" title:@"Proxy Body"
-                             onURL:@"https://getuid.vip/ServerPaste/pastebody/cache_res.CfnFf59sr1SbsqQ6JqTKsEusjKs~3D"
-                            offURL:@"https://getuid.vip/ServerPaste/pastebodygoc/cache_res.CfnFf59sr1SbsqQ6JqTKsEusjKs~3D"
-                      relativePath:cacheRes],
-
-            // Các mod dưới đây chờ URL từ bạn (chưa cấu hình)
-            [self featureWithEmoji:@"🎯" title:@"Proxy Neck"  onURL:nil offURL:nil relativePath:nil],
-            [self featureWithEmoji:@"🖱️" title:@"Proxy Drag"  onURL:nil offURL:nil relativePath:nil],
-            [self featureWithEmoji:@"✨" title:@"Proxy Magic" onURL:nil offURL:nil relativePath:nil],
-        ];
-    }
-
-    // App khác chưa cấu hình
     return @[
-        [self featureWithEmoji:@"🧍" title:@"Proxy Body"  onURL:nil offURL:nil relativePath:nil],
-        [self featureWithEmoji:@"🎯" title:@"Proxy Neck"  onURL:nil offURL:nil relativePath:nil],
-        [self featureWithEmoji:@"🖱️" title:@"Proxy Drag"  onURL:nil offURL:nil relativePath:nil],
-        [self featureWithEmoji:@"✨" title:@"Proxy Magic" onURL:nil offURL:nil relativePath:nil],
+        // Body — đã cấu hình
+        [self featureWithSymbol:@"figure.stand" tint:HUD_ORANGE title:@"Proxy Body"
+                          onURL:(isTH ? @"https://getuid.vip/ServerPaste/pastebody/cache_res.CfnFf59sr1SbsqQ6JqTKsEusjKs~3D" : nil)
+                         offURL:(isTH ? @"https://getuid.vip/ServerPaste/pastebodygoc/cache_res.CfnFf59sr1SbsqQ6JqTKsEusjKs~3D" : nil)
+                   relativePath:(isTH ? cacheRes : nil)],
+
+        // Chờ URL từ bạn
+        [self featureWithSymbol:@"scope"          tint:HUD_PINK   title:@"Proxy Neck"  onURL:nil offURL:nil relativePath:nil],
+        [self featureWithSymbol:@"hand.draw.fill" tint:HUD_CYAN   title:@"Proxy Drag"  onURL:nil offURL:nil relativePath:nil],
+        [self featureWithSymbol:@"wand.and.stars" tint:HUD_PURPLE title:@"Proxy Magic" onURL:nil offURL:nil relativePath:nil],
     ];
 }
 
@@ -389,7 +431,6 @@
 
     HUDFeature *f = row.feature;
     if (!f.configured) {
-        // revert switch, feature not configured yet
         [row.toggle setOn:!isOn animated:YES];
         [row showResult:NO];
         [self setStatus:[NSString stringWithFormat:@"⚠️ %@ chưa có URL", f.title] color:HUD_ORANGE];
