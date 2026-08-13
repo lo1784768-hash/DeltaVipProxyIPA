@@ -21,13 +21,14 @@ jobs:
         run: |
           git clone --depth 1 https://github.com/theos/theos.git ~/theos
           echo "THEOS=~/theos" >> $GITHUB_ENV
+          echo "PATH=~/theos/bin:$PATH" >> $GITHUB_ENV
 
       # Install dependencies
       - name: Install Theos Dependencies
         run: |
           brew install ldid
-          cd ~/theos
-          ./bin/bootstrap.sh
+          # Theos bootstrap is optional on macOS runner
+          # The cloned repo should have everything needed
 
       # Download exploit code from FilzaSlop reference
       - name: Download Exploit Code
