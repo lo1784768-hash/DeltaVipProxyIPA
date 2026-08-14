@@ -703,24 +703,27 @@
     ]];
 }
 
-// Trả về badge hỗ trợ cho hàng Device trong stats card.
-// Exploit kexploit_opa334 hỗ trợ iOS 17.0 – 26.0.x (offsets_init trong offsets.m).
-// Trên iOS 27+ hoặc iOS 16-: exploit bị bỏ qua, MCM fallback vẫn chạy → ⚠️
-// Trên iOS 17–26.0.x: exploit chạy đầy đủ → ✅
-// Nếu exploit đã chạy thành công (runtime): ✅
+// Badge cơ chế truy cập filesystem cho hàng Device trong stats card:
+//   ✅ A  — iOS 26.1+  → Cơ chế A: MCM trực tiếp, không cần kernel exploit
+//   ✅ B  — iOS 17–26.0.x → Cơ chế B: kexploit_opa334 + metadata plist scan
+//   ⚠️   — iOS < 17.0 hoặc iOS tương lai chưa xác định → chưa hỗ trợ
 - (NSString *)exploitSupportBadge {
-    // Nếu đã escape thành công thực sự → luôn hiển thị ✅
-    if ([SandboxEscapeManager escaped]) return @"✅";
-
     NSString *ver = [[UIDevice currentDevice] systemVersion];
-    NSComparisonResult low  = [ver compare:@"17.0" options:NSNumericSearch];
-    NSComparisonResult high = [ver compare:@"27.0" options:NSNumericSearch];
-    BOOL exploitRange = (low != NSOrderedAscending) && (high == NSOrderedAscending);
 
-    // Trong khoảng exploit hỗ trợ → ✅ (exploit sẽ chạy)
-    if (exploitRange) return @"✅";
+    // Cơ chế A: iOS 26.1 trở lên — MCM hoạt động trực tiếp
+    if ([ver compare:@"26.1" options:NSNumericSearch] != NSOrderedAscending) {
+        return @"✅ A";
+    }
 
-    // Ngoài khoảng (iOS 16- hoặc iOS 27+) → ⚠️ (MCM fallback vẫn hoạt động, không crash)
+    // Cơ chế B: iOS 17.0 → 26.0.x — kexploit_opa334
+    NSComparisonResult low = [ver compare:@"17.0" options:NSNumericSearch];
+    if (low != NSOrderedAscending) {
+        // Nếu đã escape thành công thực sự: hiển thị kết quả runtime
+        if ([SandboxEscapeManager escaped]) return @"✅ B";
+        return @"✅ B";  // Sẽ thử exploit khi app chạy
+    }
+
+    // iOS < 17.0: không hỗ trợ
     return @"⚠️";
 }
 

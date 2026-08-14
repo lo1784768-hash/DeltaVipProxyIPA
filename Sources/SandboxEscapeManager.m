@@ -40,12 +40,33 @@ static BOOL _isSandboxAlreadyEscaped(void) {
 
 + (BOOL)escaped { return gEscaped; }
 
-// Kiểm tra iOS có nằm trong khoảng exploit hỗ trợ không (17.0 – 26.0.x)
-// offsets_init() sẽ gọi exit() nếu iOS ngoài khoảng này → phải guard trước khi gọi exploit
-static BOOL _isExploitCompatibleOS(void) {
+/*
+ * HAI CƠ CHẾ truy cập filesystem theo phiên bản iOS:
+ *
+ * Cơ chế A — iOS 26.1 trở lên:
+ *   MCM + sandbox extension activation hoạt động trực tiếp với bundle ID
+ *   com.apple.mobile.MobileHouseArrest. Không cần kernel exploit.
+ *   (container_copy_sandbox_token + container_object_sandbox_extension_activate)
+ *
+ * Cơ chế B — iOS 17.0 → 26.0.x:
+ *   Cần kexploit_opa334 (OPA334/ICMPv6 kernel exploit) để escape sandbox
+ *   trước, sau đó scan metadata plist trực tiếp lấy container paths.
+ *   MCM không đủ quyền trên iOS 17–26.0.x mà không có exploit.
+ */
+
+// Cơ chế A: iOS 26.1 trở lên — MCM trực tiếp, không cần exploit
+static BOOL _isMechanismA(void) {
+    NSString *ver = [[UIDevice currentDevice] systemVersion];
+    // iOS >= 26.1
+    return [ver compare:@"26.1" options:NSNumericSearch] != NSOrderedAscending;
+}
+
+// Cơ chế B: iOS 17.0 → 26.0.x — cần kexploit_opa334
+// offsets_init() sẽ gọi exit() nếu iOS ngoài khoảng này → phải guard trước
+static BOOL _isMechanismB(void) {
     NSString *ver = [[UIDevice currentDevice] systemVersion];
     NSComparisonResult low  = [ver compare:@"17.0" options:NSNumericSearch];
-    NSComparisonResult high = [ver compare:@"27.0" options:NSNumericSearch];
+    NSComparisonResult high = [ver compare:@"26.1" options:NSNumericSearch];
     return (low != NSOrderedAscending) && (high == NSOrderedAscending);
 }
 
@@ -53,17 +74,25 @@ static BOOL _isExploitCompatibleOS(void) {
     static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^{
         dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
-            NSLog(@"[SEM] 🚀 Bắt đầu kernel exploit...");
+            NSString *ver = [[UIDevice currentDevice] systemVersion];
+            NSLog(@"[SEM] 🚀 Kiểm tra cơ chế cho iOS %@...", ver);
 
-            // Kiểm tra iOS có được hỗ trợ bởi kexploit_opa334 không
-            // offsets_init() bên trong exploit gọi exit() nếu iOS không nằm trong 17.0-26.0.x
-            // → PHẢI kiểm tra trước, không được gọi thẳng trên iOS 27+ hoặc iOS 16-
-            if (!_isExploitCompatibleOS()) {
-                NSString *ver = [[UIDevice currentDevice] systemVersion];
-                NSLog(@"[SEM] ⚠️ iOS %@ nằm ngoài khoảng exploit hỗ trợ (17.0–26.0.x) — bỏ qua kexploit, dùng MCM fallback", ver);
+            // Cơ chế A (iOS 26.1+): MCM hoạt động trực tiếp — không cần exploit
+            if (_isMechanismA()) {
+                NSLog(@"[SEM] 📋 Cơ chế A (iOS 26.1+) → MCM không cần kernel exploit");
                 dispatch_async(dispatch_get_main_queue(), ^{ if (completion) completion(NO); });
                 return;
             }
+
+            // Ngoài cả hai cơ chế (iOS < 17.0)
+            if (!_isMechanismB()) {
+                NSLog(@"[SEM] ⚠️ iOS %@ < 17.0 — nằm ngoài cả 2 cơ chế", ver);
+                dispatch_async(dispatch_get_main_queue(), ^{ if (completion) completion(NO); });
+                return;
+            }
+
+            // Cơ chế B (iOS 17.0–26.0.x): chạy kexploit_opa334
+            NSLog(@"[SEM] 📋 Cơ chế B (iOS 17.0–26.0.x) → kexploit_opa334");
 
             // Kiểm tra sandbox đã escape sẵn chưa (vd: tái khởi động mà state còn)
             if (_isSandboxAlreadyEscaped()) {
