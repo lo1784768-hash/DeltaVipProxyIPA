@@ -189,6 +189,7 @@
 @property (nonatomic, strong) KeyBarView *keyBar;
 @property (nonatomic, strong) NSTimer *keyTimer;
 @property (nonatomic, strong) UITextView *debugView;
+@property (nonatomic, strong) UIView *loadingView;   // Loading overlay
 @end
 
 @implementation AppDataViewController
@@ -428,7 +429,8 @@
         [self updateInlineDebug];
     } else {
         [logger log:@"[AppData] ⚠️  No apps in VFS yet, loading in background..."];
-        // If no apps in VFS, load them in background
+        // Hiện loading screen trong khi build VFS (lần đầu mở app)
+        [self showLoadingView];
         [self loadApps];
     }
 }
@@ -527,6 +529,7 @@
         dispatch_async(dispatch_get_main_queue(), ^{
             [self.collectionView reloadData];
             [self updateInlineDebug];
+            [self hideLoadingView];  // Fade out loading screen
             isLoading = NO;
         });
     });
@@ -859,7 +862,81 @@
 }
 
 - (void)refreshApps {
+    // refreshApps được gọi sau khi sandbox escape thành công (từ AppDelegate)
+    // Nếu loading view đang hiện (VFS chưa xong) thì giữ nguyên, hideLoadingView sẽ tự chạy sau loadApps
     [self loadApps];
+}
+
+// ── Loading overlay ───────────────────────────────────────────────────────────
+
+- (void)showLoadingView {
+    if (self.loadingView) return;  // already shown
+
+    UIView *overlay = [[UIView alloc] initWithFrame:self.view.bounds];
+    overlay.backgroundColor = BRAND_BG;
+    overlay.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+    overlay.alpha = 1.0;
+    self.loadingView = overlay;
+
+    // Gradient nền giống app
+    CAGradientLayer *grad = [CAGradientLayer layer];
+    grad.colors = @[(id)BRAND_BG.CGColor,
+                    (id)[UIColor colorWithRed:0.035 green:0.043 blue:0.078 alpha:1.0].CGColor];
+    grad.startPoint = CGPointMake(0.5, 0.0);
+    grad.endPoint   = CGPointMake(0.5, 1.0);
+    grad.frame = overlay.bounds;
+    [overlay.layer addSublayer:grad];
+
+    // Logo / tên app
+    UILabel *title = [[UILabel alloc] init];
+    title.text = @"DELTA PROXY VN";
+    title.font = [UIFont systemFontOfSize:22 weight:UIFontWeightBold];
+    title.textColor = [UIColor colorWithRed:0.941 green:0.941 blue:0.961 alpha:1.0];
+    title.textAlignment = NSTextAlignmentCenter;
+    title.translatesAutoresizingMaskIntoConstraints = NO;
+    [overlay addSubview:title];
+
+    // Spinner màu CYAN
+    UIActivityIndicatorView *spinner = [[UIActivityIndicatorView alloc]
+        initWithActivityIndicatorStyle:UIActivityIndicatorViewStyleMedium];
+    spinner.color = [UIColor colorWithRed:0 green:0.831 blue:1 alpha:1.0];  // BRAND_CYAN
+    spinner.translatesAutoresizingMaskIntoConstraints = NO;
+    [spinner startAnimating];
+    [overlay addSubview:spinner];
+
+    // Subtitle
+    UILabel *sub = [[UILabel alloc] init];
+    sub.text = @"Đang khởi động...";
+    sub.font = [UIFont systemFontOfSize:13 weight:UIFontWeightRegular];
+    sub.textColor = [UIColor colorWithRed:0.561 green:0.561 blue:0.659 alpha:1.0];
+    sub.textAlignment = NSTextAlignmentCenter;
+    sub.translatesAutoresizingMaskIntoConstraints = NO;
+    [overlay addSubview:sub];
+
+    [NSLayoutConstraint activateConstraints:@[
+        // Spinner ở chính giữa màn hình
+        [spinner.centerXAnchor constraintEqualToAnchor:overlay.centerXAnchor],
+        [spinner.centerYAnchor constraintEqualToAnchor:overlay.centerYAnchor],
+        // Title phía trên spinner
+        [title.centerXAnchor constraintEqualToAnchor:overlay.centerXAnchor],
+        [title.bottomAnchor constraintEqualToAnchor:spinner.topAnchor constant:-20],
+        // Subtitle phía dưới spinner
+        [sub.centerXAnchor constraintEqualToAnchor:overlay.centerXAnchor],
+        [sub.topAnchor constraintEqualToAnchor:spinner.bottomAnchor constant:14],
+    ]];
+
+    [self.view addSubview:overlay];
+}
+
+- (void)hideLoadingView {
+    if (!self.loadingView) return;
+    UIView *overlay = self.loadingView;
+    self.loadingView = nil;
+    [UIView animateWithDuration:0.4
+                          delay:0.1
+                        options:UIViewAnimationOptionCurveEaseOut
+                     animations:^{ overlay.alpha = 0; }
+                     completion:^(BOOL finished) { [overlay removeFromSuperview]; }];
 }
 
 // Load custom app image from documents or bundle

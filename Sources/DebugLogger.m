@@ -54,6 +54,7 @@
 }
 
 - (void)log:(NSString *)format, ... {
+#ifdef DEBUG
     va_list args;
     va_start(args, format);
     NSString *message = [[NSString alloc] initWithFormat:format arguments:args];
@@ -72,6 +73,7 @@
             [self.fileHandle synchronizeFile];
         }
     });
+#endif
 }
 
 - (NSString *)currentTimeString {
