@@ -346,11 +346,6 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     titleLabel.translatesAutoresizingMaskIntoConstraints = NO;
     [cc addSubview:titleLabel];
 
-    UIScrollView *scroll = [[UIScrollView alloc] init];
-    scroll.showsVerticalScrollIndicator = YES;
-    scroll.translatesAutoresizingMaskIntoConstraints = NO;
-    [cc addSubview:scroll];
-
     UILabel *bodyLabel = [[UILabel alloc] init];
     bodyLabel.text = body;
     bodyLabel.font = [UIFont systemFontOfSize:14 weight:UIFontWeightMedium];
@@ -358,7 +353,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     bodyLabel.textAlignment = NSTextAlignmentCenter;
     bodyLabel.numberOfLines = 0;
     bodyLabel.translatesAutoresizingMaskIntoConstraints = NO;
-    [scroll addSubview:bodyLabel];
+    [cc addSubview:bodyLabel];
 
     UIButton *ok = [UIButton buttonWithType:UIButtonTypeSystem];
     [ok setTitle:@"ĐÃ HIỂU" forState:UIControlStateNormal];
@@ -386,18 +381,11 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
         [titleLabel.leadingAnchor constraintEqualToAnchor:cc.leadingAnchor constant:20],
         [titleLabel.trailingAnchor constraintEqualToAnchor:cc.trailingAnchor constant:-20],
 
-        [scroll.topAnchor constraintEqualToAnchor:titleLabel.bottomAnchor constant:14],
-        [scroll.leadingAnchor constraintEqualToAnchor:cc.leadingAnchor constant:20],
-        [scroll.trailingAnchor constraintEqualToAnchor:cc.trailingAnchor constant:-20],
-        [scroll.heightAnchor constraintLessThanOrEqualToConstant:260],
+        [bodyLabel.topAnchor constraintEqualToAnchor:titleLabel.bottomAnchor constant:14],
+        [bodyLabel.leadingAnchor constraintEqualToAnchor:cc.leadingAnchor constant:20],
+        [bodyLabel.trailingAnchor constraintEqualToAnchor:cc.trailingAnchor constant:-20],
 
-        [bodyLabel.topAnchor constraintEqualToAnchor:scroll.topAnchor],
-        [bodyLabel.bottomAnchor constraintEqualToAnchor:scroll.bottomAnchor],
-        [bodyLabel.leadingAnchor constraintEqualToAnchor:scroll.leadingAnchor],
-        [bodyLabel.trailingAnchor constraintEqualToAnchor:scroll.trailingAnchor],
-        [bodyLabel.widthAnchor constraintEqualToAnchor:scroll.widthAnchor],
-
-        [ok.topAnchor constraintEqualToAnchor:scroll.bottomAnchor constant:18],
+        [ok.topAnchor constraintEqualToAnchor:bodyLabel.bottomAnchor constant:18],
         [ok.leadingAnchor constraintEqualToAnchor:cc.leadingAnchor constant:20],
         [ok.trailingAnchor constraintEqualToAnchor:cc.trailingAnchor constant:-20],
         [ok.heightAnchor constraintEqualToConstant:50],
