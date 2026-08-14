@@ -59,11 +59,12 @@ targets:
         # ARC enabled
         CLANG_ENABLE_OBJC_ARC: YES
 
-        GCC_PREPROCESSOR_DEFINITIONS: $(inherited) DEBUG=1
+        GCC_PREPROCESSOR_DEFINITIONS: $(inherited)
 
       configs:
         Debug:
           COPY_PHASE_STRIP: NO
+          GCC_PREPROCESSOR_DEFINITIONS: $(inherited) DEBUG=1
         Release:
           # Chống reverse: strip toàn bộ symbol/debug khỏi binary release
           DEPLOYMENT_POSTPROCESSING: YES
