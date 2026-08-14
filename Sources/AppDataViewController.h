@@ -1,7 +1,8 @@
 #import <UIKit/UIKit.h>
 
-// HUD-style view controller showing app containers with running status
-
 @interface AppDataViewController : UIViewController
+
+/** Reload danh sách app (gọi sau khi sandbox escape thành công). */
+- (void)refreshApps;
 
 @end

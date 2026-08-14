@@ -52,7 +52,9 @@ targets:
         CODE_SIGN_ENTITLEMENTS: IMGUIDELTA/IMGUIDELTA.entitlements
 
         # Compiler flags for exploit code
-        OTHER_CFLAGS: -I$(SRCROOT)/compat -I$(SRCROOT)/XPF/src -I$(SRCROOT)/XPF/external/ChOma/include -fobjc-arc -Wno-unused-function -Wno-unused-variable -Wno-incompatible-pointer-types -Wno-deprecated-declarations
+        # -I$(SRCROOT): Sources/sandbox_escape.m + apfs_own.m + SandboxEscapeManager.m
+        #   cần include "kexploit/..." headers từ root project
+        OTHER_CFLAGS: -I$(SRCROOT) -I$(SRCROOT)/compat -I$(SRCROOT)/XPF/src -I$(SRCROOT)/XPF/external/ChOma/include -fobjc-arc -Wno-unused-function -Wno-unused-variable -Wno-incompatible-pointer-types -Wno-deprecated-declarations -Wno-shorten-64-to-32
 
         # ARC enabled
         CLANG_ENABLE_OBJC_ARC: YES

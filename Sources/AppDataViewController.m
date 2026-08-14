@@ -3,6 +3,7 @@
 #import "AppEnumerator.h"
 #import "AppStatusChecker.h"
 #import "MCMFilzaIntegration.h"
+#import "SandboxEscapeManager.h"
 #import "VirtualFileSystemBuilder.h"
 #import "DebugLogger.h"
 #import "ImageDownloader.h"
@@ -660,31 +661,25 @@
     if (err) [s appendFormat:@"  Lỗi: %@\n", err.localizedDescription];
     for (NSString *it in items) [s appendFormat:@"   • %@\n", it];
 
+    // Sandbox escape status
+    [s appendFormat:@"\nSandbox Escaped: %@\n", [SandboxEscapeManager escaped] ? @"✅ CÓ" : @"❌ CHƯA"];
+
+    // SandboxEscapeManager.containerPathForBundleID: (trực tiếp đọc metadata plist)
+    [s appendString:@"\n── Escape → metadata plist ──\n"];
+    for (NSString *bid in @[@"com.dts.freefiremax", @"com.dts.freefireth"]) {
+        NSString *cp = [SandboxEscapeManager containerPathForBundleID:bid];
+        [s appendFormat:@"%@:\n  %@\n", bid, cp ?: @"nil"];
+    }
+
     // MCM container test (có sandbox extension activation)
-    [s appendString:@"\n── MCM + SandboxExt ──\n"];
+    [s appendString:@"\n── MCM + SandboxExt (fallback) ──\n"];
     NSString *e1 = nil, *e2 = nil;
     NSString *cp1 = MCMFilzaDataContainerPath(@"com.dts.freefiremax", &e1);
     NSString *cp2 = MCMFilzaDataContainerPath(@"com.dts.freefireth", &e2);
     [s appendFormat:@"FF Max: %@\n  (%@)\n", cp1 ?: @"nil", e1 ?: @"ok"];
     [s appendFormat:@"FF Thường: %@\n  (%@)\n", cp2 ?: @"nil", e2 ?: @"ok"];
 
-    // LSApplicationProxy fallback test (riêng biệt — không qua MCM)
-    [s appendString:@"\n── LSApplicationProxy ──\n"];
-    @try {
-        Class LSWs = NSClassFromString(@"LSApplicationWorkspace");
-        id ws = [LSWs performSelector:NSSelectorFromString(@"defaultWorkspace")];
-        for (NSString *bid in @[@"com.dts.freefiremax", @"com.dts.freefireth"]) {
-            id proxy = [ws performSelector:NSSelectorFromString(@"applicationProxyForIdentifier:") withObject:bid];
-            NSURL *url = nil;
-            if ([proxy respondsToSelector:NSSelectorFromString(@"dataContainerURL")])
-                url = [proxy performSelector:NSSelectorFromString(@"dataContainerURL")];
-            [s appendFormat:@"%@:\n  %@\n", bid, url ? [url path] : @"nil"];
-        }
-    } @catch (NSException *ex) {
-        [s appendFormat:@"LSProxy lỗi: %@\n", ex];
-    }
-
-    [s appendString:@"\n➡️ MCM có path → escape + sandbox ext OK.\n➡️ LSProxy có path → fallback hoạt động.\n➡️ Cả hai nil → cần kexploit/ source."];
+    [s appendString:@"\n➡️ Escape=YES + metadata path → ✅ OK\n➡️ Escape=NO → exploit chưa chạy\n➡️ Cả hai nil → iOS này chưa hỗ trợ exploit"];
 
     UITextView *tv = [[UITextView alloc] init];
     tv.backgroundColor = [UIColor colorWithRed:0.086 green:0.094 blue:0.169 alpha:0.9];

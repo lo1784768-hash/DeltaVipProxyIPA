@@ -1,5 +1,6 @@
 #import "VirtualFileSystemBuilder.h"
 #import "MCMFilzaIntegration.h"
+#import "SandboxEscapeManager.h"
 #import "AppEnumerator.h"
 #import "DebugLogger.h"
 
@@ -106,9 +107,14 @@
 
     for (NSString *appID in apps) {
         @try {
-            // Get container path via MCM (với sandbox extension activation) hoặc LSApplicationProxy fallback
+            // Ưu tiên: đọc metadata plist trực tiếp (sau khi sandbox escaped)
+            NSString *containerPath = [SandboxEscapeManager containerPathForBundleID:appID];
+
+            // Fallback: MCM + sandbox extension activation + LSApplicationProxy
             NSString *containerError = nil;
-            NSString *containerPath = MCMFilzaDataContainerPath(appID, &containerError);
+            if (!containerPath) {
+                containerPath = MCMFilzaDataContainerPath(appID, &containerError);
+            }
 
             if (!containerPath) {
                 [logger log:@"[VFS] ❌ Could not get path for %@: %@", appID, containerError ?: @"unknown error"];
