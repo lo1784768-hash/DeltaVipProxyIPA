@@ -2,6 +2,7 @@
 #import "AutoPasteManager.h"
 #import "KeyManager.h"
 #import "SecurityGuard.h"
+#import "Endpoints.h"
 
 // ── Palette ─────────────────────────────────────────────
 #define HUD_BG_TOP      [UIColor colorWithRed:0.047 green:0.047 blue:0.086 alpha:1.0]
@@ -294,6 +295,129 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 
     [self setupNavBarAppearance];
     [self buildUI];
+    [self fetchAndShowNotice];
+}
+
+#pragma mark - Thông báo (modal, sửa từ admin)
+
+- (void)fetchAndShowNotice {
+    NSMutableURLRequest *req = [NSMutableURLRequest requestWithURL:[NSURL URLWithString:EndpointVersion()]];
+    req.timeoutInterval = 12;
+    __weak typeof(self) weakSelf = self;
+    NSURLSessionDataTask *task = [[NSURLSession sharedSession] dataTaskWithRequest:req
+        completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
+        if (error || !data) return;
+        NSDictionary *j = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
+        if (![j isKindOfClass:[NSDictionary class]]) return;
+        BOOL on = [j[@"notice_enabled"] boolValue];
+        NSString *title = j[@"notice_title"] ?: @"Thông Báo";
+        NSString *body  = j[@"notice_body"];
+        if (on && body.length > 0) {
+            dispatch_async(dispatch_get_main_queue(), ^{ [weakSelf showNoticeTitle:title body:body]; });
+        }
+    }];
+    [task resume];
+}
+
+- (void)showNoticeTitle:(NSString *)title body:(NSString *)body {
+    UIView *dim = [[UIView alloc] initWithFrame:self.view.bounds];
+    dim.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+    dim.backgroundColor = [UIColor colorWithWhite:0 alpha:0.0];
+    dim.tag = 8801;
+    [self.view addSubview:dim];
+
+    UIVisualEffectView *card = [[UIVisualEffectView alloc] initWithEffect:[UIBlurEffect effectWithStyle:UIBlurEffectStyleSystemThinMaterialDark]];
+    card.clipsToBounds = YES;
+    card.layer.cornerRadius = 20;
+    card.layer.cornerCurve = kCACornerCurveContinuous;
+    card.layer.borderColor = [HUD_CYAN colorWithAlphaComponent:0.5].CGColor;
+    card.layer.borderWidth = 1;
+    card.translatesAutoresizingMaskIntoConstraints = NO;
+    card.transform = CGAffineTransformMakeScale(0.9, 0.9);
+    [dim addSubview:card];
+    UIView *cc = card.contentView;
+
+    UILabel *titleLabel = [[UILabel alloc] init];
+    titleLabel.text = title;
+    titleLabel.font = [UIFont systemFontOfSize:18 weight:UIFontWeightHeavy];
+    titleLabel.textColor = HUD_CYAN;
+    titleLabel.textAlignment = NSTextAlignmentCenter;
+    titleLabel.numberOfLines = 0;
+    titleLabel.translatesAutoresizingMaskIntoConstraints = NO;
+    [cc addSubview:titleLabel];
+
+    UIScrollView *scroll = [[UIScrollView alloc] init];
+    scroll.showsVerticalScrollIndicator = YES;
+    scroll.translatesAutoresizingMaskIntoConstraints = NO;
+    [cc addSubview:scroll];
+
+    UILabel *bodyLabel = [[UILabel alloc] init];
+    bodyLabel.text = body;
+    bodyLabel.font = [UIFont systemFontOfSize:14 weight:UIFontWeightMedium];
+    bodyLabel.textColor = HUD_TEXT;
+    bodyLabel.textAlignment = NSTextAlignmentCenter;
+    bodyLabel.numberOfLines = 0;
+    bodyLabel.translatesAutoresizingMaskIntoConstraints = NO;
+    [scroll addSubview:bodyLabel];
+
+    UIButton *ok = [UIButton buttonWithType:UIButtonTypeSystem];
+    [ok setTitle:@"ĐÃ HIỂU" forState:UIControlStateNormal];
+    [ok setTitleColor:[UIColor colorWithRed:0.04 green:0.06 blue:0.13 alpha:1.0] forState:UIControlStateNormal];
+    ok.titleLabel.font = [UIFont systemFontOfSize:16 weight:UIFontWeightHeavy];
+    ok.layer.cornerRadius = 14;
+    ok.clipsToBounds = YES;
+    ok.translatesAutoresizingMaskIntoConstraints = NO;
+    [ok addTarget:self action:@selector(dismissNotice) forControlEvents:UIControlEventTouchUpInside];
+    [cc addSubview:ok];
+
+    CAGradientLayer *g = [CAGradientLayer layer];
+    g.colors = @[(id)HUD_PURPLE.CGColor, (id)HUD_CYAN.CGColor];
+    g.startPoint = CGPointMake(0, 0.5); g.endPoint = CGPointMake(1, 0.5);
+    g.cornerRadius = 14;
+    [ok.layer insertSublayer:g atIndex:0];
+
+    [NSLayoutConstraint activateConstraints:@[
+        [card.centerXAnchor constraintEqualToAnchor:dim.centerXAnchor],
+        [card.centerYAnchor constraintEqualToAnchor:dim.centerYAnchor],
+        [card.leadingAnchor constraintEqualToAnchor:dim.leadingAnchor constant:32],
+        [card.trailingAnchor constraintEqualToAnchor:dim.trailingAnchor constant:-32],
+
+        [titleLabel.topAnchor constraintEqualToAnchor:cc.topAnchor constant:22],
+        [titleLabel.leadingAnchor constraintEqualToAnchor:cc.leadingAnchor constant:20],
+        [titleLabel.trailingAnchor constraintEqualToAnchor:cc.trailingAnchor constant:-20],
+
+        [scroll.topAnchor constraintEqualToAnchor:titleLabel.bottomAnchor constant:14],
+        [scroll.leadingAnchor constraintEqualToAnchor:cc.leadingAnchor constant:20],
+        [scroll.trailingAnchor constraintEqualToAnchor:cc.trailingAnchor constant:-20],
+        [scroll.heightAnchor constraintLessThanOrEqualToConstant:260],
+
+        [bodyLabel.topAnchor constraintEqualToAnchor:scroll.topAnchor],
+        [bodyLabel.bottomAnchor constraintEqualToAnchor:scroll.bottomAnchor],
+        [bodyLabel.leadingAnchor constraintEqualToAnchor:scroll.leadingAnchor],
+        [bodyLabel.trailingAnchor constraintEqualToAnchor:scroll.trailingAnchor],
+        [bodyLabel.widthAnchor constraintEqualToAnchor:scroll.widthAnchor],
+
+        [ok.topAnchor constraintEqualToAnchor:scroll.bottomAnchor constant:18],
+        [ok.leadingAnchor constraintEqualToAnchor:cc.leadingAnchor constant:20],
+        [ok.trailingAnchor constraintEqualToAnchor:cc.trailingAnchor constant:-20],
+        [ok.heightAnchor constraintEqualToConstant:50],
+        [ok.bottomAnchor constraintEqualToAnchor:cc.bottomAnchor constant:-20],
+    ]];
+
+    [self.view layoutIfNeeded];
+    g.frame = ok.bounds;
+
+    [UIView animateWithDuration:0.25 animations:^{
+        dim.backgroundColor = [UIColor colorWithWhite:0 alpha:0.6];
+        card.transform = CGAffineTransformIdentity;
+    }];
+}
+
+- (void)dismissNotice {
+    UIView *dim = [self.view viewWithTag:8801];
+    if (!dim) return;
+    [UIView animateWithDuration:0.2 animations:^{ dim.alpha = 0; }
+                     completion:^(BOOL f){ [dim removeFromSuperview]; }];
 }
 
 - (void)viewDidLayoutSubviews {
