@@ -131,4 +131,30 @@ static BOOL _isExploitCompatibleOS(void) {
     return nil;
 }
 
++ (NSDictionary<NSString *, NSString *> *)allContainerPaths {
+    NSString *dataDir = @"/var/mobile/Containers/Data/Application";
+    NSFileManager *fm = [NSFileManager defaultManager];
+    NSArray *uuids = [fm contentsOfDirectoryAtPath:dataDir error:nil];
+
+    if (!uuids || uuids.count == 0) {
+        NSLog(@"[SEM] ⚠️ allContainerPaths: không đọc được %@ (sandbox escaped=%d)", dataDir, gEscaped);
+        return @{};
+    }
+
+    NSMutableDictionary<NSString *, NSString *> *result = [NSMutableDictionary dictionary];
+    for (NSString *uuid in uuids) {
+        NSString *uuidPath = [dataDir stringByAppendingPathComponent:uuid];
+        NSString *metaPath = [uuidPath stringByAppendingPathComponent:
+                              @".com.apple.mobile_container_manager.metadata.plist"];
+        NSDictionary *meta = [NSDictionary dictionaryWithContentsOfFile:metaPath];
+        NSString *bid = meta[@"MCMMetadataIdentifier"];
+        if (bid.length > 0) {
+            result[bid] = uuidPath;
+        }
+    }
+
+    NSLog(@"[SEM] 📦 allContainerPaths: tìm thấy %lu app", (unsigned long)result.count);
+    return [result copy];
+}
+
 @end

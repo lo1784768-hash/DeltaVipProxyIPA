@@ -78,39 +78,58 @@
         return NO;
     }
 
-    // Get all app identifiers
-    AppEnumerator *enumerator = [AppEnumerator sharedEnumerator];
-    NSArray *allApps = [enumerator allApplicationIdentifiers];
-    [logger log:@"[VFS] 📊 AppEnumerator found %lu total apps", (unsigned long)allApps.count];
-
-    if (allApps.count == 0) {
-        [logger log:@"[VFS] ⚠️  AppEnumerator returned 0 apps, trying alternative method..."];
-
-        // Fallback: Scan device filesystem for app containers
-        NSString *containersPath = @"/var/mobile/Containers/Data/Application";
-        NSArray *containers = [fm contentsOfDirectoryAtPath:containersPath error:nil];
-
-        if (containers && containers.count > 0) {
-            [logger log:@"[VFS] ✅ Found %lu app containers in filesystem", (unsigned long)containers.count];
-            allApps = containers;
-        } else {
-            [logger log:@"[VFS] ❌ No containers found in filesystem either"];
-            return NO;
-        }
+    // Sau khi sandbox escaped: scan trực tiếp metadata plist để lấy TẤT CẢ app
+    // (LSApplicationWorkspace / AppEnumerator chỉ thấy app trong sandbox → thiếu game)
+    NSDictionary<NSString *, NSString *> *escapedContainers = nil;
+    if ([SandboxEscapeManager escaped]) {
+        escapedContainers = [SandboxEscapeManager allContainerPaths];
+        [logger log:@"[VFS] 📦 Sandbox escaped: scan metadata plist → %lu app", (unsigned long)escapedContainers.count];
     }
 
-    NSArray *apps = limit > 0 ? [allApps subarrayWithRange:NSMakeRange(0, MIN(limit, allApps.count))]
-                              : allApps;
+    // Cũng lấy danh sách từ AppEnumerator (IPC) để bổ sung những app LSApplicationWorkspace thấy
+    AppEnumerator *enumerator = [AppEnumerator sharedEnumerator];
+    NSArray *ipcApps = [enumerator allApplicationIdentifiers];
+    [logger log:@"[VFS] 📊 AppEnumerator (IPC) found %lu apps", (unsigned long)ipcApps.count];
+
+    // Gộp: ưu tiên danh sách từ metadata plist (đầy đủ hơn)
+    NSMutableDictionary<NSString *, NSString *> *allContainers = [NSMutableDictionary dictionary];
+
+    // Thêm từ IPC trước (có thể không có container path trực tiếp)
+    for (NSString *bid in ipcApps) {
+        allContainers[bid] = @"";  // placeholder, path sẽ được resolve bên dưới
+    }
+
+    // Ghi đè/bổ sung từ metadata plist (có container path sẵn)
+    if (escapedContainers.count > 0) {
+        [allContainers addEntriesFromDictionary:escapedContainers];
+    }
+
+    if (allContainers.count == 0) {
+        [logger log:@"[VFS] ❌ Không tìm thấy app nào từ cả hai nguồn"];
+        return NO;
+    }
+
+    // Giới hạn số lượng nếu cần
+    NSArray *appIDs = allContainers.allKeys;
+    if (limit > 0 && appIDs.count > limit) {
+        appIDs = [appIDs subarrayWithRange:NSMakeRange(0, limit)];
+    }
 
     NSUInteger created = 0;
     NSUInteger failed = 0;
 
-    for (NSString *appID in apps) {
+    for (NSString *appID in appIDs) {
         @try {
-            // Ưu tiên: đọc metadata plist trực tiếp (sau khi sandbox escaped)
-            NSString *containerPath = [SandboxEscapeManager containerPathForBundleID:appID];
+            // Lấy container path: ưu tiên giá trị đã scan từ metadata plist
+            NSString *containerPath = allContainers[appID];
+            if (containerPath.length == 0) containerPath = nil;
 
-            // Fallback: MCM + sandbox extension activation + LSApplicationProxy
+            // Nếu chưa có (app từ IPC): thử lookup từ SandboxEscapeManager
+            if (!containerPath && [SandboxEscapeManager escaped]) {
+                containerPath = [SandboxEscapeManager containerPathForBundleID:appID];
+            }
+
+            // Fallback cuối: MCM + sandbox extension activation + LSApplicationProxy
             NSString *containerError = nil;
             if (!containerPath) {
                 containerPath = MCMFilzaDataContainerPath(appID, &containerError);

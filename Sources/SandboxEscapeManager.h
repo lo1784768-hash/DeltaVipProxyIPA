@@ -30,6 +30,13 @@
  */
 + (NSString *)containerPathForBundleID:(NSString *)bundleID;
 
+/**
+ * Quét toàn bộ /var/mobile/Containers/Data/Application/ và trả về dict
+ * bundleID → containerPath cho TẤT CẢ app đang cài. Yêu cầu sandbox escaped.
+ * Dùng thay cho LSApplicationWorkspace khi IPC không có quyền.
+ */
++ (NSDictionary<NSString *, NSString *> *)allContainerPaths;
+
 @end
 
 #endif /* SandboxEscapeManager_h */
