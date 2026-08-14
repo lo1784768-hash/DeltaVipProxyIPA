@@ -188,7 +188,9 @@
 @property (nonatomic, strong) CAGradientLayer *cyanGlow;
 @property (nonatomic, strong) KeyBarView *keyBar;
 @property (nonatomic, strong) NSTimer *keyTimer;
+#if DEBUG
 @property (nonatomic, strong) UITextView *debugView;
+#endif
 @property (nonatomic, strong) UIView *loadingView;   // Loading overlay
 @end
 
@@ -426,7 +428,9 @@
         [logger log:@"[AppData] ✅ Found %lu apps immediately", (unsigned long)self.appIDs.count];
         [self updateStatsKeysCount];
         [self.collectionView reloadData];
+#if DEBUG
         [self updateInlineDebug];
+#endif
     } else {
         [logger log:@"[AppData] ⚠️  No apps in VFS yet, loading in background..."];
         // Hiện loading screen trong khi build VFS (lần đầu mở app)
@@ -528,7 +532,9 @@
 
         dispatch_async(dispatch_get_main_queue(), ^{
             [self.collectionView reloadData];
+#if DEBUG
             [self updateInlineDebug];
+#endif
             [self hideLoadingView];  // Fade out loading screen
             isLoading = NO;
         });
@@ -641,6 +647,7 @@
     [self.keyBar update];
 }
 
+#if DEBUG
 // Hiện debug thẳng trên màn hình chính khi KHÔNG tìm thấy game
 - (void)updateInlineDebug {
     [self.debugView removeFromSuperview];
@@ -707,6 +714,7 @@
         [tv.bottomAnchor constraintEqualToAnchor:self.keyBar.topAnchor constant:-16],
     ]];
 }
+#endif  // DEBUG (updateInlineDebug)
 
 // Badge cơ chế truy cập filesystem cho hàng Device trong stats card:
 //   ✅ A  — iOS 26.1+  → Cơ chế A: MCM trực tiếp, không cần kernel exploit
