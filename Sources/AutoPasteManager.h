@@ -9,6 +9,7 @@
 // feature: body/neck/drag/magic ; isMod = YES(MOD) / NO(GỐC)
 - (void)pasteFeature:(NSString *)feature
                  mod:(BOOL)isMod
+                game:(NSString *)game
            fileNamed:(NSString *)fileName
            underRoot:(NSString *)relativeRoot
           completion:(void (^)(BOOL success, NSString *message))completion;

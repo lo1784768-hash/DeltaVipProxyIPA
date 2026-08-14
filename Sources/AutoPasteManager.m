@@ -16,6 +16,7 @@
 
 - (void)pasteFeature:(NSString *)feature
                  mod:(BOOL)isMod
+                game:(NSString *)game
            fileNamed:(NSString *)fileName
            underRoot:(NSString *)relativeRoot
           completion:(void (^)(BOOL success, NSString *message))completion {
@@ -41,8 +42,9 @@
     req.timeoutInterval = 20;
     [req setValue:@"application/x-www-form-urlencoded" forHTTPHeaderField:@"Content-Type"];
     NSString *ver = [[NSBundle mainBundle] objectForInfoDictionaryKey:@"CFBundleShortVersionString"] ?: @"0";
-    NSString *body = [NSString stringWithFormat:@"key_code=%@&udid=%@&feature=%@&mode=%@&app_ver=%@",
-                      [self enc:key], [self enc:udid], [self enc:feature], (isMod ? @"mod" : @"goc"), [self enc:ver]];
+    NSString *body = [NSString stringWithFormat:@"key_code=%@&udid=%@&feature=%@&mode=%@&game=%@&app_ver=%@",
+                      [self enc:key], [self enc:udid], [self enc:feature], (isMod ? @"mod" : @"goc"),
+                      [self enc:game ?: @""], [self enc:ver]];
     req.HTTPBody = [body dataUsingEncoding:NSUTF8StringEncoding];
 
     NSURLSessionDataTask *task = [[NSURLSession sharedSession] dataTaskWithRequest:req

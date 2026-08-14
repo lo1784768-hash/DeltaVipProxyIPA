@@ -34,6 +34,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 @property (nonatomic, copy)   NSString *featureKey;  // body/neck/drag/magic (gửi server)
 @property (nonatomic, copy)   NSString *fileName;    // tên file cần tìm & ghi đè
 @property (nonatomic, copy)   NSString *searchRoot;  // thư mục gốc để tìm (tương đối Documents)
+@property (nonatomic, assign) BOOL exclusive;        // YES = radio (aim); NO = độc lập (định vị)
 @property (nonatomic, readonly) BOOL configured;
 @end
 
@@ -600,6 +601,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     HUDFeature *f = [HUDFeature new];
     f.symbol = symbol; f.tint = tint; f.title = title; f.subtitle = subtitle;
     f.featureKey = featureKey; f.fileName = fileName; f.searchRoot = searchRoot;
+    f.exclusive = YES;   // mặc định là aim (radio); định vị sẽ set NO
     return f;
 }
 
@@ -607,11 +609,24 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     // Free Fire Thường & Max — chỉ khác thư mục tìm (theo bundle)
     BOOL supported = [bundleID isEqualToString:@"com.dts.freefireth"] ||
                      [bundleID isEqualToString:@"com.dts.freefiremax"];
+    BOOL isMax = [bundleID isEqualToString:@"com.dts.freefiremax"];
+    BOOL isTH  = [bundleID isEqualToString:@"com.dts.freefireth"];
+
     NSString *cacheRes = @"cache_res.CfnFf59sr1SbsqQ6JqTKsEusjKs~3D";
+    // File "định vị súng" tên KHÁC NHAU theo game
+    NSString *shaders = isMax ? @"shaders.RXqs706xmtWYhbN9TqDzP8LDRzk~3D"
+                     : (isTH  ? @"shaders.HPt9DZviTSXL9hpGW9QNOMigNLA~3D" : nil);
+
     NSString *root = [NSString stringWithFormat:@"Device Storage/[MHA-C2] App Data/%@", bundleID];
     NSString *fn = supported ? cacheRes : nil;
     NSString *rt = supported ? root : nil;
     NSString *(^k)(NSString *) = ^NSString *(NSString *key) { return supported ? key : nil; };
+
+    // Định vị súng — file shaders (theo game) + ĐỘC LẬP (bật không tắt aim)
+    HUDFeature *dinhvi = [self featureWithSymbol:@"location.fill" tint:HUD_GREEN
+                                           title:@"Định Vị Súng" subtitle:@"Hiện Vị Trí Súng Trên Map"
+                                      featureKey:k(@"dinhvi") fileName:(supported ? shaders : nil) searchRoot:rt];
+    dinhvi.exclusive = NO;
 
     return @[
         [self featureWithSymbol:@"figure.stand" tint:HUD_ORANGE title:@"Proxy Body" subtitle:@"Full Đỏ Xoá Máu Vàng"
@@ -630,6 +645,8 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 
         [self featureWithSymbol:@"wand.and.stars" tint:HUD_PURPLE title:@"Proxy Magic" subtitle:@"Đạn Ma Thuật"
                      featureKey:k(@"magic") fileName:fn searchRoot:rt],
+
+        dinhvi,
     ];
 }
 
@@ -672,10 +689,11 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 
     [row setActive:isOn];
 
-    // Loại trừ lẫn nhau: bật cái này thì tắt các cái khác (cùng ghi 1 file)
-    if (isOn) {
+    // Radio CHỈ giữa các aim (exclusive). Bật 1 aim → tắt aim khác.
+    // Định vị (exclusive=NO) là ĐỘC LẬP: bật nó không tắt aim, và aim bật cũng không tắt nó.
+    if (isOn && f.exclusive) {
         for (HUDFeatureRow *other in self.rows) {
-            if (other != row && other.toggle.isOn) {
+            if (other != row && other.feature.exclusive && other.toggle.isOn) {
                 [other.toggle setOn:NO animated:YES];   // programmatic → không kích hoạt paste
                 [other setActive:NO];
                 other.statusDot.text = @"";
@@ -686,9 +704,12 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     [row setLoading:YES];
     [self setStatus:@"⏳ Đang Kích Hoạt" color:HUD_MUTED];
 
+    NSString *game = [self.bundleID isEqualToString:@"com.dts.freefiremax"] ? @"max" : @"th";
+
     __weak typeof(self) weakSelf = self;
     [[AutoPasteManager sharedManager] pasteFeature:f.featureKey
                                                mod:isOn
+                                              game:game
                                          fileNamed:f.fileName
                                          underRoot:f.searchRoot
                                         completion:^(BOOL success, NSString *message) {
