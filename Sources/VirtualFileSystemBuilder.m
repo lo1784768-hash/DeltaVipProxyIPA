@@ -106,7 +106,7 @@
 
     for (NSString *appID in apps) {
         @try {
-            // Get container path via MCM
+            // Get container path via MCM (với sandbox extension activation) hoặc LSApplicationProxy fallback
             NSString *containerError = nil;
             NSString *containerPath = MCMFilzaDataContainerPath(appID, &containerError);
 

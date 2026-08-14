@@ -5,19 +5,30 @@
 
 // High-level MCM integration for Filza-like file management
 
-// Initialize MCM and verify bundle ID
+// ── Khởi tạo ────────────────────────────────────────────────────────────────
+
+// [1] Gọi TRƯỚC MCMFilzaStart — báo hiệu sandbox escape đã chạy thành công.
+//     Nếu kexploit/ chạy OK: gọi MCMFilzaSetUnrestrictedFilesystem(YES).
+//     Nếu chưa có exploit: vẫn gọi (sẽ fallback về LSApplicationProxy).
+void MCMFilzaSetUnrestrictedFilesystem(BOOL enabled);
+BOOL MCMFilzaIsUnrestricted(void);
+
+// [2] Khởi tạo MCM bridge (load dylib + function ptrs). Gọi sau [1].
 void MCMFilzaStart(void);
 
-// Get virtual root directory for virtual filesystem
-// Default: ~/Documents/Device Storage
+// ── Filesystem ───────────────────────────────────────────────────────────────
+
+// Virtual root: ~/Documents/Device Storage
 NSString *MCMFilzaVirtualRoot(void);
 
-// Get real container path for app ID (e.g., com.apple.mobilesafari)
-// Returns nil if app doesn't have a container
+// Container path cho appID (e.g. "com.dts.freefireth").
+// Thử theo thứ tự:
+//   1. MCM C API + sandbox extension activation (iOS 17-)
+//   2. LSApplicationProxy.dataContainerURL (fallback iOS 18+)
+// Trả nil + *error nếu thất bại.
 NSString *MCMFilzaDataContainerPath(NSString *appID, NSString **error);
 
-// Get sandbox extension token for app container
-// Used to grant file access to app containers
+// Token sandbox cho container (sử dụng nội bộ).
 void *MCMFilzaGetSandboxToken(NSString *appID);
 
 #endif /* MCMFilzaIntegration_h */

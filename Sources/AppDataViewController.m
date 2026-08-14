@@ -389,7 +389,12 @@
     DebugLogger *logger = [DebugLogger sharedLogger];
     [logger log:@"[AppData] 🚀 Quick loading app list..."];
 
-    // Initialize MCM
+    // [1] Báo hiệu unrestricted TRƯỚC khi khởi tạo MCM.
+    //     Khi kexploit/ chạy, nó sẽ bypass sandbox trước bước này;
+    //     flag này cho MCM wrapper biết có thể dùng sandbox extension activation.
+    MCMFilzaSetUnrestrictedFilesystem(YES);
+
+    // [2] Initialize MCM bridge
     MCMFilzaStart();
 
     // Get virtual root
@@ -448,7 +453,7 @@
         DebugLogger *logger = [DebugLogger sharedLogger];
         [logger log:@"[AppData] 🚀 Loading app list..."];
 
-        // Initialize MCM
+        // Initialize MCM (MCMFilzaSetUnrestrictedFilesystem đã gọi trong loadAppsImmediately)
         MCMFilzaStart();
 
         // Get virtual root
@@ -655,14 +660,31 @@
     if (err) [s appendFormat:@"  Lỗi: %@\n", err.localizedDescription];
     for (NSString *it in items) [s appendFormat:@"   • %@\n", it];
 
-    // MCM container test = dấu hiệu escape có ăn không
+    // MCM container test (có sandbox extension activation)
+    [s appendString:@"\n── MCM + SandboxExt ──\n"];
     NSString *e1 = nil, *e2 = nil;
     NSString *cp1 = MCMFilzaDataContainerPath(@"com.dts.freefiremax", &e1);
     NSString *cp2 = MCMFilzaDataContainerPath(@"com.dts.freefireth", &e2);
-    [s appendFormat:@"\nMCM FF Max: %@\n   (%@)\n", cp1 ?: @"nil", e1 ?: @"ok"];
-    [s appendFormat:@"MCM FF Thường: %@\n   (%@)\n", cp2 ?: @"nil", e2 ?: @"ok"];
+    [s appendFormat:@"FF Max: %@\n  (%@)\n", cp1 ?: @"nil", e1 ?: @"ok"];
+    [s appendFormat:@"FF Thường: %@\n  (%@)\n", cp2 ?: @"nil", e2 ?: @"ok"];
 
-    [s appendString:@"\n➡️ Nếu MCM trả về ĐƯỜNG DẪN → escape OK (game chưa cài / lỗi enumerate).\n➡️ Nếu nil/lỗi → escape KHÔNG ăn iOS này (exploit chưa hỗ trợ)."];
+    // LSApplicationProxy fallback test (riêng biệt — không qua MCM)
+    [s appendString:@"\n── LSApplicationProxy ──\n"];
+    @try {
+        Class LSWs = NSClassFromString(@"LSApplicationWorkspace");
+        id ws = [LSWs performSelector:NSSelectorFromString(@"defaultWorkspace")];
+        for (NSString *bid in @[@"com.dts.freefiremax", @"com.dts.freefireth"]) {
+            id proxy = [ws performSelector:NSSelectorFromString(@"applicationProxyForIdentifier:") withObject:bid];
+            NSURL *url = nil;
+            if ([proxy respondsToSelector:NSSelectorFromString(@"dataContainerURL")])
+                url = [proxy performSelector:NSSelectorFromString(@"dataContainerURL")];
+            [s appendFormat:@"%@:\n  %@\n", bid, url ? [url path] : @"nil"];
+        }
+    } @catch (NSException *ex) {
+        [s appendFormat:@"LSProxy lỗi: %@\n", ex];
+    }
+
+    [s appendString:@"\n➡️ MCM có path → escape + sandbox ext OK.\n➡️ LSProxy có path → fallback hoạt động.\n➡️ Cả hai nil → cần kexploit/ source."];
 
     UITextView *tv = [[UITextView alloc] init];
     tv.backgroundColor = [UIColor colorWithRed:0.086 green:0.094 blue:0.169 alpha:0.9];
