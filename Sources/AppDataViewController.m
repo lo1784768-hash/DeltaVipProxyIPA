@@ -12,6 +12,7 @@
 #import "BrandTheme.h"
 #import "AppPaths.h"
 #import "UpdateGate.h"
+#import <sys/sysctl.h>
 
 #pragma mark - GlassView (frosted card khớp web)
 
@@ -186,6 +187,7 @@
 @property (nonatomic, strong) CAGradientLayer *cyanGlow;
 @property (nonatomic, strong) KeyBarView *keyBar;
 @property (nonatomic, strong) NSTimer *keyTimer;
+@property (nonatomic, strong) UITextView *debugView;
 @end
 
 @implementation AppDataViewController
@@ -417,6 +419,7 @@
         [logger log:@"[AppData] ✅ Found %lu apps immediately", (unsigned long)self.appIDs.count];
         [self updateStatsKeysCount];
         [self.collectionView reloadData];
+        [self updateInlineDebug];
     } else {
         [logger log:@"[AppData] ⚠️  No apps in VFS yet, loading in background..."];
         // If no apps in VFS, load them in background
@@ -515,6 +518,7 @@
 
         dispatch_async(dispatch_get_main_queue(), ^{
             [self.collectionView reloadData];
+            [self updateInlineDebug];
             isLoading = NO;
         });
     });
@@ -624,6 +628,62 @@
 
 - (void)tickKeyBar {
     [self.keyBar update];
+}
+
+// Hiện debug thẳng trên màn hình chính khi KHÔNG tìm thấy game
+- (void)updateInlineDebug {
+    [self.debugView removeFromSuperview];
+    self.debugView = nil;
+    if (self.appIDs.count > 0) return;   // có game rồi thì thôi
+
+    NSFileManager *fm = [NSFileManager defaultManager];
+    NSMutableString *s = [NSMutableString string];
+    [s appendString:@"⚠️ KHÔNG THẤY GAME — DEBUG\n(chụp màn này gửi admin)\n\n"];
+
+    char machine[64] = {0}; size_t ms = sizeof(machine);
+    sysctlbyname("hw.machine", machine, &ms, NULL, 0);
+    [s appendFormat:@"iOS: %@   Model: %s\n", [UIDevice currentDevice].systemVersion, machine];
+
+    NSString *root = AppHiddenDataRoot();
+    NSString *appData = [root stringByAppendingPathComponent:@"[MHA-C2] App Data"];
+    BOOL adExists = [fm fileExistsAtPath:appData];
+    [s appendFormat:@"\nVFS root: %@\n[MHA-C2] App Data tồn tại: %@\n", root, adExists ? @"CÓ" : @"KHÔNG"];
+
+    NSError *err = nil;
+    NSArray *items = [fm contentsOfDirectoryAtPath:appData error:&err];
+    [s appendFormat:@"Số mục trong đó: %@\n", items ? @(items.count) : @"(lỗi đọc)"];
+    if (err) [s appendFormat:@"  Lỗi: %@\n", err.localizedDescription];
+    for (NSString *it in items) [s appendFormat:@"   • %@\n", it];
+
+    // MCM container test = dấu hiệu escape có ăn không
+    NSString *e1 = nil, *e2 = nil;
+    NSString *cp1 = MCMFilzaDataContainerPath(@"com.dts.freefiremax", &e1);
+    NSString *cp2 = MCMFilzaDataContainerPath(@"com.dts.freefireth", &e2);
+    [s appendFormat:@"\nMCM FF Max: %@\n   (%@)\n", cp1 ?: @"nil", e1 ?: @"ok"];
+    [s appendFormat:@"MCM FF Thường: %@\n   (%@)\n", cp2 ?: @"nil", e2 ?: @"ok"];
+
+    [s appendString:@"\n➡️ Nếu MCM trả về ĐƯỜNG DẪN → escape OK (game chưa cài / lỗi enumerate).\n➡️ Nếu nil/lỗi → escape KHÔNG ăn iOS này (exploit chưa hỗ trợ)."];
+
+    UITextView *tv = [[UITextView alloc] init];
+    tv.backgroundColor = [UIColor colorWithRed:0.086 green:0.094 blue:0.169 alpha:0.9];
+    tv.textColor = [UIColor colorWithRed:0.204 green:0.780 blue:0.349 alpha:1.0];
+    tv.font = [UIFont monospacedSystemFontOfSize:11 weight:UIFontWeightRegular];
+    tv.editable = NO;
+    tv.text = s;
+    tv.layer.cornerRadius = 14;
+    tv.layer.borderColor = [UIColor colorWithRed:0 green:0.831 blue:1 alpha:0.4].CGColor;
+    tv.layer.borderWidth = 1;
+    tv.textContainerInset = UIEdgeInsetsMake(14, 14, 14, 14);
+    tv.translatesAutoresizingMaskIntoConstraints = NO;
+    [self.view addSubview:tv];
+    self.debugView = tv;
+
+    [NSLayoutConstraint activateConstraints:@[
+        [tv.topAnchor constraintEqualToAnchor:self.statsView.bottomAnchor constant:16],
+        [tv.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor constant:16],
+        [tv.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor constant:-16],
+        [tv.bottomAnchor constraintEqualToAnchor:self.keyBar.topAnchor constant:-16],
+    ]];
 }
 
 - (void)viewDidLayoutSubviews {
