@@ -746,10 +746,10 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 
         [self featureWithSymbol:@"camera.metering.center.weighted"
                            tint:[UIColor colorWithRed:1.0 green:0.78 blue:0.25 alpha:1.0]
-                          title:@"Proxy Ngực" subtitle:@"Aim Chuẩn Vào Ngực"
+                          title:@"Proxy Cổ V1" subtitle:@"Aim Cổ Ít Lộ Hơn"
                      featureKey:k(@"chest") fileName:fn searchRoot:rt],
 
-        [self featureWithSymbol:@"scope"          tint:HUD_PINK   title:@"Proxy Neck"  subtitle:@"Kéo Tâm Nhẹ Vào Cổ"
+        [self featureWithSymbol:@"scope"          tint:HUD_PINK   title:@"Proxy Cổ V2"  subtitle:@"Vùng Cổ Máu Đỏ To Hơn, Bám Hơn"
                      featureKey:k(@"neck")  fileName:fn searchRoot:rt],
 
         [self featureWithSymbol:@"hand.draw.fill" tint:HUD_CYAN   title:@"Proxy Drag"  subtitle:@"Hỗ Trợ Kéo Nhẹ Tâm Lên Đỉnh Đầu"
