@@ -714,7 +714,7 @@
 
     NSString *ver = [[UIDevice currentDevice] systemVersion];
     NSComparisonResult low  = [ver compare:@"17.0" options:NSNumericSearch];
-    NSComparisonResult high = [ver compare:@"26.1" options:NSNumericSearch];
+    NSComparisonResult high = [ver compare:@"27.0" options:NSNumericSearch];
     BOOL exploitRange = (low != NSOrderedAscending) && (high == NSOrderedAscending);
 
     // Trong khoảng exploit hỗ trợ → ✅ (exploit sẽ chạy)

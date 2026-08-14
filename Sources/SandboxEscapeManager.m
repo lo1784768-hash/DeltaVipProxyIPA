@@ -45,7 +45,7 @@ static BOOL _isSandboxAlreadyEscaped(void) {
 static BOOL _isExploitCompatibleOS(void) {
     NSString *ver = [[UIDevice currentDevice] systemVersion];
     NSComparisonResult low  = [ver compare:@"17.0" options:NSNumericSearch];
-    NSComparisonResult high = [ver compare:@"26.1" options:NSNumericSearch];
+    NSComparisonResult high = [ver compare:@"27.0" options:NSNumericSearch];
     return (low != NSOrderedAscending) && (high == NSOrderedAscending);
 }
 
