@@ -182,7 +182,7 @@
     }
 
     [logger log:@"[VFS] 📦 Populated app data: %lu created, %lu failed out of %lu attempted",
-          (unsigned long)created, (unsigned long)failed, (unsigned long)apps.count];
+          (unsigned long)created, (unsigned long)failed, (unsigned long)appIDs.count];
 
     return created > 0;
 }
