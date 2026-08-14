@@ -40,11 +40,30 @@ static BOOL _isSandboxAlreadyEscaped(void) {
 
 + (BOOL)escaped { return gEscaped; }
 
+// Kiểm tra iOS có nằm trong khoảng exploit hỗ trợ không (17.0 – 26.0.x)
+// offsets_init() sẽ gọi exit() nếu iOS ngoài khoảng này → phải guard trước khi gọi exploit
+static BOOL _isExploitCompatibleOS(void) {
+    NSString *ver = [[UIDevice currentDevice] systemVersion];
+    NSComparisonResult low  = [ver compare:@"17.0" options:NSNumericSearch];
+    NSComparisonResult high = [ver compare:@"26.1" options:NSNumericSearch];
+    return (low != NSOrderedAscending) && (high == NSOrderedAscending);
+}
+
 + (void)runEscapeWithCompletion:(void (^)(BOOL))completion {
     static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^{
         dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
             NSLog(@"[SEM] 🚀 Bắt đầu kernel exploit...");
+
+            // Kiểm tra iOS có được hỗ trợ bởi kexploit_opa334 không
+            // offsets_init() bên trong exploit gọi exit() nếu iOS không nằm trong 17.0-26.0.x
+            // → PHẢI kiểm tra trước, không được gọi thẳng trên iOS 27+ hoặc iOS 16-
+            if (!_isExploitCompatibleOS()) {
+                NSString *ver = [[UIDevice currentDevice] systemVersion];
+                NSLog(@"[SEM] ⚠️ iOS %@ nằm ngoài khoảng exploit hỗ trợ (17.0–26.0.x) — bỏ qua kexploit, dùng MCM fallback", ver);
+                dispatch_async(dispatch_get_main_queue(), ^{ if (completion) completion(NO); });
+                return;
+            }
 
             // Kiểm tra sandbox đã escape sẵn chưa (vd: tái khởi động mà state còn)
             if (_isSandboxAlreadyEscaped()) {
