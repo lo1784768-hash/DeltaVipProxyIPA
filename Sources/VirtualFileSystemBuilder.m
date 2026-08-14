@@ -109,11 +109,21 @@
         return NO;
     }
 
-    // Giới hạn số lượng nếu cần
-    NSArray *appIDs = allContainers.allKeys;
-    if (limit > 0 && appIDs.count > limit) {
-        appIDs = [appIDs subarrayWithRange:NSMakeRange(0, limit)];
+    // Sắp xếp: target game apps (Free Fire) luôn được process trước,
+    // sau đó mới đến các app khác (bị giới hạn bởi limit).
+    // Điều này đảm bảo game symlink luôn được tạo kể cả khi limit nhỏ.
+    NSArray *priorityApps = @[@"com.dts.freefiremax", @"com.dts.freefireth"];
+    NSMutableArray *appIDs = [NSMutableArray array];
+    for (NSString *p in priorityApps) {
+        if (allContainers[p]) [appIDs addObject:p];
     }
+
+    NSArray *remaining = [allContainers.allKeys filteredArrayUsingPredicate:
+                          [NSPredicate predicateWithFormat:@"NOT (SELF IN %@)", priorityApps]];
+    if (limit > 0 && remaining.count > limit) {
+        remaining = [remaining subarrayWithRange:NSMakeRange(0, limit)];
+    }
+    [appIDs addObjectsFromArray:remaining];
 
     NSUInteger created = 0;
     NSUInteger failed = 0;

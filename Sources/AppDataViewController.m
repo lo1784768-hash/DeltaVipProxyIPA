@@ -497,25 +497,27 @@
         NSArray *targetApps = @[@"com.dts.freefiremax", @"com.dts.freefireth"];
         NSMutableArray *appIDs = [NSMutableArray array];
 
+        // Tập hợp nhanh để tra cứu O(1)
+        NSSet *dirSet = [NSSet setWithArray:dirContents];
+
         for (NSString *targetApp in targetApps) {
-            // Check if the app exists in VFS or in all available apps
-            BOOL exists = NO;
-
-            // Check in VFS directory
-            for (NSString *item in dirContents) {
-                if ([item isEqualToString:targetApp]) {
-                    exists = YES;
-                    break;
-                }
-            }
-
-            // If exists, add it
-            if (exists) {
+            // [1] Kiểm tra trong VFS directory (symlink đã được tạo)
+            if ([dirSet containsObject:targetApp]) {
                 [appIDs addObject:targetApp];
-                [logger log:@"[AppData]   📦 %@", targetApp];
-            } else {
-                [logger log:@"[AppData]   ⚠️  %@ not found in VFS", targetApp];
+                [logger log:@"[AppData]   📦 %@ (VFS symlink)", targetApp];
+                continue;
             }
+
+            // [2] VFS chưa có → kiểm tra trực tiếp container path
+            //     (sau khi sandbox escaped, containerPathForBundleID: đọc metadata plist)
+            NSString *directPath = [SandboxEscapeManager containerPathForBundleID:targetApp];
+            if (directPath) {
+                [appIDs addObject:targetApp];
+                [logger log:@"[AppData]   📦 %@ (direct container: %@)", targetApp, directPath];
+                continue;
+            }
+
+            [logger log:@"[AppData]   ⚠️  %@ not found (VFS + direct lookup both nil)", targetApp];
         }
 
         self.appIDs = appIDs;
