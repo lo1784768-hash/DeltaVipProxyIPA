@@ -324,8 +324,29 @@
     [alert addAction:[UIAlertAction actionWithTitle:@"Kích hoạt" style:UIAlertActionStyleDefault handler:^(UIAlertAction *a) {
         NSString *key = alert.textFields.firstObject.text;
         [[KeyManager shared] activateKey:key completion:^(BOOL success, NSString *message) {
-            [weakSelf.keyBar update];
-            [weakSelf toast:message success:success];
+            KeyManager *km = [KeyManager shared];
+            if (!success && km.pendingConfirmKey) {
+                // Server yêu cầu xác nhận chuyển key vĩnh viễn → 3 tháng
+                UIAlertController *confirm = [UIAlertController
+                    alertControllerWithTitle:@"⚠️ Thông Báo Quan Trọng"
+                                    message:km.pendingConfirmMessage
+                             preferredStyle:UIAlertControllerStyleAlert];
+                [confirm addAction:[UIAlertAction actionWithTitle:@"Đồng Ý"
+                                                           style:UIAlertActionStyleDefault
+                                                         handler:^(UIAlertAction *ca) {
+                    [[KeyManager shared] confirmPendingActivationWithCompletion:^(BOOL ok, NSString *msg) {
+                        [weakSelf.keyBar update];
+                        [weakSelf toast:msg success:ok];
+                    }];
+                }]];
+                [confirm addAction:[UIAlertAction actionWithTitle:@"Huỷ"
+                                                           style:UIAlertActionStyleCancel
+                                                         handler:nil]];
+                [weakSelf presentViewController:confirm animated:YES completion:nil];
+            } else {
+                [weakSelf.keyBar update];
+                [weakSelf toast:message success:success];
+            }
         }];
     }]];
     [alert addAction:[UIAlertAction actionWithTitle:@"Sao chép UDID" style:UIAlertActionStyleDefault handler:^(UIAlertAction *a) {
@@ -716,28 +737,25 @@
 }
 #endif  // DEBUG (updateInlineDebug)
 
-// Badge cơ chế truy cập filesystem cho hàng Device trong stats card:
-//   ✅ A  — iOS 26.1+  → Cơ chế A: MCM trực tiếp, không cần kernel exploit
-//   ✅ B  — iOS 17–26.0.x → Cơ chế B: kexploit_opa334 + metadata plist scan
-//   ⚠️   — iOS < 17.0 hoặc iOS tương lai chưa xác định → chưa hỗ trợ
+// Badge hỗ trợ hiển thị trong hàng Device của stats card:
+//   ✅ Có Hỗ Trợ  — iOS 17.0 → 18.7.1   hoặc   iOS 26.0 → 27.x
+//   ⚠️ Chưa Hỗ Trợ — các phiên bản khác
 - (NSString *)exploitSupportBadge {
     NSString *ver = [[UIDevice currentDevice] systemVersion];
 
-    // Cơ chế A: iOS 26.1 trở lên — MCM hoạt động trực tiếp
-    if ([ver compare:@"26.1" options:NSNumericSearch] != NSOrderedAscending) {
-        return @"✅ A";
+    // iOS 17.0 → 18.x (Apple nhảy thẳng lên 26, không có iOS 19–25)
+    if ([ver compare:@"17.0" options:NSNumericSearch] != NSOrderedAscending &&
+        [ver compare:@"19.0" options:NSNumericSearch] == NSOrderedAscending) {
+        return @"✅ Có Hỗ Trợ";
     }
 
-    // Cơ chế B: iOS 17.0 → 26.0.x — kexploit_opa334
-    NSComparisonResult low = [ver compare:@"17.0" options:NSNumericSearch];
-    if (low != NSOrderedAscending) {
-        // Nếu đã escape thành công thực sự: hiển thị kết quả runtime
-        if ([SandboxEscapeManager escaped]) return @"✅ B";
-        return @"✅ B";  // Sẽ thử exploit khi app chạy
+    // iOS 26.0 → 27.x (iOS 27 Beta 3 trở về trước đều tính)
+    if ([ver compare:@"26.0" options:NSNumericSearch] != NSOrderedAscending &&
+        [ver compare:@"28.0" options:NSNumericSearch] == NSOrderedAscending) {
+        return @"✅ Có Hỗ Trợ";
     }
 
-    // iOS < 17.0: không hỗ trợ
-    return @"⚠️";
+    return @"⚠️ Chưa Hỗ Trợ";
 }
 
 // Trả về tên model thực (vd "iPhone 14 Pro Max") thay vì tên người dùng đặt

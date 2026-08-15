@@ -12,7 +12,13 @@ typedef CFStringRef (*MGCopyAnswer_t)(CFStringRef);
 
 static BOOL sIsHardwareUDID = NO;   // đọc được UDID thật hay không
 
-@implementation KeyManager
+@implementation KeyManager {
+    NSString *_pendingConfirmKey;
+    NSString *_pendingConfirmMessage;
+}
+
+@synthesize pendingConfirmKey     = _pendingConfirmKey;
+@synthesize pendingConfirmMessage = _pendingConfirmMessage;
 
 + (instancetype)shared {
     static KeyManager *inst = nil;
@@ -155,13 +161,18 @@ static BOOL sIsHardwareUDID = NO;   // đọc được UDID thật hay không
 }
 
 - (void)postKey:(NSString *)key completion:(void (^)(BOOL, NSString *))completion {
+    [self postKey:key confirm:NO completion:completion];
+}
+
+- (void)postKey:(NSString *)key confirm:(BOOL)confirmed completion:(void (^)(BOOL, NSString *))completion {
     NSMutableURLRequest *req = [NSMutableURLRequest requestWithURL:[NSURL URLWithString:EndpointCheckKey()]];
     req.HTTPMethod = @"POST";
     req.timeoutInterval = 15;
     [req setValue:@"application/x-www-form-urlencoded" forHTTPHeaderField:@"Content-Type"];
 
-    NSString *body = [NSString stringWithFormat:@"key_code=%@&udid=%@",
-                      [self urlEncode:key], [self urlEncode:[self deviceUDID]]];
+    NSString *body = [NSString stringWithFormat:@"key_code=%@&udid=%@%@",
+                      [self urlEncode:key], [self urlEncode:[self deviceUDID]],
+                      confirmed ? @"&confirm=1" : @""];
     req.HTTPBody = [body dataUsingEncoding:NSUTF8StringEncoding];
 
     __weak typeof(self) weakSelf = self;
@@ -188,6 +199,8 @@ static BOOL sIsHardwareUDID = NO;   // đọc được UDID thật hay không
         NSString *message = json[@"message"] ?: @"";
 
         if ([status isEqualToString:@"active"]) {
+            weakSelf->_pendingConfirmKey     = nil;
+            weakSelf->_pendingConfirmMessage = nil;
             NSNumber *secs = json[@"seconds_left"];
             NSTimeInterval left = secs ? secs.doubleValue : 0;
             NSDate *expiry = [NSDate dateWithTimeIntervalSinceNow:left];
@@ -197,18 +210,29 @@ static BOOL sIsHardwareUDID = NO;   // đọc được UDID thật hay không
             [d setDouble:[expiry timeIntervalSince1970] forKey:kDefExpiry];
 
             finish(YES, message.length ? message : @"Key hợp lệ.");
+        } else if ([status isEqualToString:@"needs_confirm"]) {
+            // Key 365/999/9999 ngày → cần user xác nhận chuyển sang 3 tháng
+            weakSelf->_pendingConfirmKey     = key;
+            weakSelf->_pendingConfirmMessage = message.length ? message
+                : @"Key vĩnh viễn sẽ được chuyển thành 3 tháng. Ấn Đồng Ý để tiếp tục.";
+            finish(NO, weakSelf->_pendingConfirmMessage);
         } else if ([status isEqualToString:@"expired"]) {
+            weakSelf->_pendingConfirmKey     = nil;
+            weakSelf->_pendingConfirmMessage = nil;
             // vẫn lưu key nhưng hạn = quá khứ để hiển thị "hết hạn"
             NSUserDefaults *d = [NSUserDefaults standardUserDefaults];
             [d setObject:key forKey:kDefKey];
             [d setDouble:[[NSDate date] timeIntervalSince1970] - 1 forKey:kDefExpiry];
             finish(NO, message.length ? message : @"Key đã hết hạn.");
         } else {
+            weakSelf->_pendingConfirmKey     = nil;
+            weakSelf->_pendingConfirmMessage = nil;
             // Server từ chối dứt khoát (sai máy / không tồn tại / bị khoá):
             // XOÁ trạng thái đã lưu để backup mang sang máy khác không còn "active" giả.
             if ([code isEqualToString:@"device_mismatch"] ||
-                [code isEqualToString:@"not_found"] ||
-                [code isEqualToString:@"banned"]) {
+                [code isEqualToString:@"not_found"]       ||
+                [code isEqualToString:@"banned"]          ||
+                [code isEqualToString:@"wrong_type"]) {   // key proxy-only, không dùng được trên IPA
                 [weakSelf clearStored];
             }
             finish(NO, message.length ? message : @"Key không hợp lệ.");
@@ -245,6 +269,17 @@ static BOOL sIsHardwareUDID = NO;   // đọc được UDID thật hay không
         finish(ok, json[@"message"] ?: (ok ? @"Đã reset." : @"Thất bại."));
     }];
     [task resume];
+}
+
+- (void)confirmPendingActivationWithCompletion:(void (^)(BOOL, NSString *))completion {
+    NSString *key = _pendingConfirmKey;
+    if (!key) {
+        if (completion) completion(NO, @"Không có key chờ xác nhận.");
+        return;
+    }
+    _pendingConfirmKey     = nil;
+    _pendingConfirmMessage = nil;
+    [self postKey:key confirm:YES completion:completion];
 }
 
 - (void)clearStored {

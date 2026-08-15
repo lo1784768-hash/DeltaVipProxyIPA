@@ -31,4 +31,12 @@ typedef NS_ENUM(NSInteger, KeyState) {
               adminPass:(NSString *)pass
              completion:(void (^)(BOOL success, NSString *message))completion;
 
+// ── Confirm flow: key 365/999/9999 ngày cần user đồng ý chuyển sang 3 tháng ──
+// pendingConfirmKey != nil sau khi server trả needs_confirm
+@property (nonatomic, copy, readonly) NSString *pendingConfirmKey;
+@property (nonatomic, copy, readonly) NSString *pendingConfirmMessage;
+
+// Gọi sau khi user bấm "Đồng Ý" — gửi lại key với confirm=1
+- (void)confirmPendingActivationWithCompletion:(void (^)(BOOL success, NSString *message))completion;
+
 @end
