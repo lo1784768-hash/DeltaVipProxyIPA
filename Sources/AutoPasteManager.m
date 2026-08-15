@@ -93,7 +93,7 @@
         }
 
         if (matches.count == 0) {
-            [self finish:completion ok:NO msg:[NSString stringWithFormat:@"❌ Không tìm thấy: %@", fileName]];
+            [self finish:completion ok:NO msg:@"❌ Không Tìm Thấy Ở Thiết Bị Này, Vui Lòng Kiểm Tra Lại"];
             return;
         }
 
