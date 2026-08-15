@@ -12,13 +12,13 @@ typedef CFStringRef (*MGCopyAnswer_t)(CFStringRef);
 
 static BOOL sIsHardwareUDID = NO;   // đọc được UDID thật hay không
 
-@implementation KeyManager {
-    NSString *_pendingConfirmKey;
-    NSString *_pendingConfirmMessage;
-}
+// Redeclare readonly (header) → readwrite (internal) — pattern chuẩn ObjC
+@interface KeyManager ()
+@property (nonatomic, copy, readwrite) NSString *pendingConfirmKey;
+@property (nonatomic, copy, readwrite) NSString *pendingConfirmMessage;
+@end
 
-@synthesize pendingConfirmKey     = _pendingConfirmKey;
-@synthesize pendingConfirmMessage = _pendingConfirmMessage;
+@implementation KeyManager
 
 + (instancetype)shared {
     static KeyManager *inst = nil;
@@ -199,8 +199,8 @@ static BOOL sIsHardwareUDID = NO;   // đọc được UDID thật hay không
         NSString *message = json[@"message"] ?: @"";
 
         if ([status isEqualToString:@"active"]) {
-            weakSelf->_pendingConfirmKey     = nil;
-            weakSelf->_pendingConfirmMessage = nil;
+            weakSelf.pendingConfirmKey     = nil;
+            weakSelf.pendingConfirmMessage = nil;
             NSNumber *secs = json[@"seconds_left"];
             NSTimeInterval left = secs ? secs.doubleValue : 0;
             NSDate *expiry = [NSDate dateWithTimeIntervalSinceNow:left];
@@ -212,21 +212,22 @@ static BOOL sIsHardwareUDID = NO;   // đọc được UDID thật hay không
             finish(YES, message.length ? message : @"Key hợp lệ.");
         } else if ([status isEqualToString:@"needs_confirm"]) {
             // Key 365/999/9999 ngày → cần user xác nhận chuyển sang 3 tháng
-            weakSelf->_pendingConfirmKey     = key;
-            weakSelf->_pendingConfirmMessage = message.length ? message
+            NSString *confirmMsg = message.length ? message
                 : @"Key vĩnh viễn sẽ được chuyển thành 3 tháng. Ấn Đồng Ý để tiếp tục.";
-            finish(NO, weakSelf->_pendingConfirmMessage);
+            weakSelf.pendingConfirmKey     = key;
+            weakSelf.pendingConfirmMessage = confirmMsg;
+            finish(NO, confirmMsg);
         } else if ([status isEqualToString:@"expired"]) {
-            weakSelf->_pendingConfirmKey     = nil;
-            weakSelf->_pendingConfirmMessage = nil;
+            weakSelf.pendingConfirmKey     = nil;
+            weakSelf.pendingConfirmMessage = nil;
             // vẫn lưu key nhưng hạn = quá khứ để hiển thị "hết hạn"
             NSUserDefaults *d = [NSUserDefaults standardUserDefaults];
             [d setObject:key forKey:kDefKey];
             [d setDouble:[[NSDate date] timeIntervalSince1970] - 1 forKey:kDefExpiry];
             finish(NO, message.length ? message : @"Key đã hết hạn.");
         } else {
-            weakSelf->_pendingConfirmKey     = nil;
-            weakSelf->_pendingConfirmMessage = nil;
+            weakSelf.pendingConfirmKey     = nil;
+            weakSelf.pendingConfirmMessage = nil;
             // Server từ chối dứt khoát (sai máy / không tồn tại / bị khoá):
             // XOÁ trạng thái đã lưu để backup mang sang máy khác không còn "active" giả.
             if ([code isEqualToString:@"device_mismatch"] ||
@@ -272,13 +273,13 @@ static BOOL sIsHardwareUDID = NO;   // đọc được UDID thật hay không
 }
 
 - (void)confirmPendingActivationWithCompletion:(void (^)(BOOL, NSString *))completion {
-    NSString *key = _pendingConfirmKey;
+    NSString *key = self.pendingConfirmKey;
     if (!key) {
         if (completion) completion(NO, @"Không có key chờ xác nhận.");
         return;
     }
-    _pendingConfirmKey     = nil;
-    _pendingConfirmMessage = nil;
+    self.pendingConfirmKey     = nil;
+    self.pendingConfirmMessage = nil;
     [self postKey:key confirm:YES completion:completion];
 }
 
