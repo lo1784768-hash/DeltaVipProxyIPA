@@ -36,6 +36,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 @property (nonatomic, copy)   NSString *fileName;    // tên file cần tìm & ghi đè
 @property (nonatomic, copy)   NSString *searchRoot;  // thư mục gốc để tìm (tương đối Documents)
 @property (nonatomic, assign) BOOL exclusive;        // YES = radio (aim); NO = độc lập (định vị)
+@property (nonatomic, copy)   NSString *previewImageURL;  // nil = không có nút xem ảnh
 @property (nonatomic, readonly) BOOL configured;
 @end
 
@@ -57,7 +58,9 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 @property (nonatomic, strong) UISwitch *toggle;
 @property (nonatomic, strong) UIActivityIndicatorView *spinner;
 @property (nonatomic, strong) UILabel *statusDot;
+@property (nonatomic, strong) UIButton *previewButton;   // nil nếu không có ảnh preview
 @property (nonatomic, copy)   void (^onChanged)(HUDFeatureRow *row, BOOL isOn);
+@property (nonatomic, copy)   void (^onPreviewTapped)(void);
 - (instancetype)initWithFeature:(HUDFeature *)feature;
 - (void)setLoading:(BOOL)loading;
 - (void)showResult:(BOOL)success;
@@ -148,6 +151,22 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
         [_toggle addTarget:self action:@selector(switchChanged) forControlEvents:UIControlEventValueChanged];
         [self addSubview:_toggle];
 
+        // Nút xem ảnh preview (photo.fill) — chỉ tạo khi feature có previewImageURL
+        if (feature.previewImageURL.length) {
+            _previewButton = [UIButton buttonWithType:UIButtonTypeSystem];
+            UIImageSymbolConfiguration *pcfg = [UIImageSymbolConfiguration configurationWithPointSize:13 weight:UIImageSymbolWeightBold];
+            [_previewButton setImage:[UIImage systemImageNamed:@"photo.fill" withConfiguration:pcfg] forState:UIControlStateNormal];
+            _previewButton.tintColor = [feature.tint colorWithAlphaComponent:0.9];
+            _previewButton.backgroundColor = [feature.tint colorWithAlphaComponent:0.12];
+            _previewButton.layer.cornerRadius = 8;
+            _previewButton.layer.masksToBounds = YES;
+            _previewButton.layer.borderColor = [feature.tint colorWithAlphaComponent:0.35].CGColor;
+            _previewButton.layer.borderWidth = 1;
+            _previewButton.translatesAutoresizingMaskIntoConstraints = NO;
+            [self addSubview:_previewButton];
+            [_previewButton addTarget:self action:@selector(previewTapped) forControlEvents:UIControlEventTouchUpInside];
+        }
+
         [NSLayoutConstraint activateConstraints:@[
             [self.heightAnchor constraintEqualToConstant:62],
 
@@ -177,14 +196,26 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 
             [_toggle.trailingAnchor constraintEqualToAnchor:self.trailingAnchor constant:-16],
             [_toggle.centerYAnchor constraintEqualToAnchor:self.centerYAnchor],
+        ]];
 
-            [_spinner.trailingAnchor constraintEqualToAnchor:_toggle.leadingAnchor constant:-12],
+        // Spinner & statusDot: đứng trái preview button (nếu có), ngược lại đứng trái toggle
+        UIView   *dotRef   = _previewButton ?: _toggle;
+        CGFloat   dotConst = _previewButton ? -8.0 : -12.0;
+        [NSLayoutConstraint activateConstraints:@[
+            [_spinner.trailingAnchor constraintEqualToAnchor:dotRef.leadingAnchor constant:dotConst],
             [_spinner.centerYAnchor constraintEqualToAnchor:self.centerYAnchor],
-
-            [_statusDot.trailingAnchor constraintEqualToAnchor:_toggle.leadingAnchor constant:-12],
+            [_statusDot.trailingAnchor constraintEqualToAnchor:dotRef.leadingAnchor constant:dotConst],
             [_statusDot.centerYAnchor constraintEqualToAnchor:self.centerYAnchor],
             [_statusDot.widthAnchor constraintEqualToConstant:20],
         ]];
+        if (_previewButton) {
+            [NSLayoutConstraint activateConstraints:@[
+                [_previewButton.trailingAnchor constraintEqualToAnchor:_toggle.leadingAnchor constant:-8],
+                [_previewButton.centerYAnchor constraintEqualToAnchor:self.centerYAnchor],
+                [_previewButton.widthAnchor constraintEqualToConstant:30],
+                [_previewButton.heightAnchor constraintEqualToConstant:30],
+            ]];
+        }
 
         // bottom hairline
         UIView *line = [[UIView alloc] init];
@@ -208,6 +239,10 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 
 - (void)switchChanged {
     if (self.onChanged) self.onChanged(self, self.toggle.isOn);
+}
+
+- (void)previewTapped {
+    if (self.onPreviewTapped) self.onPreviewTapped();
 }
 
 - (void)setActive:(BOOL)active {
@@ -438,6 +473,97 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     if (!ok) {
         [self setStatus:@"⚠️ Không mở được game (mở tay giúp mình nhé)" color:HUD_RED];
     }
+}
+
+// Hiện fullscreen ảnh preview từ URL (tap màn hình để đóng)
+- (void)showPreviewURL:(NSString *)urlString {
+    UIView *dim = [[UIView alloc] initWithFrame:self.view.bounds];
+    dim.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+    dim.backgroundColor  = [UIColor colorWithWhite:0 alpha:0];
+    dim.tag = 9901;
+    [self.view addSubview:dim];
+    UITapGestureRecognizer *tap = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(dismissPreview)];
+    [dim addGestureRecognizer:tap];
+
+    // Card blur
+    UIVisualEffectView *card = [[UIVisualEffectView alloc] initWithEffect:[UIBlurEffect effectWithStyle:UIBlurEffectStyleSystemThinMaterialDark]];
+    card.clipsToBounds = YES;
+    card.layer.cornerRadius = 20;
+    card.layer.cornerCurve  = kCACornerCurveContinuous;
+    card.layer.borderColor  = [UIColor colorWithWhite:1 alpha:0.15].CGColor;
+    card.layer.borderWidth  = 1;
+    card.translatesAutoresizingMaskIntoConstraints = NO;
+    [dim addSubview:card];
+
+    UIImageView *imgView = [[UIImageView alloc] init];
+    imgView.contentMode = UIViewContentModeScaleAspectFit;
+    imgView.clipsToBounds = YES;
+    imgView.translatesAutoresizingMaskIntoConstraints = NO;
+    imgView.tag = 9902;
+    [card.contentView addSubview:imgView];
+
+    UIActivityIndicatorView *spin = [[UIActivityIndicatorView alloc] initWithActivityIndicatorStyle:UIActivityIndicatorViewStyleLarge];
+    spin.color = HUD_CYAN;
+    spin.translatesAutoresizingMaskIntoConstraints = NO;
+    spin.tag = 9903;
+    [card.contentView addSubview:spin];
+    [spin startAnimating];
+
+    UILabel *closeHint = [[UILabel alloc] init];
+    closeHint.text = @"Chạm vào màn hình để đóng";
+    closeHint.font = [UIFont systemFontOfSize:12 weight:UIFontWeightRegular];
+    closeHint.textColor = HUD_MUTED;
+    closeHint.textAlignment = NSTextAlignmentCenter;
+    closeHint.translatesAutoresizingMaskIntoConstraints = NO;
+    [dim addSubview:closeHint];
+
+    [NSLayoutConstraint activateConstraints:@[
+        [card.centerXAnchor constraintEqualToAnchor:dim.centerXAnchor],
+        [card.centerYAnchor constraintEqualToAnchor:dim.centerYAnchor constant:-20],
+        [card.widthAnchor   constraintEqualToAnchor:dim.widthAnchor multiplier:0.88],
+        [card.heightAnchor  constraintEqualToAnchor:card.widthAnchor multiplier:1.3],
+
+        [imgView.topAnchor      constraintEqualToAnchor:card.contentView.topAnchor constant:8],
+        [imgView.leadingAnchor  constraintEqualToAnchor:card.contentView.leadingAnchor constant:8],
+        [imgView.trailingAnchor constraintEqualToAnchor:card.contentView.trailingAnchor constant:-8],
+        [imgView.bottomAnchor   constraintEqualToAnchor:card.contentView.bottomAnchor constant:-8],
+
+        [spin.centerXAnchor constraintEqualToAnchor:card.contentView.centerXAnchor],
+        [spin.centerYAnchor constraintEqualToAnchor:card.contentView.centerYAnchor],
+
+        [closeHint.topAnchor    constraintEqualToAnchor:card.bottomAnchor constant:14],
+        [closeHint.centerXAnchor constraintEqualToAnchor:dim.centerXAnchor],
+    ]];
+
+    [UIView animateWithDuration:0.2 animations:^{ dim.backgroundColor = [UIColor colorWithWhite:0 alpha:0.78]; }];
+
+    // Tải ảnh bất đồng bộ
+    NSURL *url = [NSURL URLWithString:urlString];
+    __weak typeof(self) weakSelf = self;
+    [[NSURLSession.sharedSession dataTaskWithURL:url completionHandler:^(NSData *data, NSURLResponse *r, NSError *e) {
+        dispatch_async(dispatch_get_main_queue(), ^{
+            UIView *d = [weakSelf.view viewWithTag:9901];
+            if (!d) return;
+            UIImageView *iv = (UIImageView *)[d viewWithTag:9902];
+            UIActivityIndicatorView *sp = (UIActivityIndicatorView *)[d viewWithTag:9903];
+            [sp stopAnimating];
+            UIImage *img = data ? [UIImage imageWithData:data] : nil;
+            if (img) {
+                iv.image = img;
+            } else {
+                UIImageSymbolConfiguration *cfg = [UIImageSymbolConfiguration configurationWithPointSize:40 weight:UIImageSymbolWeightRegular];
+                iv.image = [UIImage systemImageNamed:@"photo.slash" withConfiguration:cfg];
+                iv.tintColor = HUD_MUTED;
+            }
+        });
+    }] resume];
+}
+
+- (void)dismissPreview {
+    UIView *dim = [self.view viewWithTag:9901];
+    if (!dim) return;
+    [UIView animateWithDuration:0.2 animations:^{ dim.alpha = 0; }
+                     completion:^(BOOL f){ [dim removeFromSuperview]; }];
 }
 
 - (UIColor *)gridPatternColor {
@@ -768,6 +894,10 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
         row.onChanged = ^(HUDFeatureRow *r, BOOL isOn) {
             [weakSelf handleRow:r on:isOn];
         };
+        if (feature.previewImageURL.length) {
+            NSString *url = feature.previewImageURL;
+            row.onPreviewTapped = ^{ [weakSelf showPreviewURL:url]; };
+        }
         [self.rows addObject:row];
         [stack addArrangedSubview:row];
     }
@@ -947,30 +1077,25 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 }
 
 // ── Tab 3: Mod Nhân Vật ─────────────────────────────────────
-// Tất cả placeholder — điền featureKey + fileName khi có file.
 - (NSArray<HUDFeature *> *)modNVFeaturesForBundle:(NSString *)bundleID {
-    HUDFeature *nv1 = [self featureWithSymbol:@"person.fill"
-                                         tint:HUD_ORANGE
-                                        title:@"Mod Nhân Vật"
-                                     subtitle:@"Đang Cập Nhật"
-                                   featureKey:nil fileName:nil searchRoot:nil];
-    nv1.exclusive = NO;
+    BOOL supported = [bundleID isEqualToString:@"com.dts.freefireth"] ||
+                     [bundleID isEqualToString:@"com.dts.freefiremax"];
+    NSString *root = [NSString stringWithFormat:@"Device Storage/[MHA-C2] App Data/%@", bundleID];
+    NSString *rt = supported ? root : nil;
+    NSString *(^k)(NSString *) = ^NSString *(NSString *key) { return supported ? key : nil; };
 
-    HUDFeature *nv2 = [self featureWithSymbol:@"tshirt.fill"
-                                         tint:[UIColor colorWithRed:1.0 green:0.78 blue:0.25 alpha:1.0]
-                                        title:@"Mod Trang Phục"
-                                     subtitle:@"Đang Cập Nhật"
-                                   featureKey:nil fileName:nil searchRoot:nil];
-    nv2.exclusive = NO;
+    // Mod Skin Maro One Punch Man
+    HUDFeature *skinMaro = [self featureWithSymbol:@"person.crop.circle.fill"
+                                              tint:HUD_ORANGE
+                                             title:@"Mod Skin Maro"
+                                          subtitle:@"Mod Skin Maro One Punch Man"
+                                        featureKey:k(@"skinmaro")
+                                          fileName:(supported ? @"optionalab_avatar_35.PVdPx~2B~2BIEgbM63Zhe895~2FlLLRc0~3D" : nil)
+                                        searchRoot:rt];
+    skinMaro.exclusive = NO;
+    skinMaro.previewImageURL = @"https://getuid.vip/skin_previews/maro.jpg";
 
-    HUDFeature *nv3 = [self featureWithSymbol:@"star.fill"
-                                         tint:HUD_CYAN
-                                        title:@"Mod Đặc Biệt"
-                                     subtitle:@"Đang Cập Nhật"
-                                   featureKey:nil fileName:nil searchRoot:nil];
-    nv3.exclusive = NO;
-
-    return @[nv1, nv2, nv3];
+    return @[skinMaro];
 }
 
 #pragma mark - Toggle handling (auto-paste)
