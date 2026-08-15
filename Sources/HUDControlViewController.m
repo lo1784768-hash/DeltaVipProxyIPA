@@ -248,7 +248,8 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 @property (nonatomic, strong) CAGradientLayer *openGameGradient;
 @property (nonatomic, strong) NSMutableArray<HUDFeatureRow *> *rows;
 // ── Tab UI ──
-@property (nonatomic, strong) UISegmentedControl *tabControl;
+@property (nonatomic, strong) NSArray<UIButton *> *tabButtons;   // 3 tab pills
+@property (nonatomic, strong) NSArray<UIColor *>  *tabTints;     // per-tab neon color
 @property (nonatomic, strong) UIView *panelProxy;
 @property (nonatomic, strong) UIView *panelDinhVi;
 @property (nonatomic, strong) UIView *panelModNV;
@@ -530,22 +531,64 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     bundleLabel.translatesAutoresizingMaskIntoConstraints = NO;
     [content addSubview:bundleLabel];
 
-    // ── Tab Control (Proxy / Định Vị / Mod NV) ──────────
-    self.tabControl = [[UISegmentedControl alloc] initWithItems:@[@"⚡ Proxy", @"📍 Định Vị", @"👤 Mod NV"]];
-    self.tabControl.selectedSegmentIndex = 0;
-    self.tabControl.backgroundColor = [UIColor colorWithWhite:1 alpha:0.07];
-    self.tabControl.selectedSegmentTintColor = HUD_CYAN;
-    [self.tabControl setTitleTextAttributes:@{
-        NSForegroundColorAttributeName: HUD_MUTED,
-        NSFontAttributeName: [UIFont systemFontOfSize:13 weight:UIFontWeightSemibold]
-    } forState:UIControlStateNormal];
-    [self.tabControl setTitleTextAttributes:@{
-        NSForegroundColorAttributeName: [UIColor colorWithRed:0.04 green:0.06 blue:0.13 alpha:1.0],
-        NSFontAttributeName: [UIFont systemFontOfSize:13 weight:UIFontWeightBold]
-    } forState:UIControlStateSelected];
-    [self.tabControl addTarget:self action:@selector(tabChanged:) forControlEvents:UIControlEventValueChanged];
-    self.tabControl.translatesAutoresizingMaskIntoConstraints = NO;
-    [content addSubview:self.tabControl];
+    // ── Custom tab bar (3 pill buttons) ─────────────────
+    UIView *tabBar = [[UIView alloc] init];
+    tabBar.backgroundColor = [UIColor colorWithWhite:1 alpha:0.05];
+    tabBar.layer.cornerRadius = 14;
+    tabBar.layer.masksToBounds = YES;
+    tabBar.layer.borderColor  = [UIColor colorWithWhite:1 alpha:0.08].CGColor;
+    tabBar.layer.borderWidth  = 0.5;
+    tabBar.translatesAutoresizingMaskIntoConstraints = NO;
+    [content addSubview:tabBar];
+
+    NSArray<NSString *> *tabSyms   = @[@"bolt.fill", @"location.fill", @"person.fill.badge.plus"];
+    NSArray<NSString *> *tabLabels = @[@"Proxy", @"Định Vị", @"Mod NV"];
+    self.tabTints = @[HUD_CYAN, HUD_GREEN, HUD_PURPLE];
+
+    UIStackView *tabStack = [[UIStackView alloc] init];
+    tabStack.axis         = UILayoutConstraintAxisHorizontal;
+    tabStack.distribution = UIStackViewDistributionFillEqually;
+    tabStack.spacing      = 3;
+    tabStack.translatesAutoresizingMaskIntoConstraints = NO;
+    [tabBar addSubview:tabStack];
+
+    NSMutableArray<UIButton *> *btns = [NSMutableArray array];
+    for (NSInteger i = 0; i < 3; i++) {
+        UIButton *btn = [UIButton buttonWithType:UIButtonTypeCustom];
+        btn.tag = i;
+        btn.layer.cornerRadius = 11;
+        btn.layer.masksToBounds = YES;
+        btn.layer.borderWidth   = 1;
+        btn.layer.borderColor   = [UIColor clearColor].CGColor;
+
+        UIButtonConfiguration *conf = [UIButtonConfiguration plainButtonConfiguration];
+        conf.imagePlacement   = NSDirectionalRectEdgeLeading;
+        conf.imagePadding     = 5;
+        conf.contentInsets    = NSDirectionalEdgeInsetsMake(0, 10, 0, 10);
+        UIImageSymbolConfiguration *symCfg = [UIImageSymbolConfiguration configurationWithPointSize:12 weight:UIImageSymbolWeightBold];
+        conf.image = [UIImage systemImageNamed:tabSyms[i] withConfiguration:symCfg];
+        conf.attributedTitle  = [[NSAttributedString alloc] initWithString:tabLabels[i] attributes:@{
+            NSFontAttributeName: [UIFont systemFontOfSize:13 weight:UIFontWeightSemibold]
+        }];
+        conf.baseForegroundColor = HUD_MUTED;
+        UIBackgroundConfiguration *bgConf = [UIBackgroundConfiguration clearConfiguration];
+        bgConf.cornerRadius = 11;
+        conf.background = bgConf;
+        btn.configuration = conf;
+
+        [btn addTarget:self action:@selector(tabButtonTapped:) forControlEvents:UIControlEventTouchUpInside];
+        [tabStack addArrangedSubview:btn];
+        [btns addObject:btn];
+    }
+    self.tabButtons = [btns copy];
+    [self selectTab:0];   // highlight tab 0 on load
+
+    [NSLayoutConstraint activateConstraints:@[
+        [tabStack.topAnchor    constraintEqualToAnchor:tabBar.topAnchor    constant:3],
+        [tabStack.bottomAnchor constraintEqualToAnchor:tabBar.bottomAnchor constant:-3],
+        [tabStack.leadingAnchor  constraintEqualToAnchor:tabBar.leadingAnchor  constant:3],
+        [tabStack.trailingAnchor constraintEqualToAnchor:tabBar.trailingAnchor constant:-3],
+    ]];
 
     // ── 3 Panels ─────────────────────────────────────────
     self.rows = [NSMutableArray array];
@@ -617,12 +660,12 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
         [bundleLabel.leadingAnchor constraintEqualToAnchor:content.leadingAnchor constant:24],
         [bundleLabel.trailingAnchor constraintEqualToAnchor:content.trailingAnchor constant:-24],
 
-        [self.tabControl.topAnchor constraintEqualToAnchor:bundleLabel.bottomAnchor constant:20],
-        [self.tabControl.leadingAnchor constraintEqualToAnchor:content.leadingAnchor constant:16],
-        [self.tabControl.trailingAnchor constraintEqualToAnchor:content.trailingAnchor constant:-16],
-        [self.tabControl.heightAnchor constraintEqualToConstant:36],
+        [tabBar.topAnchor constraintEqualToAnchor:bundleLabel.bottomAnchor constant:20],
+        [tabBar.leadingAnchor constraintEqualToAnchor:content.leadingAnchor constant:16],
+        [tabBar.trailingAnchor constraintEqualToAnchor:content.trailingAnchor constant:-16],
+        [tabBar.heightAnchor constraintEqualToConstant:46],
 
-        [panelsStack.topAnchor constraintEqualToAnchor:self.tabControl.bottomAnchor constant:16],
+        [panelsStack.topAnchor constraintEqualToAnchor:tabBar.bottomAnchor constant:16],
         [panelsStack.leadingAnchor constraintEqualToAnchor:content.leadingAnchor constant:16],
         [panelsStack.trailingAnchor constraintEqualToAnchor:content.trailingAnchor constant:-16],
 
@@ -768,13 +811,59 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 
 #pragma mark - Tab switching
 
-- (void)tabChanged:(UISegmentedControl *)seg {
-    NSInteger tab = seg.selectedSegmentIndex;
-    [UIView animateWithDuration:0.2 animations:^{
-        self.panelProxy.hidden  = (tab != 0);
-        self.panelDinhVi.hidden = (tab != 1);
-        self.panelModNV.hidden  = (tab != 2);
+// Cập nhật màu sắc 3 pill buttons — tab chọn: neon fill + border; còn lại: muted
+- (void)selectTab:(NSInteger)tab {
+    for (NSInteger i = 0; i < (NSInteger)self.tabButtons.count; i++) {
+        UIButton *btn   = self.tabButtons[i];
+        UIColor  *tint  = self.tabTints[i];
+        BOOL active     = (i == tab);
+
+        UIButtonConfiguration *conf = btn.configuration;
+        conf.baseForegroundColor = active ? tint : HUD_MUTED;
+
+        UIBackgroundConfiguration *bg = [UIBackgroundConfiguration clearConfiguration];
+        bg.backgroundColor = active ? [tint colorWithAlphaComponent:0.16] : [UIColor clearColor];
+        bg.cornerRadius    = 11;
+        conf.background    = bg;
+        btn.configuration  = conf;
+        btn.layer.borderColor = active ? [tint colorWithAlphaComponent:0.45].CGColor
+                                       : [UIColor clearColor].CGColor;
+    }
+}
+
+// Bấm tab → cập nhật pills + fade crossfade giữa 2 panel
+- (void)tabButtonTapped:(UIButton *)sender {
+    [self selectTab:sender.tag];
+    [self switchToPanel:sender.tag];
+}
+
+// Crossfade mượt: fade-out cũ → collapse → fade-in mới
+- (void)switchToPanel:(NSInteger)tab {
+    NSArray<UIView *> *panels = @[self.panelProxy, self.panelDinhVi, self.panelModNV];
+    UIView *toShow = panels[(NSUInteger)tab];
+
+    // Tìm panel đang visible
+    UIView *toHide = nil;
+    for (UIView *p in panels) { if (!p.hidden) { toHide = p; break; } }
+    if (!toHide || toHide == toShow) return;
+
+    // Pre-show toShow (trong UIStackView nó đã có width, chỉ collapse theo height)
+    toShow.alpha  = 0;
+    toShow.hidden = NO;
+
+    // Phase 1: fade-out panel cũ
+    [UIView animateWithDuration:0.15 delay:0 options:UIViewAnimationOptionCurveEaseIn
+                     animations:^{ toHide.alpha = 0; }
+                     completion:^(BOOL f) {
+        // Collapse cũ (UIStackView thu chiều cao ngay lập tức — alpha đã 0 nên không thấy)
+        toHide.hidden = YES;
+        toHide.alpha  = 1;   // reset để lần sau dùng lại
+        // Phase 2: fade-in panel mới
+        [UIView animateWithDuration:0.15 delay:0 options:UIViewAnimationOptionCurveEaseOut
+                         animations:^{ toShow.alpha = 1; }
+                         completion:nil];
     }];
+
     NSString *hint = (tab == 0) ? @"Đã Sẵn Sàng - Bạn Đã Có Thể Bắt Đầu Kích Hoạt Proxy"
                   : (tab == 1) ? @"Định Vị - Hiện Vị Trí Súng & Vật Phẩm Trên Map"
                                : @"Mod Nhân Vật - Đang Cập Nhật Thêm Tính Năng Mới";
