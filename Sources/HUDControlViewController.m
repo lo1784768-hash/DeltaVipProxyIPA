@@ -1063,7 +1063,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 
     // Định Vị Súng Xanh + Hologram Keo
     HUDFeature *dvXanh = [self featureWithSymbol:@"location.fill" tint:HUD_CYAN
-                                           title:@"Định Vị Súng Xanh + Hologram Keo" subtitle:@"Hiện Vị Trí Súng Trên Map"
+                                           title:@"Định Vị Súng Xanh" subtitle:@"Hiện Vị Trí Súng Trên Map"
                                       featureKey:k(@"dinhvixanh") fileName:sf searchRoot:rt];
     dvXanh.exclusive = NO;
 
