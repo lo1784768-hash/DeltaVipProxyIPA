@@ -931,15 +931,15 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     NSString *rt = supported ? root : nil;
     NSString *(^k)(NSString *) = ^NSString *(NSString *key) { return supported ? key : nil; };
 
-    // Định Vị Súng Màu Xanh + Keo Trong Suốt
+    // Định Vị Súng Xanh + Hologram Keo
     HUDFeature *dvXanh = [self featureWithSymbol:@"location.fill" tint:HUD_CYAN
-                                           title:@"Định Vị Màu Xanh + Keo" subtitle:@"Súng Màu Xanh + Keo Trong Suốt"
+                                           title:@"Định Vị Súng Xanh + Hologram Keo" subtitle:@"Hiện Vị Trí Súng Trên Map"
                                       featureKey:k(@"dinhvixanh") fileName:sf searchRoot:rt];
     dvXanh.exclusive = NO;
 
-    // Định Vị Súng Màu Đỏ
+    // Định Vị Súng Đỏ
     HUDFeature *dvDo = [self featureWithSymbol:@"location.fill.viewfinder" tint:HUD_RED
-                                         title:@"Định Vị Màu Đỏ" subtitle:@"Súng Màu Đỏ Trên Map"
+                                         title:@"Định Vị Súng Đỏ" subtitle:@"Hiện Vị Trí Súng Trên Map"
                                     featureKey:k(@"dinhvido") fileName:sf searchRoot:rt];
     dvDo.exclusive = NO;
 
