@@ -93,12 +93,12 @@ jobs:
 
           mkdir -p Payload
           cp -r "$BUILT_APP" Payload/
-          zip -qr IMGUIDELTA-v1.0.0-unsigned.ipa Payload/
+          zip -qr IMGUIDELTA-v1.3.0-unsigned.ipa Payload/
 
-          if [ -f "IMGUIDELTA-v1.0.0-unsigned.ipa" ]; then
-            echo "✓ IPA created: IMGUIDELTA-v1.0.0-unsigned.ipa"
-            unzip -l IMGUIDELTA-v1.0.0-unsigned.ipa | head -20
-            ls -lh IMGUIDELTA-v1.0.0-unsigned.ipa
+          if [ -f "IMGUIDELTA-v1.3.0-unsigned.ipa" ]; then
+            echo "✓ IPA created: IMGUIDELTA-v1.3.0-unsigned.ipa"
+            unzip -l IMGUIDELTA-v1.3.0-unsigned.ipa | head -20
+            ls -lh IMGUIDELTA-v1.3.0-unsigned.ipa
           else
             echo "Error: IPA creation failed"
             exit 1
@@ -109,14 +109,14 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: IMGUIDELTA-IPA
-          path: IMGUIDELTA-v1.0.0-unsigned.ipa
+          path: IMGUIDELTA-v1.3.0-unsigned.ipa
           retention-days: 30
 
       # Create auto-tag
       - name: Create Release Tag
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
-          TAG="v1.0.0-xcode"
+          TAG="v1.3.0-xcode"
           echo "Creating tag: $TAG"
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
@@ -130,7 +130,7 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ env.TAG }}
-          files: IMGUIDELTA-v1.0.0-unsigned.ipa
+          files: IMGUIDELTA-v1.3.0-unsigned.ipa
           draft: false
           prerelease: false
           body: |
@@ -147,7 +147,7 @@ jobs:
             1. Download IPA below
             2. Sign with esign or codesign:
                ```bash
-               esign -s cert.p12:password -p provision.mobileprovision IMGUIDELTA-v1.0.0-unsigned.ipa
+               esign -s cert.p12:password -p provision.mobileprovision IMGUIDELTA-v1.3.0-unsigned.ipa
                ```
             3. Install via Sideloadly/AltStore/TrollStore
 
