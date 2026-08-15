@@ -247,6 +247,11 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 @property (nonatomic, strong) UIButton *openGameButton;
 @property (nonatomic, strong) CAGradientLayer *openGameGradient;
 @property (nonatomic, strong) NSMutableArray<HUDFeatureRow *> *rows;
+// ── Tab UI ──
+@property (nonatomic, strong) UISegmentedControl *tabControl;
+@property (nonatomic, strong) UIView *panelProxy;
+@property (nonatomic, strong) UIView *panelDinhVi;
+@property (nonatomic, strong) UIView *panelModNV;
 @end
 
 // Private API để mở app game theo bundle id
@@ -525,92 +530,48 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     bundleLabel.translatesAutoresizingMaskIntoConstraints = NO;
     [content addSubview:bundleLabel];
 
-    // ── Panel wrapper (outer neon glow) ─────────────────
-    UIView *panelWrap = [[UIView alloc] init];
-    panelWrap.backgroundColor = [UIColor clearColor];
-    panelWrap.layer.shadowColor = HUD_CYAN.CGColor;
-    panelWrap.layer.shadowOpacity = 0.35;
-    panelWrap.layer.shadowRadius = 18;
-    panelWrap.layer.shadowOffset = CGSizeZero;
-    panelWrap.translatesAutoresizingMaskIntoConstraints = NO;
-    [content addSubview:panelWrap];
+    // ── Tab Control (Proxy / Định Vị / Mod NV) ──────────
+    self.tabControl = [[UISegmentedControl alloc] initWithItems:@[@"⚡ Proxy", @"📍 Định Vị", @"👤 Mod NV"]];
+    self.tabControl.selectedSegmentIndex = 0;
+    self.tabControl.backgroundColor = [UIColor colorWithWhite:1 alpha:0.07];
+    self.tabControl.selectedSegmentTintColor = HUD_CYAN;
+    [self.tabControl setTitleTextAttributes:@{
+        NSForegroundColorAttributeName: HUD_MUTED,
+        NSFontAttributeName: [UIFont systemFontOfSize:13 weight:UIFontWeightSemibold]
+    } forState:UIControlStateNormal];
+    [self.tabControl setTitleTextAttributes:@{
+        NSForegroundColorAttributeName: [UIColor colorWithRed:0.04 green:0.06 blue:0.13 alpha:1.0],
+        NSFontAttributeName: [UIFont systemFontOfSize:13 weight:UIFontWeightBold]
+    } forState:UIControlStateSelected];
+    [self.tabControl addTarget:self action:@selector(tabChanged:) forControlEvents:UIControlEventValueChanged];
+    self.tabControl.translatesAutoresizingMaskIntoConstraints = NO;
+    [content addSubview:self.tabControl];
 
-    UIVisualEffectView *panel = [[UIVisualEffectView alloc] initWithEffect:[UIBlurEffect effectWithStyle:UIBlurEffectStyleSystemThinMaterialDark]];
-    panel.clipsToBounds = YES;
-    panel.layer.cornerRadius = 18;
-    panel.layer.cornerCurve = kCACornerCurveContinuous;
-    panel.layer.borderColor = [HUD_CYAN colorWithAlphaComponent:0.55].CGColor;
-    panel.layer.borderWidth = 1;
-    panel.translatesAutoresizingMaskIntoConstraints = NO;
-    [panelWrap addSubview:panel];
-    UIView *panelContent = panel.contentView;
-
-    // Neon title bar
-    UIView *titleBar = [[UIView alloc] init];
-    titleBar.translatesAutoresizingMaskIntoConstraints = NO;
-    [panelContent addSubview:titleBar];
-
-    UIView *accent = [[UIView alloc] init];
-    accent.backgroundColor = HUD_CYAN;
-    accent.layer.cornerRadius = 2;
-    accent.layer.shadowColor = HUD_CYAN.CGColor;
-    accent.layer.shadowOpacity = 0.9;
-    accent.layer.shadowRadius = 5;
-    accent.layer.shadowOffset = CGSizeZero;
-    accent.translatesAutoresizingMaskIntoConstraints = NO;
-    [titleBar addSubview:accent];
-
-    UIImageView *bolt = [[UIImageView alloc] initWithImage:[UIImage systemImageNamed:@"bolt.fill"]];
-    bolt.tintColor = HUD_CYAN;
-    bolt.contentMode = UIViewContentModeScaleAspectFit;
-    bolt.layer.shadowColor = HUD_CYAN.CGColor;
-    bolt.layer.shadowOpacity = 0.9;
-    bolt.layer.shadowRadius = 6;
-    bolt.layer.shadowOffset = CGSizeZero;
-    bolt.translatesAutoresizingMaskIntoConstraints = NO;
-    [titleBar addSubview:bolt];
-
-    UILabel *menuTitle = [[UILabel alloc] init];
-    menuTitle.text = @"PROXY DELTA VIP";
-    menuTitle.font = [UIFont systemFontOfSize:14 weight:UIFontWeightHeavy];
-    menuTitle.textColor = HUD_CYAN;
-    menuTitle.layer.shadowColor = HUD_CYAN.CGColor;
-    menuTitle.layer.shadowOpacity = 0.7;
-    menuTitle.layer.shadowRadius = 6;
-    menuTitle.layer.shadowOffset = CGSizeZero;
-    menuTitle.translatesAutoresizingMaskIntoConstraints = NO;
-    [titleBar addSubview:menuTitle];
-
-    // AUTO badge
-    UILabel *hint = [[UILabel alloc] init];
-    hint.text = @"  AUTO  ";
-    hint.font = [UIFont systemFontOfSize:10 weight:UIFontWeightBold];
-    hint.textColor = HUD_GREEN;
-    hint.backgroundColor = [HUD_GREEN colorWithAlphaComponent:0.15];
-    hint.layer.cornerRadius = 8;
-    hint.layer.masksToBounds = YES;
-    hint.layer.borderColor = [HUD_GREEN colorWithAlphaComponent:0.5].CGColor;
-    hint.layer.borderWidth = 1;
-    hint.translatesAutoresizingMaskIntoConstraints = NO;
-    [titleBar addSubview:hint];
-
-    // Rows stack
-    UIStackView *stack = [[UIStackView alloc] init];
-    stack.axis = UILayoutConstraintAxisVertical;
-    stack.spacing = 0;
-    stack.translatesAutoresizingMaskIntoConstraints = NO;
-    [panelContent addSubview:stack];
-
+    // ── 3 Panels ─────────────────────────────────────────
     self.rows = [NSMutableArray array];
-    __weak typeof(self) weakSelf = self;
-    for (HUDFeature *feature in [self featuresForBundle:self.bundleID]) {
-        HUDFeatureRow *row = [[HUDFeatureRow alloc] initWithFeature:feature];
-        row.onChanged = ^(HUDFeatureRow *r, BOOL isOn) {
-            [weakSelf handleRow:r on:isOn];
-        };
-        [self.rows addObject:row];
-        [stack addArrangedSubview:row];
-    }
+
+    self.panelProxy  = [self buildPanelWithTitle:@"PROXY DELTA VIP"
+                                          symbol:@"bolt.fill"              tint:HUD_CYAN   badge:@"AUTO"
+                                        features:[self proxyFeaturesForBundle:self.bundleID]];
+    self.panelDinhVi = [self buildPanelWithTitle:@"ĐỊNH VỊ SÚNG"
+                                          symbol:@"location.fill"          tint:HUD_GREEN  badge:@"LIVE"
+                                        features:[self dinhViFeaturesForBundle:self.bundleID]];
+    self.panelModNV  = [self buildPanelWithTitle:@"MOD NHÂN VẬT"
+                                          symbol:@"person.fill.badge.plus" tint:HUD_PURPLE badge:@"SOON"
+                                        features:[self modNVFeaturesForBundle:self.bundleID]];
+
+    self.panelDinhVi.hidden = YES;
+    self.panelModNV.hidden  = YES;
+
+    // Container stack — chỉ panel đang chọn visible, UIStackView tự co/giãn chiều cao
+    UIStackView *panelsStack = [[UIStackView alloc] init];
+    panelsStack.axis = UILayoutConstraintAxisVertical;
+    panelsStack.spacing = 0;
+    panelsStack.translatesAutoresizingMaskIntoConstraints = NO;
+    [content addSubview:panelsStack];
+    [panelsStack addArrangedSubview:self.panelProxy];
+    [panelsStack addArrangedSubview:self.panelDinhVi];
+    [panelsStack addArrangedSubview:self.panelModNV];
 
     // ── Status line ─────────────────────────────────────
     self.statusLabel = [[UILabel alloc] init];
@@ -656,43 +617,16 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
         [bundleLabel.leadingAnchor constraintEqualToAnchor:content.leadingAnchor constant:24],
         [bundleLabel.trailingAnchor constraintEqualToAnchor:content.trailingAnchor constant:-24],
 
-        [panelWrap.topAnchor constraintEqualToAnchor:bundleLabel.bottomAnchor constant:24],
-        [panelWrap.leadingAnchor constraintEqualToAnchor:content.leadingAnchor constant:16],
-        [panelWrap.trailingAnchor constraintEqualToAnchor:content.trailingAnchor constant:-16],
+        [self.tabControl.topAnchor constraintEqualToAnchor:bundleLabel.bottomAnchor constant:20],
+        [self.tabControl.leadingAnchor constraintEqualToAnchor:content.leadingAnchor constant:16],
+        [self.tabControl.trailingAnchor constraintEqualToAnchor:content.trailingAnchor constant:-16],
+        [self.tabControl.heightAnchor constraintEqualToConstant:36],
 
-        [panel.topAnchor constraintEqualToAnchor:panelWrap.topAnchor],
-        [panel.leadingAnchor constraintEqualToAnchor:panelWrap.leadingAnchor],
-        [panel.trailingAnchor constraintEqualToAnchor:panelWrap.trailingAnchor],
-        [panel.bottomAnchor constraintEqualToAnchor:panelWrap.bottomAnchor],
+        [panelsStack.topAnchor constraintEqualToAnchor:self.tabControl.bottomAnchor constant:16],
+        [panelsStack.leadingAnchor constraintEqualToAnchor:content.leadingAnchor constant:16],
+        [panelsStack.trailingAnchor constraintEqualToAnchor:content.trailingAnchor constant:-16],
 
-        [titleBar.topAnchor constraintEqualToAnchor:panelContent.topAnchor],
-        [titleBar.leadingAnchor constraintEqualToAnchor:panelContent.leadingAnchor],
-        [titleBar.trailingAnchor constraintEqualToAnchor:panelContent.trailingAnchor],
-        [titleBar.heightAnchor constraintEqualToConstant:46],
-
-        [accent.leadingAnchor constraintEqualToAnchor:titleBar.leadingAnchor constant:16],
-        [accent.centerYAnchor constraintEqualToAnchor:titleBar.centerYAnchor],
-        [accent.widthAnchor constraintEqualToConstant:4],
-        [accent.heightAnchor constraintEqualToConstant:16],
-
-        [bolt.leadingAnchor constraintEqualToAnchor:accent.trailingAnchor constant:10],
-        [bolt.centerYAnchor constraintEqualToAnchor:titleBar.centerYAnchor],
-        [bolt.widthAnchor constraintEqualToConstant:15],
-        [bolt.heightAnchor constraintEqualToConstant:15],
-
-        [menuTitle.leadingAnchor constraintEqualToAnchor:bolt.trailingAnchor constant:7],
-        [menuTitle.centerYAnchor constraintEqualToAnchor:titleBar.centerYAnchor],
-
-        [hint.trailingAnchor constraintEqualToAnchor:titleBar.trailingAnchor constant:-16],
-        [hint.centerYAnchor constraintEqualToAnchor:titleBar.centerYAnchor],
-        [hint.heightAnchor constraintEqualToConstant:18],
-
-        [stack.topAnchor constraintEqualToAnchor:titleBar.bottomAnchor],
-        [stack.leadingAnchor constraintEqualToAnchor:panelContent.leadingAnchor],
-        [stack.trailingAnchor constraintEqualToAnchor:panelContent.trailingAnchor],
-        [stack.bottomAnchor constraintEqualToAnchor:panelContent.bottomAnchor constant:-4],
-
-        [self.statusLabel.topAnchor constraintEqualToAnchor:panelWrap.bottomAnchor constant:18],
+        [self.statusLabel.topAnchor constraintEqualToAnchor:panelsStack.bottomAnchor constant:18],
         [self.statusLabel.leadingAnchor constraintEqualToAnchor:content.leadingAnchor constant:24],
         [self.statusLabel.trailingAnchor constraintEqualToAnchor:content.trailingAnchor constant:-24],
 
@@ -704,8 +638,152 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     ]];
 }
 
+// Tạo 1 panel card (neon blur card) với title bar + danh sách feature rows.
+// Các row được append vào self.rows để handleRow: / radio logic vẫn hoạt động.
+- (UIView *)buildPanelWithTitle:(NSString *)title
+                         symbol:(NSString *)symbol
+                           tint:(UIColor *)tint
+                          badge:(NSString *)badge
+                       features:(NSArray<HUDFeature *> *)features {
+    UIView *panelWrap = [[UIView alloc] init];
+    panelWrap.backgroundColor = [UIColor clearColor];
+    panelWrap.layer.shadowColor = tint.CGColor;
+    panelWrap.layer.shadowOpacity = 0.35;
+    panelWrap.layer.shadowRadius = 18;
+    panelWrap.layer.shadowOffset = CGSizeZero;
+    panelWrap.translatesAutoresizingMaskIntoConstraints = NO;
+
+    UIVisualEffectView *panel = [[UIVisualEffectView alloc] initWithEffect:[UIBlurEffect effectWithStyle:UIBlurEffectStyleSystemThinMaterialDark]];
+    panel.clipsToBounds = YES;
+    panel.layer.cornerRadius = 18;
+    panel.layer.cornerCurve = kCACornerCurveContinuous;
+    panel.layer.borderColor = [tint colorWithAlphaComponent:0.55].CGColor;
+    panel.layer.borderWidth = 1;
+    panel.translatesAutoresizingMaskIntoConstraints = NO;
+    [panelWrap addSubview:panel];
+    UIView *pc = panel.contentView;   // pc = panelContent
+
+    // Title bar
+    UIView *titleBar = [[UIView alloc] init];
+    titleBar.translatesAutoresizingMaskIntoConstraints = NO;
+    [pc addSubview:titleBar];
+
+    UIView *accent = [[UIView alloc] init];
+    accent.backgroundColor = tint;
+    accent.layer.cornerRadius = 2;
+    accent.layer.shadowColor = tint.CGColor;
+    accent.layer.shadowOpacity = 0.9;
+    accent.layer.shadowRadius = 5;
+    accent.layer.shadowOffset = CGSizeZero;
+    accent.translatesAutoresizingMaskIntoConstraints = NO;
+    [titleBar addSubview:accent];
+
+    UIImageSymbolConfiguration *symCfg = [UIImageSymbolConfiguration configurationWithPointSize:14 weight:UIImageSymbolWeightBold];
+    UIImageView *icon = [[UIImageView alloc] initWithImage:[UIImage systemImageNamed:symbol withConfiguration:symCfg]];
+    icon.tintColor = tint;
+    icon.contentMode = UIViewContentModeScaleAspectFit;
+    icon.layer.shadowColor = tint.CGColor;
+    icon.layer.shadowOpacity = 0.9;
+    icon.layer.shadowRadius = 6;
+    icon.layer.shadowOffset = CGSizeZero;
+    icon.translatesAutoresizingMaskIntoConstraints = NO;
+    [titleBar addSubview:icon];
+
+    UILabel *menuTitle = [[UILabel alloc] init];
+    menuTitle.text = title;
+    menuTitle.font = [UIFont systemFontOfSize:14 weight:UIFontWeightHeavy];
+    menuTitle.textColor = tint;
+    menuTitle.layer.shadowColor = tint.CGColor;
+    menuTitle.layer.shadowOpacity = 0.7;
+    menuTitle.layer.shadowRadius = 6;
+    menuTitle.layer.shadowOffset = CGSizeZero;
+    menuTitle.translatesAutoresizingMaskIntoConstraints = NO;
+    [titleBar addSubview:menuTitle];
+
+    UILabel *hint = [[UILabel alloc] init];
+    hint.text = [NSString stringWithFormat:@"  %@  ", badge];
+    hint.font = [UIFont systemFontOfSize:10 weight:UIFontWeightBold];
+    hint.textColor = tint;
+    hint.backgroundColor = [tint colorWithAlphaComponent:0.15];
+    hint.layer.cornerRadius = 8;
+    hint.layer.masksToBounds = YES;
+    hint.layer.borderColor = [tint colorWithAlphaComponent:0.5].CGColor;
+    hint.layer.borderWidth = 1;
+    hint.translatesAutoresizingMaskIntoConstraints = NO;
+    [titleBar addSubview:hint];
+
+    // Rows stack
+    UIStackView *stack = [[UIStackView alloc] init];
+    stack.axis = UILayoutConstraintAxisVertical;
+    stack.spacing = 0;
+    stack.translatesAutoresizingMaskIntoConstraints = NO;
+    [pc addSubview:stack];
+
+    __weak typeof(self) weakSelf = self;
+    for (HUDFeature *feature in features) {
+        HUDFeatureRow *row = [[HUDFeatureRow alloc] initWithFeature:feature];
+        row.onChanged = ^(HUDFeatureRow *r, BOOL isOn) {
+            [weakSelf handleRow:r on:isOn];
+        };
+        [self.rows addObject:row];
+        [stack addArrangedSubview:row];
+    }
+
+    [NSLayoutConstraint activateConstraints:@[
+        [panel.topAnchor constraintEqualToAnchor:panelWrap.topAnchor],
+        [panel.leadingAnchor constraintEqualToAnchor:panelWrap.leadingAnchor],
+        [panel.trailingAnchor constraintEqualToAnchor:panelWrap.trailingAnchor],
+        [panel.bottomAnchor constraintEqualToAnchor:panelWrap.bottomAnchor],
+
+        [titleBar.topAnchor constraintEqualToAnchor:pc.topAnchor],
+        [titleBar.leadingAnchor constraintEqualToAnchor:pc.leadingAnchor],
+        [titleBar.trailingAnchor constraintEqualToAnchor:pc.trailingAnchor],
+        [titleBar.heightAnchor constraintEqualToConstant:46],
+
+        [accent.leadingAnchor constraintEqualToAnchor:titleBar.leadingAnchor constant:16],
+        [accent.centerYAnchor constraintEqualToAnchor:titleBar.centerYAnchor],
+        [accent.widthAnchor constraintEqualToConstant:4],
+        [accent.heightAnchor constraintEqualToConstant:16],
+
+        [icon.leadingAnchor constraintEqualToAnchor:accent.trailingAnchor constant:10],
+        [icon.centerYAnchor constraintEqualToAnchor:titleBar.centerYAnchor],
+        [icon.widthAnchor constraintEqualToConstant:15],
+        [icon.heightAnchor constraintEqualToConstant:15],
+
+        [menuTitle.leadingAnchor constraintEqualToAnchor:icon.trailingAnchor constant:7],
+        [menuTitle.centerYAnchor constraintEqualToAnchor:titleBar.centerYAnchor],
+
+        [hint.trailingAnchor constraintEqualToAnchor:titleBar.trailingAnchor constant:-16],
+        [hint.centerYAnchor constraintEqualToAnchor:titleBar.centerYAnchor],
+        [hint.heightAnchor constraintEqualToConstant:18],
+
+        [stack.topAnchor constraintEqualToAnchor:titleBar.bottomAnchor],
+        [stack.leadingAnchor constraintEqualToAnchor:pc.leadingAnchor],
+        [stack.trailingAnchor constraintEqualToAnchor:pc.trailingAnchor],
+        [stack.bottomAnchor constraintEqualToAnchor:pc.bottomAnchor constant:-4],
+    ]];
+
+    return panelWrap;
+}
+
+#pragma mark - Tab switching
+
+- (void)tabChanged:(UISegmentedControl *)seg {
+    NSInteger tab = seg.selectedSegmentIndex;
+    [UIView animateWithDuration:0.2 animations:^{
+        self.panelProxy.hidden  = (tab != 0);
+        self.panelDinhVi.hidden = (tab != 1);
+        self.panelModNV.hidden  = (tab != 2);
+    }];
+    NSString *hint = (tab == 0) ? @"Đã Sẵn Sàng - Bạn Đã Có Thể Bắt Đầu Kích Hoạt Proxy"
+                  : (tab == 1) ? @"Định Vị - Hiện Vị Trí Súng & Vật Phẩm Trên Map"
+                               : @"Mod Nhân Vật - Đang Cập Nhật Thêm Tính Năng Mới";
+    [self setStatus:hint color:HUD_MUTED];
+}
+
 #pragma mark - Feature config
 
+// Builder helper — exclusive=YES mặc định (aim / radio); gọi xong đặt NO nếu cần độc lập.
 - (HUDFeature *)featureWithSymbol:(NSString *)symbol tint:(UIColor *)tint
                             title:(NSString *)title subtitle:(NSString *)subtitle
                        featureKey:(NSString *)featureKey
@@ -713,32 +791,20 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     HUDFeature *f = [HUDFeature new];
     f.symbol = symbol; f.tint = tint; f.title = title; f.subtitle = subtitle;
     f.featureKey = featureKey; f.fileName = fileName; f.searchRoot = searchRoot;
-    f.exclusive = YES;   // mặc định là aim (radio); định vị sẽ set NO
+    f.exclusive = YES;
     return f;
 }
 
-- (NSArray<HUDFeature *> *)featuresForBundle:(NSString *)bundleID {
-    // Free Fire Thường & Max — chỉ khác thư mục tìm (theo bundle)
+// ── Tab 1: Proxy ────────────────────────────────────────────
+- (NSArray<HUDFeature *> *)proxyFeaturesForBundle:(NSString *)bundleID {
     BOOL supported = [bundleID isEqualToString:@"com.dts.freefireth"] ||
                      [bundleID isEqualToString:@"com.dts.freefiremax"];
-    BOOL isMax = [bundleID isEqualToString:@"com.dts.freefiremax"];
-    BOOL isTH  = [bundleID isEqualToString:@"com.dts.freefireth"];
 
     NSString *cacheRes = @"cache_res.CfnFf59sr1SbsqQ6JqTKsEusjKs~3D";
-    // File "định vị súng" tên KHÁC NHAU theo game
-    NSString *shaders = isMax ? @"shaders.RXqs706xmtWYhbN9TqDzP8LDRzk~3D"
-                     : (isTH  ? @"shaders.HPt9DZviTSXL9hpGW9QNOMigNLA~3D" : nil);
-
     NSString *root = [NSString stringWithFormat:@"Device Storage/[MHA-C2] App Data/%@", bundleID];
     NSString *fn = supported ? cacheRes : nil;
     NSString *rt = supported ? root : nil;
     NSString *(^k)(NSString *) = ^NSString *(NSString *key) { return supported ? key : nil; };
-
-    // Định vị súng — file shaders (theo game) + ĐỘC LẬP (bật không tắt aim)
-    HUDFeature *dinhvi = [self featureWithSymbol:@"location.fill" tint:HUD_GREEN
-                                           title:@"Định Vị Súng" subtitle:@"Hiện Vị Trí Súng Trên Map"
-                                      featureKey:k(@"dinhvi") fileName:(supported ? shaders : nil) searchRoot:rt];
-    dinhvi.exclusive = NO;
 
     return @[
         [self featureWithSymbol:@"figure.stand" tint:HUD_ORANGE title:@"Proxy Body" subtitle:@"Full Đỏ Xoá Máu Vàng"
@@ -757,9 +823,71 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 
         [self featureWithSymbol:@"wand.and.stars" tint:HUD_PURPLE title:@"Proxy Magic" subtitle:@"Đạn Ma Thuật"
                      featureKey:k(@"magic") fileName:fn searchRoot:rt],
-
-        dinhvi,
     ];
+}
+
+// ── Tab 2: Định Vị Súng ─────────────────────────────────────
+// Mỗi loại súng / vật phẩm là 1 row độc lập (exclusive=NO).
+// Điền fileName + featureKey khi có file thực; để nil → hiện "Đang Bảo Trì".
+- (NSArray<HUDFeature *> *)dinhViFeaturesForBundle:(NSString *)bundleID {
+    BOOL supported = [bundleID isEqualToString:@"com.dts.freefireth"] ||
+                     [bundleID isEqualToString:@"com.dts.freefiremax"];
+    BOOL isMax = [bundleID isEqualToString:@"com.dts.freefiremax"];
+    BOOL isTH  = [bundleID isEqualToString:@"com.dts.freefireth"];
+
+    NSString *shaders = isMax ? @"shaders.RXqs706xmtWYhbN9TqDzP8LDRzk~3D"
+                     : (isTH  ? @"shaders.HPt9DZviTSXL9hpGW9QNOMigNLA~3D" : nil);
+    NSString *root = [NSString stringWithFormat:@"Device Storage/[MHA-C2] App Data/%@", bundleID];
+    NSString *sf = supported ? shaders : nil;   // shaders file
+    NSString *rt = supported ? root : nil;
+    NSString *(^k)(NSString *) = ^NSString *(NSString *key) { return supported ? key : nil; };
+
+    // Định vị tổng — file shaders, đang hoạt động
+    HUDFeature *dv = [self featureWithSymbol:@"location.fill" tint:HUD_GREEN
+                                       title:@"Định Vị Súng" subtitle:@"Hiện Vị Trí Súng Trên Map"
+                                  featureKey:k(@"dinhvi") fileName:sf searchRoot:rt];
+    dv.exclusive = NO;
+
+    // ── Thêm định vị súng khác vào đây — điền fileName khi có file ──
+    // Ví dụ (hiện placeholder — featureKey/fileName nil → hiển thị "Đang Bảo Trì"):
+    HUDFeature *dv2 = [self featureWithSymbol:@"scope" tint:HUD_ORANGE
+                                        title:@"Định Vị AR" subtitle:@"Đang Cập Nhật"
+                                   featureKey:nil fileName:nil searchRoot:nil];
+    dv2.exclusive = NO;
+
+    HUDFeature *dv3 = [self featureWithSymbol:@"bolt.horizontal.fill" tint:HUD_PINK
+                                        title:@"Định Vị SMG" subtitle:@"Đang Cập Nhật"
+                                   featureKey:nil fileName:nil searchRoot:nil];
+    dv3.exclusive = NO;
+
+    return @[dv, dv2, dv3];
+}
+
+// ── Tab 3: Mod Nhân Vật ─────────────────────────────────────
+// Tất cả placeholder — điền featureKey + fileName khi có file.
+- (NSArray<HUDFeature *> *)modNVFeaturesForBundle:(NSString *)bundleID {
+    HUDFeature *nv1 = [self featureWithSymbol:@"person.fill"
+                                         tint:HUD_ORANGE
+                                        title:@"Mod Nhân Vật"
+                                     subtitle:@"Đang Cập Nhật"
+                                   featureKey:nil fileName:nil searchRoot:nil];
+    nv1.exclusive = NO;
+
+    HUDFeature *nv2 = [self featureWithSymbol:@"tshirt.fill"
+                                         tint:[UIColor colorWithRed:1.0 green:0.78 blue:0.25 alpha:1.0]
+                                        title:@"Mod Trang Phục"
+                                     subtitle:@"Đang Cập Nhật"
+                                   featureKey:nil fileName:nil searchRoot:nil];
+    nv2.exclusive = NO;
+
+    HUDFeature *nv3 = [self featureWithSymbol:@"star.fill"
+                                         tint:HUD_CYAN
+                                        title:@"Mod Đặc Biệt"
+                                     subtitle:@"Đang Cập Nhật"
+                                   featureKey:nil fileName:nil searchRoot:nil];
+    nv3.exclusive = NO;
+
+    return @[nv1, nv2, nv3];
 }
 
 #pragma mark - Toggle handling (auto-paste)
