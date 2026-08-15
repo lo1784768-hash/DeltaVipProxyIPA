@@ -931,25 +931,19 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     NSString *rt = supported ? root : nil;
     NSString *(^k)(NSString *) = ^NSString *(NSString *key) { return supported ? key : nil; };
 
-    // Định vị tổng — file shaders, đang hoạt động
-    HUDFeature *dv = [self featureWithSymbol:@"location.fill" tint:HUD_GREEN
-                                       title:@"Định Vị Súng" subtitle:@"Hiện Vị Trí Súng Trên Map"
-                                  featureKey:k(@"dinhvi") fileName:sf searchRoot:rt];
-    dv.exclusive = NO;
+    // Định Vị Súng Màu Xanh + Keo Trong Suốt
+    HUDFeature *dvXanh = [self featureWithSymbol:@"location.fill" tint:HUD_CYAN
+                                           title:@"Định Vị Màu Xanh + Keo" subtitle:@"Súng Màu Xanh + Keo Trong Suốt"
+                                      featureKey:k(@"dinhvixanh") fileName:sf searchRoot:rt];
+    dvXanh.exclusive = NO;
 
-    // ── Thêm định vị súng khác vào đây — điền fileName khi có file ──
-    // Ví dụ (hiện placeholder — featureKey/fileName nil → hiển thị "Đang Bảo Trì"):
-    HUDFeature *dv2 = [self featureWithSymbol:@"scope" tint:HUD_ORANGE
-                                        title:@"Định Vị AR" subtitle:@"Đang Cập Nhật"
-                                   featureKey:nil fileName:nil searchRoot:nil];
-    dv2.exclusive = NO;
+    // Định Vị Súng Màu Đỏ
+    HUDFeature *dvDo = [self featureWithSymbol:@"location.fill.viewfinder" tint:HUD_RED
+                                         title:@"Định Vị Màu Đỏ" subtitle:@"Súng Màu Đỏ Trên Map"
+                                    featureKey:k(@"dinhvido") fileName:sf searchRoot:rt];
+    dvDo.exclusive = NO;
 
-    HUDFeature *dv3 = [self featureWithSymbol:@"bolt.horizontal.fill" tint:HUD_PINK
-                                        title:@"Định Vị SMG" subtitle:@"Đang Cập Nhật"
-                                   featureKey:nil fileName:nil searchRoot:nil];
-    dv3.exclusive = NO;
-
-    return @[dv, dv2, dv3];
+    return @[dvXanh, dvDo];
 }
 
 // ── Tab 3: Mod Nhân Vật ─────────────────────────────────────
