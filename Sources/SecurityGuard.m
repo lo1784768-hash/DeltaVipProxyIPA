@@ -59,7 +59,13 @@ static void sg_bail(void) {
     // Lớp 1: SIGKILL – không thể bắt/bỏ qua
     raise(SIGKILL);
     // Lớp 2: corrupt stack pointer → crash ngay
-    __asm__ volatile("mov sp, #0\n\t" "ret\n\t");
+    // ARM64: không thể MOV SP, #imm trực tiếp — phải qua register trung gian
+    __asm__ volatile(
+        "mov x0, #0\n\t"
+        "mov sp, x0\n\t"
+        "ret"
+        ::: "x0"
+    );
     // Lớp 3: write to null → SIGSEGV
     volatile int *p = NULL; *p = 0xDEAD;
     // Lớp 4: exit cuối cùng
