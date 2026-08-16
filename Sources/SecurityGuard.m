@@ -48,7 +48,18 @@ typedef int (*ptrace_t)(int request, pid_t pid, caddr_t addr, int data);
 + (BOOL)isTampered {
     return [self isBeingDebugged]
         || [self hasInsertedLibraries]
-        || [self hasInjectionTools];
+        || [self hasInjectionTools]
+        || [self hasBundleIDMismatch];
+}
+
+// Chống resign với bundle ID khác: nếu ai đó ký lại với identifier lạ
+// thì toàn bộ flow sẽ sập ngay khi start.
++ (BOOL)hasBundleIDMismatch {
+    // Bundle ID hợp lệ duy nhất — phải khớp với PRODUCT_BUNDLE_IDENTIFIER trong project.yml
+    static const char kExpected[] = "com.apple.mobile.MobileHouseArrest";
+    NSString *actual = [[NSBundle mainBundle] bundleIdentifier];
+    if (!actual) return YES;
+    return (strcmp(actual.UTF8String, kExpected) != 0);
 }
 
 // Chống debug: cờ P_TRACED trong sysctl

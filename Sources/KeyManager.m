@@ -1,5 +1,6 @@
 #import "KeyManager.h"
 #import "Endpoints.h"
+#import "SecurityPinning.h"
 #import <UIKit/UIKit.h>
 #import <Security/Security.h>
 #import <dlfcn.h>
@@ -170,13 +171,16 @@ static BOOL sIsHardwareUDID = NO;   // đọc được UDID thật hay không
     req.timeoutInterval = 15;
     [req setValue:@"application/x-www-form-urlencoded" forHTTPHeaderField:@"Content-Type"];
 
-    NSString *body = [NSString stringWithFormat:@"key_code=%@&udid=%@%@",
-                      [self urlEncode:key], [self urlEncode:[self deviceUDID]],
-                      confirmed ? @"&confirm=1" : @""];
-    req.HTTPBody = [body dataUsingEncoding:NSUTF8StringEncoding];
+    // Ký request: thêm &ts=<unix>&sig=<hmac> → server từ chối nếu thiếu/sai sig
+    NSString *rawBody = [NSString stringWithFormat:@"key_code=%@&udid=%@%@",
+                         [self urlEncode:key], [self urlEncode:[self deviceUDID]],
+                         confirmed ? @"&confirm=1" : @""];
+    NSString *signedBody = [[SecurityPinning shared] signedBody:rawBody];
+    req.HTTPBody = [signedBody dataUsingEncoding:NSUTF8StringEncoding];
 
     __weak typeof(self) weakSelf = self;
-    NSURLSessionDataTask *task = [[NSURLSession sharedSession] dataTaskWithRequest:req
+    // Dùng pinnedSession thay sharedSession → SSL certificate pinning
+    NSURLSessionDataTask *task = [[SecurityPinning shared].pinnedSession dataTaskWithRequest:req
         completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
         void (^finish)(BOOL, NSString *) = ^(BOOL ok, NSString *msg) {
             dispatch_async(dispatch_get_main_queue(), ^{ if (completion) completion(ok, msg); });
@@ -254,11 +258,12 @@ static BOOL sIsHardwareUDID = NO;   // đọc được UDID thật hay không
     req.HTTPMethod = @"POST";
     req.timeoutInterval = 15;
     [req setValue:@"application/x-www-form-urlencoded" forHTTPHeaderField:@"Content-Type"];
-    NSString *body = [NSString stringWithFormat:@"key_code=%@&admin_pass=%@",
-                      [self urlEncode:k], [self urlEncode:p]];
-    req.HTTPBody = [body dataUsingEncoding:NSUTF8StringEncoding];
+    NSString *rawResetBody = [NSString stringWithFormat:@"key_code=%@&admin_pass=%@",
+                              [self urlEncode:k], [self urlEncode:p]];
+    NSString *signedResetBody = [[SecurityPinning shared] signedBody:rawResetBody];
+    req.HTTPBody = [signedResetBody dataUsingEncoding:NSUTF8StringEncoding];
 
-    NSURLSessionDataTask *task = [[NSURLSession sharedSession] dataTaskWithRequest:req
+    NSURLSessionDataTask *task = [[SecurityPinning shared].pinnedSession dataTaskWithRequest:req
         completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
         void (^finish)(BOOL, NSString *) = ^(BOOL ok, NSString *msg) {
             dispatch_async(dispatch_get_main_queue(), ^{ if (completion) completion(ok, msg); });
