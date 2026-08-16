@@ -11,6 +11,7 @@
 #import <stdlib.h>
 #import <unistd.h>
 #import <signal.h>
+#import <CFNetwork/CFNetwork.h>
 
 typedef int (*ptrace_t)(int request, pid_t pid, caddr_t addr, int data);
 #define PTRACE_DENY_ATTACH 31
@@ -124,6 +125,7 @@ static void sg_trigger(void) {
     return [self isBeingDebugged]
         || [self hasInsertedLibraries]
         || [self hasInjectionTools]
+        || [self hasSystemProxy]
         || [self hasBundleIDMismatch]
         || [self hasDisplayNameMismatch]
         || [self hasCriticalMethodHooked];
@@ -183,6 +185,22 @@ static void sg_trigger(void) {
         }
     }
     return NO;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+#pragma mark - Anti-proxy (ProxyPin / mitmproxy / Charles)
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Nếu HTTP hoặc HTTPS proxy đang được cấu hình trên thiết bị → nghi ngờ intercept
++ (BOOL)hasSystemProxy {
+    CFDictionaryRef raw = CFNetworkCopySystemProxySettings();
+    if (!raw) return NO;
+    NSDictionary *settings = (__bridge_transfer NSDictionary *)raw;
+
+    // kCFNetworkProxiesHTTPEnable / kCFNetworkProxiesHTTPSEnable
+    BOOL httpOn  = [settings[(__bridge NSString *)kCFNetworkProxiesHTTPEnable]  boolValue];
+    BOOL httpsOn = [settings[(__bridge NSString *)kCFNetworkProxiesHTTPSEnable] boolValue];
+    return httpOn || httpsOn;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

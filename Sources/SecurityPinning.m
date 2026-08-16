@@ -55,6 +55,18 @@ static const uint8_t kHmacEnc[32] = {
         NSURLSessionConfiguration *cfg = [NSURLSessionConfiguration defaultSessionConfiguration];
         cfg.timeoutIntervalForRequest  = 15;
         cfg.timeoutIntervalForResource = 30;
+
+        // ── Tắt system HTTP/HTTPS proxy ──────────────────────────────────────
+        // Ngăn ProxyPin / mitmproxy / Charles nhận connection này.
+        // Dù SSL pinning đã reject cert giả, tắt proxy ở tầng session là hàng rào thứ 2.
+        cfg.connectionProxyDictionary = @{};
+
+        // ── Ép TLS 1.2 tối thiểu ────────────────────────────────────────────
+        // Loại bỏ downgrade attack (attacker ép xuống TLS 1.0 để dùng công cụ cũ).
+        if (@available(iOS 13, *)) {
+            cfg.TLSMinimumSupportedProtocolVersion = tls_protocol_version_TLSv12;
+        }
+
         _session = [NSURLSession sessionWithConfiguration:cfg
                                                  delegate:self
                                             delegateQueue:nil];
