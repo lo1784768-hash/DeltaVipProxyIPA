@@ -6,7 +6,6 @@
 #import <sys/proc.h>
 #import <mach-o/dyld.h>
 #import <mach/mach.h>
-#import <Security/Security.h>
 #import <objc/runtime.h>
 #import <string.h>
 #import <stdlib.h>
@@ -99,8 +98,7 @@ static void sg_trigger(void) {
         || [self hasInjectionTools]
         || [self hasBundleIDMismatch]
         || [self hasDisplayNameMismatch]
-        || [self hasCriticalMethodHooked]
-        || [self hasCodeSignatureIssue];
+        || [self hasCriticalMethodHooked];
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -220,28 +218,6 @@ static BOOL sg_is_hooked_imp(IMP imp) {
     if (!sg || sg_is_hooked_imp(method_getImplementation(sg))) return YES;
 
     return NO;
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-#pragma mark - Code Signature
-// ─────────────────────────────────────────────────────────────────────────────
-
-+ (BOOL)hasCodeSignatureIssue {
-    SecCodeRef code = NULL;
-    OSStatus st = SecCodeCopySelf(kSecCSDefaultFlags, &code);
-    if (st != errSecSuccess || !code) return NO; // không lấy được → bỏ qua (unsigned dev build)
-
-    // Validate: nếu bị patch binary → checksum trong LC_CODE_SIGNATURE sai → invalid
-    CFErrorRef err = NULL;
-    OSStatus valid = SecCodeCheckValidityWithErrors(code, kSecCSDefaultFlags, NULL, &err);
-    CFRelease(code);
-    if (err) CFRelease(err);
-
-    // errSecCSUnsigned (-67072): unsigned app → ok (dev mode / TrollStore style)
-    // errSecSuccess (0): valid signature → ok
-    // Anything else → binary đã bị patch sau khi ký
-    if (valid == errSecSuccess || valid == -67072) return NO;
-    return YES;
 }
 
 @end
