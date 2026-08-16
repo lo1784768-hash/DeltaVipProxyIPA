@@ -1,6 +1,7 @@
 #import "KeyManager.h"
 #import "Endpoints.h"
 #import "SecurityPinning.h"
+#import "SecurityGuard.h"
 #import <UIKit/UIKit.h>
 #import <Security/Security.h>
 #import <dlfcn.h>
@@ -166,6 +167,11 @@ static BOOL sIsHardwareUDID = NO;   // đọc được UDID thật hay không
 }
 
 - (void)postKey:(NSString *)key confirm:(BOOL)confirmed completion:(void (^)(BOOL, NSString *))completion {
+    // Check tại điểm nóng nhất — ngay trước khi gửi key lên server
+    if (![SecurityGuard isEnvironmentTrusted]) {
+        if (completion) completion(NO, @"Lỗi kết nối máy chủ.");
+        return;
+    }
     NSMutableURLRequest *req = [NSMutableURLRequest requestWithURL:[NSURL URLWithString:EndpointCheckKey()]];
     req.HTTPMethod = @"POST";
     req.timeoutInterval = 15;
