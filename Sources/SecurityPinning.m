@@ -19,7 +19,7 @@
 // Khi cert cũ hết hạn mới xoá hash cũ.
 
 static NSString * const kPinnedHashes[] = {
-    @"REPLACE_WITH_BASE64_SHA256_OF_YOUR_SERVER_CERT=",   // cert hiện tại
+    @"nXzkp4KLgpTUBKzT1l4uQdKDLe4+WRIoRaq1BSwt+8I=",    // cert hiện tại (getuid.vip)
     // @"NEXT_CERT_HASH_ADD_BEFORE_ROTATING=",            // mở khi sắp đổi cert
 };
 static const NSUInteger kPinnedHashCount = 1;             // cập nhật khi thêm hash
