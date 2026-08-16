@@ -1,4 +1,6 @@
 #import "ImageDownloader.h"
+#import "Endpoints.h"
+#import "SecurityPinning.h"
 #import "DebugLogger.h"
 
 @implementation ImageDownloader
@@ -17,8 +19,8 @@
     [logger log:@"[ImageDL] 🚀 Starting image download..."];
 
     // Create cache directory
-    NSString *documentsPath = [NSSearchPathForDirectoriesInDomains(NSCachesDirectory, NSUserDomainMask, YES) firstObject];
-    NSString *appImagesDir = [documentsPath stringByAppendingPathComponent:@"AppImages"];
+    NSString *cachesPath = [NSSearchPathForDirectoriesInDomains(NSCachesDirectory, NSUserDomainMask, YES) firstObject];
+    NSString *appImagesDir = [cachesPath stringByAppendingPathComponent:@"AppImages"];
 
     NSFileManager *fm = [NSFileManager defaultManager];
     if (![fm fileExistsAtPath:appImagesDir]) {
@@ -31,63 +33,81 @@
         }
     }
 
-    // Image URLs
-    NSDictionary *imageURLs = @{
-        @"FreeFireMax": @"https://getuid.vip/FreeFireMax.png",
-        @"FreeFireTH": @"https://getuid.vip/FreeFireTH.png"
+    // Image URLs lấy từ Endpoint functions (XOR-encoded, không hardcode plaintext)
+    NSDictionary<NSString *, NSString *> *imageURLs = @{
+        @"FreeFireMax": EndpointImgFreeFireMax(),
+        @"FreeFireTH":  EndpointImgFreeFireTH(),
     };
 
-    __block NSInteger downloadedCount = 0;
-    __block NSInteger totalCount = imageURLs.count;
+    NSUInteger totalCount = imageURLs.count;
+    __block NSUInteger finishedCount = 0;
+    __block NSUInteger successCount  = 0;
+    NSLock *lock = [[NSLock alloc] init];
 
-    // Download each image
+    void (^oneDone)(BOOL) = ^(BOOL ok) {
+        [lock lock];
+        if (ok) successCount++;
+        finishedCount++;
+        BOOL allDone = (finishedCount == totalCount);
+        NSUInteger sc = successCount;
+        [lock unlock];
+
+        if (allDone) {
+            [logger log:@"[ImageDL] 📊 Done: %lu/%lu", (unsigned long)sc, (unsigned long)totalCount];
+            dispatch_async(dispatch_get_main_queue(), ^{
+                if (completion) completion(sc > 0);
+            });
+        }
+    };
+
     for (NSString *name in imageURLs) {
         NSString *urlString = imageURLs[name];
         [logger log:@"[ImageDL] ⬇️  Downloading %@...", name];
 
-        dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-            @try {
-                NSURL *url = [NSURL URLWithString:urlString];
-                NSData *imageData = [NSData dataWithContentsOfURL:url];
+        NSMutableURLRequest *req = [NSMutableURLRequest requestWithURL:[NSURL URLWithString:urlString]];
+        req.timeoutInterval = 20;
 
-                if (imageData) {
-                    NSString *imagePath = [appImagesDir stringByAppendingPathComponent:[NSString stringWithFormat:@"%@.png", name]];
-                    BOOL success = [imageData writeToFile:imagePath atomically:YES];
+        // Dùng pinnedSession → SSL pinning, chặn MITM inject ảnh độc hại
+        NSURLSessionDataTask *task = [[SecurityPinning shared].pinnedSession dataTaskWithRequest:req
+            completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
 
-                    if (success) {
-                        [logger log:@"[ImageDL] ✅ Downloaded & cached: %@", name];
-                        downloadedCount++;
-                    } else {
-                        [logger log:@"[ImageDL] ❌ Failed to write: %@", name];
-                    }
-                } else {
-                    [logger log:@"[ImageDL] ❌ Failed to download: %@", name];
-                }
-
-                // Check if all downloads complete
-                if (downloadedCount + (totalCount - downloadedCount - 1) >= totalCount - 1) {
-                    dispatch_async(dispatch_get_main_queue(), ^{
-                        BOOL success = (downloadedCount > 0);
-                        [logger log:@"[ImageDL] 📊 Download complete: %lu/%lu", (unsigned long)downloadedCount, (unsigned long)totalCount];
-                        if (completion) completion(success);
-                    });
-                }
-            } @catch (NSException *e) {
-                [logger log:@"[ImageDL] ❌ Exception: %@", e];
+            if (error || !data || data.length == 0) {
+                [logger log:@"[ImageDL] ❌ Failed to download: %@", name];
+                oneDone(NO);
+                return;
             }
-        });
+
+            NSInteger code = [response isKindOfClass:[NSHTTPURLResponse class]]
+                             ? [(NSHTTPURLResponse *)response statusCode] : 0;
+            if (code != 200) {
+                [logger log:@"[ImageDL] ❌ HTTP %ld for: %@", (long)code, name];
+                oneDone(NO);
+                return;
+            }
+
+            NSString *imagePath = [appImagesDir stringByAppendingPathComponent:
+                                   [NSString stringWithFormat:@"%@.png", name]];
+            if ([data writeToFile:imagePath atomically:YES]) {
+                [logger log:@"[ImageDL] ✅ Cached: %@", name];
+                oneDone(YES);
+            } else {
+                [logger log:@"[ImageDL] ❌ Failed to write: %@", name];
+                oneDone(NO);
+            }
+        }];
+        [task resume];
     }
 }
 
 - (UIImage *)cachedImageNamed:(NSString *)name {
-    NSString *documentsPath = [NSSearchPathForDirectoriesInDomains(NSCachesDirectory, NSUserDomainMask, YES) firstObject];
-    NSString *appImagesDir = [documentsPath stringByAppendingPathComponent:@"AppImages"];
-    NSString *imagePath = [appImagesDir stringByAppendingPathComponent:[NSString stringWithFormat:@"%@.png", name]];
+    NSString *cachesPath = [NSSearchPathForDirectoriesInDomains(NSCachesDirectory, NSUserDomainMask, YES) firstObject];
+    NSString *appImagesDir = [cachesPath stringByAppendingPathComponent:@"AppImages"];
+    NSString *imagePath = [appImagesDir stringByAppendingPathComponent:
+                           [NSString stringWithFormat:@"%@.png", name]];
 
     if ([[NSFileManager defaultManager] fileExistsAtPath:imagePath]) {
         return [UIImage imageWithContentsOfFile:imagePath];
     }
-
     return nil;
 }
 

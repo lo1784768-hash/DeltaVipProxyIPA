@@ -57,7 +57,7 @@
     // Kiểm tra bảo mật lần 2 sau khi app khởi động xong (bẫy inject sau launch)
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2.5 * NSEC_PER_SEC)),
                    dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-        if (![SecurityGuard isEnvironmentTrusted]) { exit(0); }
+        if (![SecurityGuard isEnvironmentTrusted]) { [SecurityGuard bailOut]; }
     });
 
     return YES;

@@ -1,5 +1,6 @@
 #import "UpdateGate.h"
 #import "Endpoints.h"
+#import "SecurityPinning.h"
 #import <objc/runtime.h>
 
 @implementation UpdateGate
@@ -25,7 +26,8 @@
     NSMutableURLRequest *req = [NSMutableURLRequest requestWithURL:[NSURL URLWithString:EndpointVersion()]];
     req.timeoutInterval = 12;
 
-    NSURLSessionDataTask *task = [[NSURLSession sharedSession] dataTaskWithRequest:req
+    // Dùng pinnedSession → SSL pinning, chặn MITM giả response "không cần update"
+    NSURLSessionDataTask *task = [[SecurityPinning shared].pinnedSession dataTaskWithRequest:req
         completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
         if (error || !data) return;   // lỗi mạng → không chặn (mod vẫn cần server nên vẫn an toàn)
         NSDictionary *j = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
@@ -35,7 +37,8 @@
         if (minVer.length == 0) return;
 
         if ([self version:[self appVersion] lessThan:minVer]) {
-            NSString *url = j[@"url"] ?: @"https://getuid.vip/proxy-delta.html";
+            // URL lấy từ server, fallback dùng EndpointVersion() domain (không hardcode plaintext)
+            NSString *url = j[@"url"] ?: EndpointVersion();
             NSString *msg = j[@"message"] ?: @"Phiên bản đã cũ. Vui lòng cập nhật IPA mới để tiếp tục sử dụng.";
             dispatch_async(dispatch_get_main_queue(), ^{ [self blockOn:host message:msg url:url]; });
         }

@@ -239,7 +239,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 
 - (void)switchChanged {
     // Scatter check — bẫy inject xảy ra sau khi app đã chạy ổn định
-    if (![SecurityGuard isEnvironmentTrusted]) { exit(0); return; }
+    if (![SecurityGuard isEnvironmentTrusted]) { [SecurityGuard bailOut]; return; }
     if (self.onChanged) self.onChanged(self, self.toggle.isOn);
 }
 

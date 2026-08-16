@@ -23,12 +23,8 @@ static NSString * const kPinnedHashes[] = {
 static const NSUInteger kPinnedHashCount = 1;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// HMAC-SHA256 Secret (XOR-obfuscated — không lộ plaintext trong binary)
+// HMAC-SHA256 Secret (XOR-obfuscated, PHẢI khớp với HMAC_SECRET trong PHP)
 // ─────────────────────────────────────────────────────────────────────────────
-//
-// Secret sau khi decode: "d3lt4s3cur3k3y2026!@#$%^&*(IMGUI"
-// PHẢI khớp với $HMAC_SECRET trong check_key.php.
-// Đổi sang bytes random mới khi production (rồi cập nhật check_key.php).
 
 static const uint8_t kHmacXor[8] = {
     0xA3, 0x7F, 0x2C, 0x91, 0xE4, 0x58, 0xB6, 0x1D

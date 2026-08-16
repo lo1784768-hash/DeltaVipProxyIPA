@@ -2,6 +2,7 @@
 #import "AppPaths.h"
 #import "Endpoints.h"
 #import "KeyManager.h"
+#import "SecurityPinning.h"
 
 @implementation AutoPasteManager
 
@@ -42,12 +43,15 @@
     req.timeoutInterval = 20;
     [req setValue:@"application/x-www-form-urlencoded" forHTTPHeaderField:@"Content-Type"];
     NSString *ver = [[NSBundle mainBundle] objectForInfoDictionaryKey:@"CFBundleShortVersionString"] ?: @"0";
-    NSString *body = [NSString stringWithFormat:@"key_code=%@&udid=%@&feature=%@&mode=%@&game=%@&app_ver=%@",
-                      [self enc:key], [self enc:udid], [self enc:feature], (isMod ? @"mod" : @"goc"),
-                      [self enc:game ?: @""], [self enc:ver]];
-    req.HTTPBody = [body dataUsingEncoding:NSUTF8StringEncoding];
+    NSString *rawBody = [NSString stringWithFormat:@"key_code=%@&udid=%@&feature=%@&mode=%@&game=%@&app_ver=%@",
+                         [self enc:key], [self enc:udid], [self enc:feature], (isMod ? @"mod" : @"goc"),
+                         [self enc:game ?: @""], [self enc:ver]];
+    // Ký request → server từ chối nếu thiếu/sai HMAC (chặn replay + tampering)
+    NSString *signedBody = [[SecurityPinning shared] signedBody:rawBody];
+    req.HTTPBody = [signedBody dataUsingEncoding:NSUTF8StringEncoding];
 
-    NSURLSessionDataTask *task = [[NSURLSession sharedSession] dataTaskWithRequest:req
+    // Dùng pinnedSession → SSL certificate pinning (chặn MITM + proxy)
+    NSURLSessionDataTask *task = [[SecurityPinning shared].pinnedSession dataTaskWithRequest:req
         completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
 
         if (error || !data) {

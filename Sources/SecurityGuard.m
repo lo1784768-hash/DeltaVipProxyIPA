@@ -15,9 +15,33 @@
 typedef int (*ptrace_t)(int request, pid_t pid, caddr_t addr, int data);
 #define PTRACE_DENY_ATTACH 31
 
-// ─── Tên app hợp lệ (khớp INFOPLIST_KEY_CFBundleDisplayName trong project.yml) ───
-static const char kValidDisplayName[] = "DELTA PROXY";
-static const char kValidBundleID[]    = "com.apple.mobile.MobileHouseArrest";
+// ─── Tên app / bundle ID hợp lệ (XOR-obfuscated, không lộ plaintext khi chạy `strings`) ───
+//
+// kDNXor key = {0xAB,0xCD,0xEF,0x13,0x57,0x9B,0xDF,0x24,0x68,0xAC,0xF0}
+// decode("DELTA PROXY"):
+static const uint8_t kDNXor[11] = {0xAB,0xCD,0xEF,0x13,0x57,0x9B,0xDF,0x24,0x68,0xAC,0xF0};
+static const uint8_t kDNEnc[11] = {0xEF,0x88,0xA3,0x47,0x16,0xBB,0x8F,0x76,0x27,0xF4,0xA9};
+//
+// kBIDXor key = {0x5E,0xC1,0x2B,0x7A,0xD4,0x9F,0x38,0xE6}
+// decode("com.apple.mobile.MobileHouseArrest"):
+static const uint8_t kBIDXor[8]  = {0x5E,0xC1,0x2B,0x7A,0xD4,0x9F,0x38,0xE6};
+static const uint8_t kBIDEnc[34] = {
+    0x3D,0xAE,0x46,0x54,0xB5,0xEF,0x48,0x8A,
+    0x3B,0xEF,0x46,0x15,0xB6,0xF6,0x54,0x83,
+    0x70,0x8C,0x44,0x18,0xBD,0xF3,0x5D,0xAE,
+    0x31,0xB4,0x58,0x1F,0x95,0xED,0x4A,0x83,
+    0x2D,0xB5
+};
+
+// Decode tại runtime vào stack buffer — không tồn tại trong data segment dạng plaintext
+static void sg_decode_dn(char out[12]) {
+    for (int i = 0; i < 11; i++) out[i] = (char)(kDNEnc[i] ^ kDNXor[i]);
+    out[11] = '\0';
+}
+static void sg_decode_bid(char out[35]) {
+    for (int i = 0; i < 34; i++) out[i] = (char)(kBIDEnc[i] ^ kBIDXor[i % 8]);
+    out[34] = '\0';
+}
 
 // ─── Danh sách dylib độc hại ─────────────────────────────────────────────────
 static const char *kBadLibs[] = {
@@ -85,6 +109,10 @@ static void sg_trigger(void) {
 
 + (BOOL)isEnvironmentTrusted {
     return ![self isTampered];
+}
+
++ (void)bailOut {
+    sg_trigger();
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -165,7 +193,8 @@ static void sg_trigger(void) {
 + (BOOL)hasBundleIDMismatch {
     NSString *bid = [[NSBundle mainBundle] bundleIdentifier];
     if (!bid) return YES;
-    return (strcmp(bid.UTF8String, kValidBundleID) != 0);
+    char expected[35]; sg_decode_bid(expected);
+    return (strcmp(bid.UTF8String, expected) != 0);
 }
 
 // Nếu ai đổi CFBundleDisplayName ("HQUAN CRACK VN"...) → phát hiện
@@ -174,7 +203,8 @@ static void sg_trigger(void) {
     NSString *display = [mb objectForInfoDictionaryKey:@"CFBundleDisplayName"]
                      ?: [mb objectForInfoDictionaryKey:@"CFBundleName"];
     if (!display) return YES;
-    return (strcmp(display.UTF8String, kValidDisplayName) != 0);
+    char expected[12]; sg_decode_dn(expected);
+    return (strcmp(display.UTF8String, expected) != 0);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
