@@ -4,25 +4,23 @@
 #import <CommonCrypto/CommonDigest.h>
 
 // ─────────────────────────────────────────────────────────────────────────────
-// SSL Certificate Pin
+// SSL Pin — Let's Encrypt Intermediate CA (tự động, không cần update khi renew)
 // ─────────────────────────────────────────────────────────────────────────────
 //
-// SHA-256 của DER-encoded leaf certificate (base64).
-// Lấy hash bằng lệnh sau (chạy một lần, thay YOUR_DOMAIN):
+// Pin vào INTERMEDIATE CA (cert index 1 trong chain) thay vì leaf cert:
+//   - Leaf cert đổi mỗi 90 ngày (Let's Encrypt auto-renew) → cần update app liên tục
+//   - Intermediate "YR1" giữ nguyên đến Sep 2028 → không cần làm gì cả
 //
-//   openssl s_client -connect YOUR_DOMAIN:443 </dev/null 2>/dev/null \
-//     | openssl x509 -outform DER \
-//     | openssl dgst -sha256 -binary \
-//     | base64
-//
-// Thêm hash mới VÀO TRƯỚC khi rotate cert để không bị ngắt service.
-// Khi cert cũ hết hạn mới xoá hash cũ.
+// Khi nào cần update: Let's Encrypt đổi intermediate (vài năm/lần, họ thông báo trước)
+// Lấy hash intermediate mới (khi cần):
+//   echo | openssl s_client -connect getuid.vip:443 -showcerts 2>/dev/null \
+//     | awk '/-----BEGIN CERTIFICATE-----/{c++} c==2{print}' \
+//     | openssl x509 -outform DER | openssl dgst -sha256 -binary | base64
 
 static NSString * const kPinnedHashes[] = {
-    @"nXzkp4KLgpTUBKzT1l4uQdKDLe4+WRIoRaq1BSwt+8I=",    // cert hiện tại (getuid.vip)
-    // @"NEXT_CERT_HASH_ADD_BEFORE_ROTATING=",            // mở khi sắp đổi cert
+    @"E5SWNNmc1v1qqAvANP76zOsZaf7vmGWGcT7NuwV1jT8=",  // Let's Encrypt YR1 (valid đến Sep 2028)
 };
-static const NSUInteger kPinnedHashCount = 1;             // cập nhật khi thêm hash
+static const NSUInteger kPinnedHashCount = 1;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // HMAC-SHA256 Secret (XOR-obfuscated — không lộ plaintext trong binary)
@@ -131,8 +129,14 @@ didReceiveChallenge:(NSURLAuthenticationChallenge *)challenge
         return;
     }
 
-    // Bước 2: So sánh leaf cert SHA-256 với danh sách pin
-    SecCertificateRef cert = SecTrustGetCertificateAtIndex(trust, 0);
+    // Bước 2: So sánh INTERMEDIATE CA cert SHA-256 với danh sách pin
+    // Index 0 = leaf (đổi mỗi 90 ngày), Index 1 = intermediate (ổn định vài năm)
+    CFIndex certCount = SecTrustGetCertificateCount(trust);
+    if (certCount < 2) {
+        completionHandler(NSURLSessionAuthChallengeCancelAuthenticationChallenge, nil);
+        return;
+    }
+    SecCertificateRef cert = SecTrustGetCertificateAtIndex(trust, 1);
     if (!cert) {
         completionHandler(NSURLSessionAuthChallengeCancelAuthenticationChallenge, nil);
         return;
