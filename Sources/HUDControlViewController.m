@@ -1103,65 +1103,66 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     skinMaro.exclusive = NO;
     skinMaro.previewImageURL = @"https://getuid.vip/skin_previews/maro.jpg";
 
-    NSString *alokFile = @"optionalab_avatar_66.DfUs7MzeaoXWJ4jWN8zRBmYoY7Q~3D";
+    NSString *alokFileTH  = @"optionalab_avatar_66.DfUs7MzeaoXWJ4jWN8zRBmYoY7Q~3D";
+    NSString *alokFileMax = @"optionalab_avatar_66.CoOEgYl5yYUMEbFNIb8L3onAO6o~3D";
 
-    // Mod Skin Alok V1 (chỉ FF Thường)
+    // Mod Skin Alok V1 (cả FF Thường + FF Max, file khác nhau)
     HUDFeature *skinAlokV1 = [self featureWithSymbol:@"crown.fill"
                                                 tint:HUD_PURPLE
                                                title:@"Mod Skin Alok V1"
-                                            subtitle:@"Mod Skin Alok Free Fire Thường"
-                                          featureKey:kTH(@"skinalokv1")
-                                            fileName:(isTH ? alokFile : nil)
-                                          searchRoot:rtTH];
+                                            subtitle:@"Mod Skin Alok"
+                                          featureKey:k(@"skinalokv1")
+                                            fileName:(isTH ? alokFileTH : alokFileMax)
+                                          searchRoot:rt];
     skinAlokV1.exclusive = NO;
     skinAlokV1.previewImageURL = @"https://getuid.vip/skin_previews/skinalokv1.jpg";
 
     // Mod Skin Alok V2
     HUDFeature *skinAlokV2 = [self featureWithSymbol:@"crown.fill" tint:HUD_CYAN
                                                title:@"Mod Skin Alok V2" subtitle:@"Mod Skin Alok Free Fire Thường"
-                                          featureKey:kTH(@"skinalokv2") fileName:(isTH ? alokFile : nil) searchRoot:rtTH];
+                                          featureKey:kTH(@"skinalokv2") fileName:(isTH ? alokFileTH : nil) searchRoot:rtTH];
     skinAlokV2.exclusive = NO;
     skinAlokV2.previewImageURL = @"https://getuid.vip/skin_previews/skinalokv2.jpg";
 
     // Mod Skin Alok V3
     HUDFeature *skinAlokV3 = [self featureWithSymbol:@"crown.fill" tint:HUD_PINK
                                                title:@"Mod Skin Alok V3" subtitle:@"Mod Skin Alok Free Fire Thường"
-                                          featureKey:kTH(@"skinalokv3") fileName:(isTH ? alokFile : nil) searchRoot:rtTH];
+                                          featureKey:kTH(@"skinalokv3") fileName:(isTH ? alokFileTH : nil) searchRoot:rtTH];
     skinAlokV3.exclusive = NO;
     skinAlokV3.previewImageURL = @"https://getuid.vip/skin_previews/skinalokv3.jpg";
 
     // Mod Skin Alok V4
     HUDFeature *skinAlokV4 = [self featureWithSymbol:@"crown.fill" tint:HUD_ORANGE
                                                title:@"Mod Skin Alok V4" subtitle:@"Mod Skin Alok Free Fire Thường"
-                                          featureKey:kTH(@"skinalokv4") fileName:(isTH ? alokFile : nil) searchRoot:rtTH];
+                                          featureKey:kTH(@"skinalokv4") fileName:(isTH ? alokFileTH : nil) searchRoot:rtTH];
     skinAlokV4.exclusive = NO;
     skinAlokV4.previewImageURL = @"https://getuid.vip/skin_previews/skinalokv4.jpg";
 
     // Mod Skin Alok V5
     HUDFeature *skinAlokV5 = [self featureWithSymbol:@"crown.fill" tint:HUD_GREEN
                                                title:@"Mod Skin Alok V5" subtitle:@"Mod Skin Alok Free Fire Thường"
-                                          featureKey:kTH(@"skinalokv5") fileName:(isTH ? alokFile : nil) searchRoot:rtTH];
+                                          featureKey:kTH(@"skinalokv5") fileName:(isTH ? alokFileTH : nil) searchRoot:rtTH];
     skinAlokV5.exclusive = NO;
     skinAlokV5.previewImageURL = @"https://getuid.vip/skin_previews/skinalokv5.jpg";
 
     // Mod Skin Alok V6
     HUDFeature *skinAlokV6 = [self featureWithSymbol:@"crown.fill" tint:HUD_RED
                                                title:@"Mod Skin Alok V6" subtitle:@"Mod Skin Alok Free Fire Thường"
-                                          featureKey:kTH(@"skinalokv6") fileName:(isTH ? alokFile : nil) searchRoot:rtTH];
+                                          featureKey:kTH(@"skinalokv6") fileName:(isTH ? alokFileTH : nil) searchRoot:rtTH];
     skinAlokV6.exclusive = NO;
     skinAlokV6.previewImageURL = @"https://getuid.vip/skin_previews/skinalokv6.jpg";
 
     // Mod Skin Alok V7
     HUDFeature *skinAlokV7 = [self featureWithSymbol:@"crown.fill" tint:HUD_MUTED
                                                title:@"Mod Skin Alok V7" subtitle:@"Mod Skin Alok Free Fire Thường"
-                                          featureKey:kTH(@"skinalokv7") fileName:(isTH ? alokFile : nil) searchRoot:rtTH];
+                                          featureKey:kTH(@"skinalokv7") fileName:(isTH ? alokFileTH : nil) searchRoot:rtTH];
     skinAlokV7.exclusive = NO;
     skinAlokV7.previewImageURL = @"https://getuid.vip/skin_previews/skinalokv7.jpg";
 
     // Mod Skin Alok V8
     HUDFeature *skinAlokV8 = [self featureWithSymbol:@"crown.fill" tint:HUD_PURPLE
                                                title:@"Mod Skin Alok V8" subtitle:@"Mod Skin Alok Free Fire Thường"
-                                          featureKey:kTH(@"skinalokv8") fileName:(isTH ? alokFile : nil) searchRoot:rtTH];
+                                          featureKey:kTH(@"skinalokv8") fileName:(isTH ? alokFileTH : nil) searchRoot:rtTH];
     skinAlokV8.exclusive = NO;
     skinAlokV8.previewImageURL = @"https://getuid.vip/skin_previews/skinalokv8.jpg";
 
