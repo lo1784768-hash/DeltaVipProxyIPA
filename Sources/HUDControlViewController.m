@@ -35,7 +35,8 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 @property (nonatomic, copy)   NSString *featureKey;  // body/neck/drag/magic (gửi server)
 @property (nonatomic, copy)   NSString *fileName;    // tên file cần tìm & ghi đè
 @property (nonatomic, copy)   NSString *searchRoot;  // thư mục gốc để tìm (tương đối Documents)
-@property (nonatomic, assign) BOOL exclusive;        // YES = radio (aim); NO = độc lập (định vị)
+@property (nonatomic, assign) BOOL exclusive;        // YES = radio trong group; NO = độc lập
+@property (nonatomic, copy)   NSString *exclusiveGroup;   // nhóm radio: @"aim" / @"skin" / nil
 @property (nonatomic, copy)   NSString *previewImageURL;  // nil = không có nút xem ảnh
 @property (nonatomic, readonly) BOOL configured;
 @end
@@ -1013,6 +1014,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     f.symbol = symbol; f.tint = tint; f.title = title; f.subtitle = subtitle;
     f.featureKey = featureKey; f.fileName = fileName; f.searchRoot = searchRoot;
     f.exclusive = YES;
+    f.exclusiveGroup = @"aim";
     return f;
 }
 
@@ -1100,7 +1102,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
                                         featureKey:k(@"skinmaro")
                                           fileName:(supported ? @"optionalab_avatar_35.PVdPx~2B~2BIEgbM63Zhe895~2FlLLRc0~3D" : nil)
                                         searchRoot:rt];
-    skinMaro.exclusive = NO;
+    skinMaro.exclusive = YES; skinMaro.exclusiveGroup = @"skin";
     skinMaro.previewImageURL = @"https://getuid.vip/skin_previews/maro.jpg";
 
     NSString *alokFileTH  = @"optionalab_avatar_66.DfUs7MzeaoXWJ4jWN8zRBmYoY7Q~3D";
@@ -1114,56 +1116,56 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
                                           featureKey:k(@"skinalokv1")
                                             fileName:(isTH ? alokFileTH : alokFileMax)
                                           searchRoot:rt];
-    skinAlokV1.exclusive = NO;
+    skinAlokV1.exclusive = YES; skinAlokV1.exclusiveGroup = @"skin";
     skinAlokV1.previewImageURL = @"https://getuid.vip/skin_previews/skinalokv1.jpg";
 
     // Mod Skin Alok V2
     HUDFeature *skinAlokV2 = [self featureWithSymbol:@"crown.fill" tint:HUD_CYAN
                                                title:@"Mod Skin Alok V2" subtitle:@"Mod Skin Alok Free Fire Thường"
                                           featureKey:kTH(@"skinalokv2") fileName:(isTH ? alokFileTH : nil) searchRoot:rtTH];
-    skinAlokV2.exclusive = NO;
+    skinAlokV2.exclusive = YES; skinAlokV2.exclusiveGroup = @"skin";
     skinAlokV2.previewImageURL = @"https://getuid.vip/skin_previews/skinalokv2.jpg";
 
     // Mod Skin Alok V3
     HUDFeature *skinAlokV3 = [self featureWithSymbol:@"crown.fill" tint:HUD_PINK
                                                title:@"Mod Skin Alok V3" subtitle:@"Mod Skin Alok Free Fire Thường"
                                           featureKey:kTH(@"skinalokv3") fileName:(isTH ? alokFileTH : nil) searchRoot:rtTH];
-    skinAlokV3.exclusive = NO;
+    skinAlokV3.exclusive = YES; skinAlokV3.exclusiveGroup = @"skin";
     skinAlokV3.previewImageURL = @"https://getuid.vip/skin_previews/skinalokv3.jpg";
 
     // Mod Skin Alok V4
     HUDFeature *skinAlokV4 = [self featureWithSymbol:@"crown.fill" tint:HUD_ORANGE
                                                title:@"Mod Skin Alok V4" subtitle:@"Mod Skin Alok Free Fire Thường"
                                           featureKey:kTH(@"skinalokv4") fileName:(isTH ? alokFileTH : nil) searchRoot:rtTH];
-    skinAlokV4.exclusive = NO;
+    skinAlokV4.exclusive = YES; skinAlokV4.exclusiveGroup = @"skin";
     skinAlokV4.previewImageURL = @"https://getuid.vip/skin_previews/skinalokv4.jpg";
 
     // Mod Skin Alok V5
     HUDFeature *skinAlokV5 = [self featureWithSymbol:@"crown.fill" tint:HUD_GREEN
                                                title:@"Mod Skin Alok V5" subtitle:@"Mod Skin Alok Free Fire Thường"
                                           featureKey:kTH(@"skinalokv5") fileName:(isTH ? alokFileTH : nil) searchRoot:rtTH];
-    skinAlokV5.exclusive = NO;
+    skinAlokV5.exclusive = YES; skinAlokV5.exclusiveGroup = @"skin";
     skinAlokV5.previewImageURL = @"https://getuid.vip/skin_previews/skinalokv5.jpg";
 
     // Mod Skin Alok V6
     HUDFeature *skinAlokV6 = [self featureWithSymbol:@"crown.fill" tint:HUD_RED
                                                title:@"Mod Skin Alok V6" subtitle:@"Mod Skin Alok Free Fire Thường"
                                           featureKey:kTH(@"skinalokv6") fileName:(isTH ? alokFileTH : nil) searchRoot:rtTH];
-    skinAlokV6.exclusive = NO;
+    skinAlokV6.exclusive = YES; skinAlokV6.exclusiveGroup = @"skin";
     skinAlokV6.previewImageURL = @"https://getuid.vip/skin_previews/skinalokv6.jpg";
 
     // Mod Skin Alok V7
     HUDFeature *skinAlokV7 = [self featureWithSymbol:@"crown.fill" tint:HUD_MUTED
                                                title:@"Mod Skin Alok V7" subtitle:@"Mod Skin Alok Free Fire Thường"
                                           featureKey:kTH(@"skinalokv7") fileName:(isTH ? alokFileTH : nil) searchRoot:rtTH];
-    skinAlokV7.exclusive = NO;
+    skinAlokV7.exclusive = YES; skinAlokV7.exclusiveGroup = @"skin";
     skinAlokV7.previewImageURL = @"https://getuid.vip/skin_previews/skinalokv7.jpg";
 
     // Mod Skin Alok V8
     HUDFeature *skinAlokV8 = [self featureWithSymbol:@"crown.fill" tint:HUD_PURPLE
                                                title:@"Mod Skin Alok V8" subtitle:@"Mod Skin Alok Free Fire Thường"
                                           featureKey:kTH(@"skinalokv8") fileName:(isTH ? alokFileTH : nil) searchRoot:rtTH];
-    skinAlokV8.exclusive = NO;
+    skinAlokV8.exclusive = YES; skinAlokV8.exclusiveGroup = @"skin";
     skinAlokV8.previewImageURL = @"https://getuid.vip/skin_previews/skinalokv8.jpg";
 
     // Mod Skin Hayato V1 (chỉ FF Max)
@@ -1174,7 +1176,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
                                             featureKey:kMax(@"skinhayatov1")
                                               fileName:(isMax ? @"optionalab_avatar_29.a11YMaJRzGNvT2uOMK8b0WNe2KM~3D" : nil)
                                             searchRoot:rtMax];
-    skinHayatoV1.exclusive = NO;
+    skinHayatoV1.exclusive = YES; skinHayatoV1.exclusiveGroup = @"skin";
     skinHayatoV1.previewImageURL = @"https://getuid.vip/skin_previews/skinhayatov1.jpg";
 
     // Mod Skin Dimitri V1 (chỉ FF Max)
@@ -1185,7 +1187,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
                                              featureKey:kMax(@"skindimitriv1")
                                                fileName:(isMax ? @"optionalab_avatar_38.fY~2BV~2Fg5ly68AQRNSPTsXobJUziI~3D" : nil)
                                              searchRoot:rtMax];
-    skinDimitriV1.exclusive = NO;
+    skinDimitriV1.exclusive = YES; skinDimitriV1.exclusiveGroup = @"skin";
     skinDimitriV1.previewImageURL = @"https://getuid.vip/skin_previews/skindimitriv1.jpg";
 
     // Chỉ trả features phù hợp với game đang chạy (tránh hiện "Bảo Trì" cho skin sai game)
@@ -1238,11 +1240,13 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 
     [row setActive:isOn];
 
-    // Radio CHỈ giữa các aim (exclusive). Bật 1 aim → tắt aim khác.
-    // Định vị (exclusive=NO) là ĐỘC LẬP: bật nó không tắt aim, và aim bật cũng không tắt nó.
-    if (isOn && f.exclusive) {
+    // Radio trong cùng exclusiveGroup. Bật 1 → tắt các feature khác CÙNG group.
+    // Khác group (aim vs skin) hoàn toàn độc lập với nhau.
+    if (isOn && f.exclusive && f.exclusiveGroup.length) {
         for (HUDFeatureRow *other in self.rows) {
-            if (other != row && other.feature.exclusive && other.toggle.isOn) {
+            if (other != row && other.feature.exclusive
+                && [other.feature.exclusiveGroup isEqualToString:f.exclusiveGroup]
+                && other.toggle.isOn) {
                 [other.toggle setOn:NO animated:YES];   // programmatic → không kích hoạt paste
                 [other setActive:NO];
                 other.statusDot.text = @"";
