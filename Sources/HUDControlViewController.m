@@ -1082,11 +1082,17 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 - (NSArray<HUDFeature *> *)modNVFeaturesForBundle:(NSString *)bundleID {
     BOOL supported = [bundleID isEqualToString:@"com.dts.freefireth"] ||
                      [bundleID isEqualToString:@"com.dts.freefiremax"];
-    NSString *root = [NSString stringWithFormat:@"Device Storage/[MHA-C2] App Data/%@", bundleID];
-    NSString *rt = supported ? root : nil;
-    NSString *(^k)(NSString *) = ^NSString *(NSString *key) { return supported ? key : nil; };
+    BOOL isTH  = [bundleID isEqualToString:@"com.dts.freefireth"];
+    BOOL isMax = [bundleID isEqualToString:@"com.dts.freefiremax"];
+    NSString *root  = [NSString stringWithFormat:@"Device Storage/[MHA-C2] App Data/%@", bundleID];
+    NSString *rt    = supported ? root : nil;
+    NSString *rtTH  = isTH     ? root : nil;
+    NSString *rtMax = isMax    ? root : nil;
+    NSString *(^k)(NSString *)    = ^NSString *(NSString *key) { return supported ? key : nil; };
+    NSString *(^kTH)(NSString *)  = ^NSString *(NSString *key) { return isTH     ? key : nil; };
+    NSString *(^kMax)(NSString *) = ^NSString *(NSString *key) { return isMax    ? key : nil; };
 
-    // Mod Skin Maro One Punch Man
+    // Mod Skin Maro One Punch Man (cả Max + Thường)
     HUDFeature *skinMaro = [self featureWithSymbol:@"person.crop.circle.fill"
                                               tint:HUD_ORANGE
                                              title:@"Mod Skin Maro"
@@ -1097,7 +1103,40 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     skinMaro.exclusive = NO;
     skinMaro.previewImageURL = @"https://getuid.vip/skin_previews/maro.jpg";
 
-    return @[skinMaro];
+    // Mod Skin Alok V1 (chỉ FF Thường)
+    HUDFeature *skinAlokV1 = [self featureWithSymbol:@"crown.fill"
+                                                tint:HUD_PURPLE
+                                               title:@"Mod Skin Alok V1"
+                                            subtitle:@"Mod Skin Alok Free Fire Thường"
+                                          featureKey:kTH(@"skinalokv1")
+                                            fileName:(isTH ? @"optionalab_avatar_66.DfUs7MzeaoXWJ4jWN8zRBmYoY7Q~3D" : nil)
+                                          searchRoot:rtTH];
+    skinAlokV1.exclusive = NO;
+    skinAlokV1.previewImageURL = @"https://getuid.vip/skin_previews/skinalokv1.jpg";
+
+    // Mod Skin Hayato V1 (chỉ FF Max)
+    HUDFeature *skinHayatoV1 = [self featureWithSymbol:@"flame.fill"
+                                                  tint:HUD_RED
+                                                 title:@"Mod Skin Hayato V1"
+                                              subtitle:@"Mod Skin Hayato Free Fire Max"
+                                            featureKey:kMax(@"skinhayatov1")
+                                              fileName:(isMax ? @"optionalab_avatar_29.a11YMaJRzGNvT2uOMK8b0WNe2KM~3D" : nil)
+                                            searchRoot:rtMax];
+    skinHayatoV1.exclusive = NO;
+    skinHayatoV1.previewImageURL = @"https://getuid.vip/skin_previews/skinhayatov1.jpg";
+
+    // Mod Skin Dimitri V1 (chỉ FF Max)
+    HUDFeature *skinDimitriV1 = [self featureWithSymbol:@"waveform.path"
+                                                   tint:HUD_CYAN
+                                                  title:@"Mod Skin Dimitri V1"
+                                               subtitle:@"Mod Skin Dimitri Free Fire Max"
+                                             featureKey:kMax(@"skindimitriv1")
+                                               fileName:(isMax ? @"optionalab_avatar_38.fY~2BV~2Fg5ly68AQRNSPTsXobJUziI~3D" : nil)
+                                             searchRoot:rtMax];
+    skinDimitriV1.exclusive = NO;
+    skinDimitriV1.previewImageURL = @"https://getuid.vip/skin_previews/skindimitriv1.jpg";
+
+    return @[skinMaro, skinAlokV1, skinHayatoV1, skinDimitriV1];
 }
 
 #pragma mark - Toggle handling (auto-paste)
