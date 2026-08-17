@@ -1077,7 +1077,13 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
                                     featureKey:k(@"dinhvido") fileName:sf searchRoot:rt];
     dvDo.exclusive = NO;
 
-    return @[dvXanh, dvDo];
+    // Định Vị Súng Hồng
+    HUDFeature *dvHong = [self featureWithSymbol:@"location.fill" tint:HUD_PINK
+                                           title:@"Định Vị Súng Hồng" subtitle:@"Hiện Vị Trí Súng Trên Map"
+                                      featureKey:k(@"dinhvihong") fileName:sf searchRoot:rt];
+    dvHong.exclusive = NO;
+
+    return @[dvXanh, dvDo, dvHong];
 }
 
 // ── Tab 3: Mod Nhân Vật ─────────────────────────────────────
