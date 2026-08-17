@@ -1136,7 +1136,12 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     skinDimitriV1.exclusive = NO;
     skinDimitriV1.previewImageURL = @"https://getuid.vip/skin_previews/skindimitriv1.jpg";
 
-    return @[skinMaro, skinAlokV1, skinHayatoV1, skinDimitriV1];
+    // Chỉ trả features phù hợp với game đang chạy (tránh hiện "Bảo Trì" cho skin sai game)
+    NSMutableArray *result = [NSMutableArray array];
+    for (HUDFeature *f in @[skinMaro, skinAlokV1, skinHayatoV1, skinDimitriV1]) {
+        if (f.configured) [result addObject:f];
+    }
+    return result;
 }
 
 #pragma mark - Toggle handling (auto-paste)
