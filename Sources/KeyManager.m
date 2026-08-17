@@ -69,22 +69,33 @@ static BOOL sIsHardwareUDID = NO;   // đọc được UDID thật hay không
 
 #pragma mark - Device id
 
-// Ưu tiên UDID phần cứng thật (TrollStore). Nếu ký eSign (sandbox) không đọc được
-// thì dùng ID cố định lưu trong Keychain (ThisDeviceOnly):
-//   - Sống qua xoá app cài lại (keychain không bị xoá theo app).
-//   - KHÔNG theo backup sang máy khác (ThisDeviceOnly) → chống chia sẻ key.
+// Thứ tự ưu tiên lấy UDID:
+//   1. MobileGestalt "UniqueDeviceID" — UDID phần cứng thật (TrollStore / SideStore có entitlement)
+//   2. identifierForVendor (IDFV) — gắn với máy+vendor, ổn định trên eSign miễn còn ≥1 app cùng vendor
+//   3. Keychain random UUID ("KC-") — sinh 1 lần, lưu mãi; last resort nếu cả 2 trên đều thất bại
 - (NSString *)deviceUDID {
-    static NSString *cached = nil;   // cache RAM theo tiến trình
+    static NSString *cached = nil;
     static dispatch_once_t once;
     dispatch_once(&once, ^{
+        // 1. UDID phần cứng qua MobileGestalt
         NSString *hw = [self readHardwareUDID];
         if (hw.length) {
             sIsHardwareUDID = YES;
             cached = hw;
-        } else {
-            sIsHardwareUDID = NO;
-            cached = [self keychainDeviceID];
+            return;
         }
+
+        // 2. identifierForVendor — ổn định hơn random UUID, không thay đổi khi cài lại app
+        NSString *idfv = [UIDevice currentDevice].identifierForVendor.UUIDString;
+        if (idfv.length) {
+            sIsHardwareUDID = NO;
+            cached = [@"IV-" stringByAppendingString:idfv];
+            return;
+        }
+
+        // 3. Keychain UUID — last resort
+        sIsHardwareUDID = NO;
+        cached = [self keychainDeviceID];
     });
     return cached;
 }

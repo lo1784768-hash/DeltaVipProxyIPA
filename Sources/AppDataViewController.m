@@ -360,7 +360,11 @@
 - (void)showUDIDInfo {
     KeyManager *km = [KeyManager shared];
     NSString *udid = [km deviceUDID];
-    NSString *src  = km.usingHardwareUDID ? @"UDID phần cứng" : @"ID Keychain (eSign)";
+    NSString *udidSrc;
+    if (km.usingHardwareUDID)              udidSrc = @"UDID phần cứng (MobileGestalt)";
+    else if ([udid hasPrefix:@"IV-"])      udidSrc = @"Vendor ID (eSign ổn định)";
+    else                                   udidSrc = @"ID Keychain (last resort)";
+    NSString *src = udidSrc;
     NSString *msg  = [NSString stringWithFormat:@"Nguồn: %@\n\n%@\n\nGửi ID này cho admin khi cần mở khoá / chuyển máy.", src, udid];
 
     UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"🆔 ID Thiết Bị"
@@ -573,15 +577,23 @@
         [self.statsView.topAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.topAnchor constant:8],
         [self.statsView.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor constant:16],
         [self.statsView.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor constant:-16],
-        [self.statsView.heightAnchor constraintEqualToConstant:76]
+        [self.statsView.heightAnchor constraintEqualToConstant:110]
     ]];
 
     UIView *iosRow  = [self statRowText:[NSString stringWithFormat:@"iOS  %@", [[UIDevice currentDevice] systemVersion]]
                                  symbol:@"applelogo" tint:BRAND_PURPLE valueColor:BRAND_MUTED labelTag:0];
-    UIView *devRow  = [self statRowText:[NSString stringWithFormat:@"Device  %@  %@", [self deviceModelName], [self exploitSupportBadge]]
+    UIView *devRow  = [self statRowText:[NSString stringWithFormat:@"Device  %@", [self deviceModelName]]
                                  symbol:@"iphone" tint:BRAND_CYAN valueColor:BRAND_MUTED labelTag:0];
 
-    UIStackView *stack = [[UIStackView alloc] initWithArrangedSubviews:@[iosRow, devRow]];
+    BOOL supported = [self isIOSSupported];
+    NSString *supportText   = supported ? @"Có Hỗ Trợ" : @"Chưa Hỗ Trợ";
+    NSString *supportSymbol = supported ? @"checkmark.shield.fill" : @"xmark.shield.fill";
+    UIColor  *supportTint   = supported
+        ? [UIColor colorWithRed:0.2 green:0.85 blue:0.4 alpha:1.0]   // xanh lá
+        : [UIColor colorWithRed:1.0 green:0.55 blue:0.0 alpha:1.0];  // cam
+    UIView *supportRow = [self statRowText:supportText symbol:supportSymbol tint:supportTint valueColor:supportTint labelTag:0];
+
+    UIStackView *stack = [[UIStackView alloc] initWithArrangedSubviews:@[iosRow, devRow, supportRow]];
     stack.axis = UILayoutConstraintAxisVertical;
     stack.spacing = 10;
     stack.translatesAutoresizingMaskIntoConstraints = NO;
@@ -737,25 +749,26 @@
 }
 #endif  // DEBUG (updateInlineDebug)
 
-// Badge hỗ trợ hiển thị trong hàng Device của stats card:
-//   ✅ Có Hỗ Trợ  — iOS 17.0 → 18.7.1   hoặc   iOS 26.0 → 27.x
-//   ⚠️ Chưa Hỗ Trợ — các phiên bản khác
-- (NSString *)exploitSupportBadge {
+// Kiểm tra iOS có nằm trong danh sách hỗ trợ không:
+//   ✅  iOS 16.7.16 (chính xác)
+//   ✅  iOS 17.0 → 18.7.1
+//   ✅  iOS 26.0 → 27.0 (Beta 1)
+//   ⚠️  Tất cả phiên bản khác
+- (BOOL)isIOSSupported {
     NSString *ver = [[UIDevice currentDevice] systemVersion];
 
-    // iOS 17.0 → 18.x (Apple nhảy thẳng lên 26, không có iOS 19–25)
-    if ([ver compare:@"17.0" options:NSNumericSearch] != NSOrderedAscending &&
-        [ver compare:@"19.0" options:NSNumericSearch] == NSOrderedAscending) {
-        return @"✅ Có Hỗ Trợ";
-    }
+    // iOS 16.7.16 chính xác
+    if ([ver isEqualToString:@"16.7.16"]) return YES;
 
-    // iOS 26.0 → 27.x (iOS 27 Beta 3 trở về trước đều tính)
+    // iOS 17.0 → 18.7.1 (upper exclusive: 18.7.2)
+    if ([ver compare:@"17.0"  options:NSNumericSearch] != NSOrderedAscending &&
+        [ver compare:@"18.7.2" options:NSNumericSearch] == NSOrderedAscending) return YES;
+
+    // iOS 26.0 → 27.0 Beta 1 (upper exclusive: 27.1)
     if ([ver compare:@"26.0" options:NSNumericSearch] != NSOrderedAscending &&
-        [ver compare:@"28.0" options:NSNumericSearch] == NSOrderedAscending) {
-        return @"✅ Có Hỗ Trợ";
-    }
+        [ver compare:@"27.1" options:NSNumericSearch] == NSOrderedAscending) return YES;
 
-    return @"⚠️ Chưa Hỗ Trợ";
+    return NO;
 }
 
 // Trả về tên model thực (vd "iPhone 14 Pro Max") thay vì tên người dùng đặt
