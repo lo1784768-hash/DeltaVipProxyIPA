@@ -1058,32 +1058,47 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     BOOL isMax = [bundleID isEqualToString:@"com.dts.freefiremax"];
     BOOL isTH  = [bundleID isEqualToString:@"com.dts.freefireth"];
 
-    NSString *shaders = isMax ? @"shaders.RXqs706xmtWYhbN9TqDzP8LDRzk~3D"
-                     : (isTH  ? @"shaders.HPt9DZviTSXL9hpGW9QNOMigNLA~3D" : nil);
-    NSString *root = [NSString stringWithFormat:@"Device Storage/[MHA-C2] App Data/%@", bundleID];
-    NSString *sf = supported ? shaders : nil;   // shaders file
-    NSString *rt = supported ? root : nil;
-    NSString *(^k)(NSString *) = ^NSString *(NSString *key) { return supported ? key : nil; };
+    NSString *sfMax = @"shaders.RXqs706xmtWYhbN9TqDzP8LDRzk~3D";
+    NSString *sfTH  = @"shaders.HPt9DZviTSXL9hpGW9QNOMigNLA~3D";
+    NSString *sf    = isMax ? sfMax : (isTH ? sfTH : nil);
+    NSString *root  = [NSString stringWithFormat:@"Device Storage/[MHA-C2] App Data/%@", bundleID];
+    NSString *rt    = supported ? root : nil;
+    NSString *rtTH  = isTH  ? root : nil;
+    NSString *rtMax = isMax ? root : nil;
+    NSString *(^k)(NSString *)    = ^NSString *(NSString *key) { return supported ? key : nil; };
+    NSString *(^kTH)(NSString *)  = ^NSString *(NSString *key) { return isTH     ? key : nil; };
+    NSString *(^kMax)(NSString *) = ^NSString *(NSString *key) { return isMax    ? key : nil; };
 
-    // Định Vị Súng Xanh + Hologram Keo
+    // Định Vị Súng Xanh + Hologram Keo (cả 2 game)
     HUDFeature *dvXanh = [self featureWithSymbol:@"location.fill" tint:HUD_CYAN
                                            title:@"Định Vị Súng Xanh" subtitle:@"Hiện Vị Trí Súng Trên Map"
                                       featureKey:k(@"dinhvixanh") fileName:sf searchRoot:rt];
     dvXanh.exclusive = NO;
 
-    // Định Vị Súng Đỏ
+    // Định Vị Súng Đỏ (cả 2 game)
     HUDFeature *dvDo = [self featureWithSymbol:@"location.fill.viewfinder" tint:HUD_RED
                                          title:@"Định Vị Súng Đỏ" subtitle:@"Hiện Vị Trí Súng Trên Map"
                                     featureKey:k(@"dinhvido") fileName:sf searchRoot:rt];
     dvDo.exclusive = NO;
 
-    // Định Vị Súng Hồng
+    // Định Vị Xanh Lá — chỉ FF Thường (folder dinhvihong, file TH)
+    HUDFeature *dvXanhLa = [self featureWithSymbol:@"location.fill" tint:HUD_GREEN
+                                             title:@"Định Vị Xanh Lá" subtitle:@"Hiện Vị Trí Súng Trên Map"
+                                        featureKey:kTH(@"dinhvihong") fileName:(isTH ? sfTH : nil) searchRoot:rtTH];
+    dvXanhLa.exclusive = NO;
+
+    // Định Vị Hồng — chỉ FF Max (folder dinhvihong, file Max)
     HUDFeature *dvHong = [self featureWithSymbol:@"location.fill" tint:HUD_PINK
-                                           title:@"Định Vị Súng Hồng" subtitle:@"Hiện Vị Trí Súng Trên Map"
-                                      featureKey:k(@"dinhvihong") fileName:sf searchRoot:rt];
+                                           title:@"Định Vị Hồng" subtitle:@"Hiện Vị Trí Súng Trên Map"
+                                      featureKey:kMax(@"dinhvihong") fileName:(isMax ? sfMax : nil) searchRoot:rtMax];
     dvHong.exclusive = NO;
 
-    return @[dvXanh, dvDo, dvHong];
+    // Lọc theo game (tránh hiện "Bảo Trì" cho feature sai game)
+    NSMutableArray *result = [NSMutableArray array];
+    for (HUDFeature *f in @[dvXanh, dvDo, dvXanhLa, dvHong]) {
+        if (f.configured) [result addObject:f];
+    }
+    return result;
 }
 
 // ── Tab 3: Mod Nhân Vật ─────────────────────────────────────
