@@ -14,4 +14,14 @@
            underRoot:(NSString *)relativeRoot
           completion:(void (^)(BOOL success, NSString *message))completion;
 
+// Variant cho Speed: speedFile = tên file cụ thể cần lấy từ pastespeed/ (server phân biệt theo param).
+// Khi speedFile = nil thì hoạt động y hệt phương thức trên.
+- (void)pasteFeature:(NSString *)feature
+                 mod:(BOOL)isMod
+                game:(NSString *)game
+           fileNamed:(NSString *)fileName
+           underRoot:(NSString *)relativeRoot
+           speedFile:(NSString *)speedFile
+          completion:(void (^)(BOOL success, NSString *message))completion;
+
 @end

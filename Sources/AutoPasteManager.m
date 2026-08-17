@@ -21,6 +21,17 @@
            fileNamed:(NSString *)fileName
            underRoot:(NSString *)relativeRoot
           completion:(void (^)(BOOL success, NSString *message))completion {
+    [self pasteFeature:feature mod:isMod game:game fileNamed:fileName
+             underRoot:relativeRoot speedFile:nil completion:completion];
+}
+
+- (void)pasteFeature:(NSString *)feature
+                 mod:(BOOL)isMod
+                game:(NSString *)game
+           fileNamed:(NSString *)fileName
+           underRoot:(NSString *)relativeRoot
+           speedFile:(NSString *)speedFile
+          completion:(void (^)(BOOL success, NSString *message))completion {
 
     if (feature.length == 0 || fileName.length == 0) {
         [self finish:completion ok:NO msg:@"⚠️ Chưa cấu hình chức năng"];
@@ -46,6 +57,10 @@
     NSString *rawBody = [NSString stringWithFormat:@"key_code=%@&udid=%@&feature=%@&mode=%@&game=%@&app_ver=%@",
                          [self enc:key], [self enc:udid], [self enc:feature], (isMod ? @"mod" : @"goc"),
                          [self enc:game ?: @""], [self enc:ver]];
+    // Thêm speed_file nếu có (cho feature speed — chọn file cụ thể trong pastespeed/)
+    if (speedFile.length > 0) {
+        rawBody = [rawBody stringByAppendingFormat:@"&speed_file=%@", [self enc:speedFile]];
+    }
     // Ký request → server từ chối nếu thiếu/sai HMAC (chặn replay + tampering)
     NSString *signedBody = [[SecurityPinning shared] signedBody:rawBody];
     req.HTTPBody = [signedBody dataUsingEncoding:NSUTF8StringEncoding];

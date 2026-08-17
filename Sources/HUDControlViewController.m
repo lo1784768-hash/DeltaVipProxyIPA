@@ -1029,6 +1029,19 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     NSString *rt = supported ? root : nil;
     NSString *(^k)(NSString *) = ^NSString *(NSString *key) { return supported ? key : nil; };
 
+    // ── Speed: batch 12 file — fileName/searchRoot dùng làm placeholder (handleSpeedBatch xử lý thật)
+    HUDFeature *speed = [self featureWithSymbol:@"hare.fill"
+                                           tint:HUD_GREEN
+                                          title:@"Speed Hack"
+                                       subtitle:@"Tăng Tốc Độ Di Chuyển & Đánh"
+                                     featureKey:k(@"speed")
+                                       fileName:supported ? @"__speed_batch__" : nil
+                                     searchRoot:supported
+                                             ? [NSString stringWithFormat:@"Device Storage/[MHA-C2] App Data/%@", bundleID]
+                                             : nil];
+    speed.exclusive = NO;
+    speed.exclusiveGroup = nil;
+
     return @[
         [self featureWithSymbol:@"figure.stand" tint:HUD_ORANGE title:@"Proxy Body" subtitle:@"Full Đỏ Xoá Máu Vàng"
                      featureKey:k(@"body")  fileName:fn searchRoot:rt],
@@ -1046,6 +1059,8 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 
         [self featureWithSymbol:@"wand.and.stars" tint:HUD_PURPLE title:@"Proxy Magic" subtitle:@"Đạn Ma Thuật"
                      featureKey:k(@"magic") fileName:fn searchRoot:rt],
+
+        speed,
     ];
 }
 
@@ -1222,6 +1237,79 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     return result;
 }
 
+#pragma mark - Speed batch (12 files)
+
+// Danh sách 12 file speed: mỗi entry là fileName trên server (= fileName trên thiết bị).
+// AutoPasteManager tìm đệ quy dưới bundleID root nên không cần chỉ rõ thư mục con.
+- (NSArray<NSString *> *)speedFileList {
+    return @[
+        @"assembly-csharp-patch.9~2FHZTlufvnrWfync7WczZNS9AXI~3D",
+        @"buffeca_54295235.7xh42QWuR~2BU9mqJeXhWD~2FKGJtiY~3D",
+        @"clothesrecipesbytes.OLt~2BOQ4IWVhkbzurhciya6GXnoU~3D",
+        @"clothessetid_ff0b2c80.ALjp2Q5YLAIk2inKSd~2F97bjNm9E~3D",
+        @"clothesslotoverlays.6NSQ2XCBi32h~2FZ072hBKOPWgjMc~3D",
+        @"clothes_0f0a401f.eRw7Wj969f~2BpD27BK~2FZ7DHRHZ14~3D",
+        @"collectionemote_b0f7ddf9.ruXyNy2oV02EjLLwo0opXi~2BYgPI~3D",
+        @"collectionweapon_0a06ebc1.7IJ2~2FWIyOIz8QwH~2BvrL8n2oOlWI~3D",
+        @"gameassetbundles.Uq9GZIiGsLcjcj0JtQBPfvF22SQ~3D",
+        @"itemhotfix_90e164c0.Y4cPeTfuwnGf6yje8j1jebNjCeA~3D",
+        @"lochotfix.bHrijH~2Fa85tole6aa0VxWZxBO~2Bw~3D",
+        @"resconfhotupdate.sQAN5lHYts~2FR9i1ZKU4q07p1gwE~3D",
+    ];
+}
+
+// Paste tuần tự từng file — index chạy từ 0 đến 11.
+// Nếu 1 file thất bại → dừng và báo lỗi ngay (tránh trạng thái nửa vời).
+- (void)pasteSpeedFiles:(NSArray<NSString *> *)files
+                  index:(NSInteger)index
+                    mod:(BOOL)isMod
+                   game:(NSString *)game
+               rootPath:(NSString *)rootPath
+                    row:(HUDFeatureRow *)row {
+    if (index >= (NSInteger)files.count) {
+        // Xong tất cả
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [row setLoading:NO];
+            [row showResult:YES];
+            NSString *action = isMod ? @"✅ Speed Hack Bật Thành Công" : @"✅ Speed Hack Tắt Thành Công";
+            [self setStatus:action color:HUD_GREEN];
+            UINotificationFeedbackGenerator *nfb = [[UINotificationFeedbackGenerator alloc] init];
+            [nfb notificationOccurred:UINotificationFeedbackTypeSuccess];
+        });
+        return;
+    }
+
+    NSString *fileName = files[(NSUInteger)index];
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [self setStatus:[NSString stringWithFormat:@"⏳ Speed (%ld/12) %@", (long)(index + 1), fileName.length > 20 ? [fileName substringToIndex:20] : fileName]
+                  color:HUD_MUTED];
+    });
+
+    __weak typeof(self) weakSelf = self;
+    [[AutoPasteManager sharedManager] pasteFeature:@"speed"
+                                               mod:isMod
+                                              game:game
+                                         fileNamed:fileName
+                                         underRoot:rootPath
+                                         speedFile:fileName
+                                        completion:^(BOOL success, NSString *message) {
+        if (!success) {
+            dispatch_async(dispatch_get_main_queue(), ^{
+                [row setLoading:NO];
+                [row showResult:NO];
+                [row.toggle setOn:!isMod animated:YES];
+                [row setActive:!isMod];
+                [weakSelf setStatus:[NSString stringWithFormat:@"❌ Speed lỗi file %ld/12: %@", (long)(index + 1), message] color:HUD_RED];
+                UINotificationFeedbackGenerator *nfb = [[UINotificationFeedbackGenerator alloc] init];
+                [nfb notificationOccurred:UINotificationFeedbackTypeError];
+            });
+            return;
+        }
+        // File này xong → tiếp file tiếp theo
+        [weakSelf pasteSpeedFiles:files index:index + 1 mod:isMod game:game rootPath:rootPath row:row];
+    }];
+}
+
 #pragma mark - Toggle handling (auto-paste)
 
 - (void)handleRow:(HUDFeatureRow *)row on:(BOOL)isOn {
@@ -1279,6 +1367,18 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     [self setStatus:@"⏳ Đang Kích Hoạt" color:HUD_MUTED];
 
     NSString *game = [self.bundleID isEqualToString:@"com.dts.freefiremax"] ? @"max" : @"th";
+
+    // ── Speed Hack: paste tuần tự 12 file ──────────────────
+    if ([f.featureKey isEqualToString:@"speed"]) {
+        [self pasteSpeedFiles:[self speedFileList]
+                        index:0
+                          mod:isOn
+                         game:game
+                     rootPath:f.searchRoot
+                          row:row];
+        return;
+    }
+    // ───────────────────────────────────────────────────────
 
     __weak typeof(self) weakSelf = self;
     [[AutoPasteManager sharedManager] pasteFeature:f.featureKey
