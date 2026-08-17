@@ -89,11 +89,13 @@ static BOOL sIsHardwareUDID = NO;   // đọc được UDID thật hay không
         NSString *idfv = [UIDevice currentDevice].identifierForVendor.UUIDString;
         if (idfv.length) {
             sIsHardwareUDID = NO;
+            // Xóa KC- cũ trong keychain (nếu có) để tránh dùng lại khi upgrade IPA
+            [self clearKeychainDeviceID];
             cached = [@"IV-" stringByAppendingString:idfv];
             return;
         }
 
-        // 3. Keychain UUID — last resort
+        // 3. Keychain UUID — last resort (IDFV không khả dụng)
         sIsHardwareUDID = NO;
         cached = [self keychainDeviceID];
     });
@@ -149,6 +151,16 @@ static BOOL sIsHardwareUDID = NO;   // đọc được UDID thật hay không
     SecItemDelete((__bridge CFDictionaryRef)add); // đảm bảo không trùng
     SecItemAdd((__bridge CFDictionaryRef)add, NULL);
     return newID;
+}
+
+// Xóa KC- khỏi Keychain — gọi khi đã có IDFV/hardware để tránh dùng lại KC- cũ sau upgrade
+- (void)clearKeychainDeviceID {
+    NSDictionary *del = @{
+        (__bridge id)kSecClass:       (__bridge id)kSecClassGenericPassword,
+        (__bridge id)kSecAttrService: @"com.imguidelta.license",
+        (__bridge id)kSecAttrAccount: @"app_device_id",
+    };
+    SecItemDelete((__bridge CFDictionaryRef)del);
 }
 
 - (BOOL)usingHardwareUDID {
