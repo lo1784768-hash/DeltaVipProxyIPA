@@ -848,7 +848,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
                            tint:(UIColor *)tint
                           badge:(NSString *)badge
                        features:(NSArray<HUDFeature *> *)features
-                 outTitleLabel:(UILabel **)outTitleLabel {
+                 outTitleLabel:(UILabel * __strong *)outTitleLabel {
     UIView *panelWrap = [[UIView alloc] init];
     panelWrap.backgroundColor = [UIColor clearColor];
     panelWrap.layer.shadowColor = tint.CGColor;

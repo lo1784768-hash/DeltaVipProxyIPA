@@ -191,13 +191,21 @@
 - (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath {
     UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:@"cell"];
     if (!cell) {
-        cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleSubtitle reuseIdentifier:@"cell"];
+        // UITableViewCellStyleSubtitle + textLabel/detailTextLabel removed in iOS 26 SDK
+        cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleDefault reuseIdentifier:@"cell"];
     }
 
     NSDictionary *section = self.sections[indexPath.row];
     NSString *icon = section[@"icon"] ?: @"📁";
-    cell.textLabel.text = [NSString stringWithFormat:@"%@ %@", icon, section[@"name"]];
-    cell.detailTextLabel.text = section[@"description"];
+
+    // Use UIListContentConfiguration (iOS 14+) instead of removed textLabel/detailTextLabel
+    UIListContentConfiguration *config = [cell defaultContentConfiguration];
+    config.text = [NSString stringWithFormat:@"%@ %@", icon, section[@"name"]];
+    config.secondaryText = section[@"description"];
+    config.textProperties.color = [UIColor colorWithRed:0.94 green:0.94 blue:0.96 alpha:1.0];
+    config.secondaryTextProperties.color = [UIColor colorWithRed:0.6 green:0.6 blue:0.65 alpha:1.0];
+    [cell setContentConfiguration:config];
+
     cell.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
 
     return cell;
