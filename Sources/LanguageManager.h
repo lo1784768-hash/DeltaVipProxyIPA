@@ -17,4 +17,5 @@ extern NSString * const LMLanguageChangedNotification;
 @end
 
 /// Shorthand: LS(@"Tiếng Việt", @"English text")
-#define LS(vi, en) [[LanguageManager shared] vi:(vi) en:(en)]
+/// NOTE: tham số dùng _vi/_en để tránh preprocessor thay nhầm vào selector vi:/en:
+#define LS(_vi, _en) [[LanguageManager shared] vi:(_vi) en:(_en)]
