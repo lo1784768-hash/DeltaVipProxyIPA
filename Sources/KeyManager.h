@@ -39,4 +39,7 @@ typedef NS_ENUM(NSInteger, KeyState) {
 // Gọi sau khi user bấm "Đồng Ý" — gửi lại key với confirm=1
 - (void)confirmPendingActivationWithCompletion:(void (^)(BOOL success, NSString *message))completion;
 
+// Lưu UDID phần cứng từ profile callback (AppDelegate nhận qua URL scheme)
+- (void)saveHardwareUDIDFromProfile:(NSString *)udid;
+
 @end

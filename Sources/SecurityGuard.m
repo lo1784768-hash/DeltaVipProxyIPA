@@ -3,6 +3,7 @@
 #import <dlfcn.h>
 #import <sys/sysctl.h>
 #import <sys/types.h>
+#import <sys/stat.h>
 #import <sys/proc.h>
 #import <mach-o/dyld.h>
 #import <mach/mach.h>
@@ -11,18 +12,17 @@
 #import <stdlib.h>
 #import <unistd.h>
 #import <signal.h>
+#import <time.h>
+#import <fcntl.h>
 
 typedef int (*ptrace_t)(int request, pid_t pid, caddr_t addr, int data);
 #define PTRACE_DENY_ATTACH 31
 
-// ─── Tên app / bundle ID hợp lệ (XOR-obfuscated, không lộ plaintext khi chạy `strings`) ───
-//
-// kDNXor key = {0xAB,0xCD,0xEF,0x13,0x57,0x9B,0xDF,0x24,0x68,0xAC,0xF0}
+// ─── XOR-obfuscated strings ──────────────────────────────────────────────────
+// key = {0xAB,0xCD,0xEF,0x13,0x57,0x9B,0xDF,0x24,0x68,0xAC,0xF0}
 // decode("DELTA PROXY"):
 static const uint8_t kDNXor[11] = {0xAB,0xCD,0xEF,0x13,0x57,0x9B,0xDF,0x24,0x68,0xAC,0xF0};
 static const uint8_t kDNEnc[11] = {0xEF,0x88,0xA3,0x47,0x16,0xBB,0x8F,0x76,0x27,0xF4,0xA9};
-//
-// kBIDXor key = {0x5E,0xC1,0x2B,0x7A,0xD4,0x9F,0x38,0xE6}
 // decode("com.apple.mobile.MobileHouseArrest"):
 static const uint8_t kBIDXor[8]  = {0x5E,0xC1,0x2B,0x7A,0xD4,0x9F,0x38,0xE6};
 static const uint8_t kBIDEnc[34] = {
@@ -33,7 +33,6 @@ static const uint8_t kBIDEnc[34] = {
     0x2D,0xB5
 };
 
-// Decode tại runtime vào stack buffer — không tồn tại trong data segment dạng plaintext
 static void sg_decode_dn(char out[12]) {
     for (int i = 0; i < 11; i++) out[i] = (char)(kDNEnc[i] ^ kDNXor[i]);
     out[11] = '\0';
@@ -45,53 +44,79 @@ static void sg_decode_bid(char out[35]) {
 
 // ─── Danh sách dylib độc hại ─────────────────────────────────────────────────
 static const char *kBadLibs[] = {
-    "FridaGadget", "frida", "gum-js-loop", "gadget",
+    "FridaGadget", "frida-agent", "frida", "gum-js-loop", "gadget",
     "cynject", "cycript", "libcycript",
     "libhooker", "substrate", "substitute", "ellekit",
     "TweakInject", "libdyld_sim", "RevealServer",
     "iSpy", "SSLKillSwitch", "killswitch",
+    "trolldecrypt", "flexdecrypt",
+    NULL
+};
+
+// ─── Đường dẫn jailbreak filesystem ─────────────────────────────────────────
+static const char *kJBPaths[] = {
+    "/var/jb/usr/lib/ellekit",
+    "/var/jb/.installed_dopamine",
+    "/var/jb/.installed_unc0ver",
+    "/var/jb/usr/lib/TweakInject",
+    "/var/jb/usr/lib/libhooker.dylib",
+    "/bootstrap/.installed_palera1n",
+    "/usr/lib/libhooker.dylib",
+    "/usr/lib/substrate",
+    "/Library/MobileSubstrate",
     NULL
 };
 
 // ─── Bail: nhiều lớp, khó NOP hết ────────────────────────────────────────────
 __attribute__((noinline, noreturn))
 static void sg_bail(void) {
-    // Lớp 1: SIGKILL – không thể bắt/bỏ qua
     raise(SIGKILL);
-    // Lớp 2: corrupt stack pointer → crash ngay
-    // ARM64: không thể MOV SP, #imm trực tiếp — phải qua register trung gian
     __asm__ volatile(
         "mov x0, #0\n\t"
         "mov sp, x0\n\t"
         "ret"
         ::: "x0"
     );
-    // Lớp 3: write to null → SIGSEGV
     volatile int *p = NULL; *p = 0xDEAD;
-    // Lớp 4: exit cuối cùng
     _Exit(1);
     __builtin_unreachable();
 }
 
-// ─── Gọi bail qua pointer để khó trace tĩnh ──────────────────────────────────
 typedef void(*BailFn)(void);
-static BailFn _bailFn = NULL;
+static volatile BailFn _bailFn = NULL;
 
 static void sg_init_bail(void) {
-    // Gán lúc runtime để tránh disassembler nhìn thấy trực tiếp
     _bailFn = sg_bail;
 }
 
+__attribute__((noinline))
 static void sg_trigger(void) {
     if (_bailFn) _bailFn();
-    else sg_bail(); // fallback
+    else sg_bail();
+}
+
+// ─── ARM64 first-instruction hook detection ───────────────────────────────────
+static BOOL sg_is_hooked_imp(IMP imp) {
+    if (!imp) return YES;
+    const uint32_t *code = (const uint32_t *)imp;
+    uint32_t first  = code[0];
+    uint32_t second = code[1];
+    uint32_t op26_0 = first >> 26;
+    uint32_t op26_1 = second >> 26;
+    // Branch unconditional (B/BL) hoặc BRK → hook
+    if (op26_0 == 0x05 || op26_0 == 0x25) return YES;
+    if (first  == 0xD4200000)              return YES; // BRK #0 (Frida)
+    if (first  == 0xD43E0000)              return YES; // BRK #0xF000 (Substrate)
+    // Kiểm tra cả instruction thứ 2 (một số hook tricky dùng NOP + B)
+    if (first == 0xD503201F) { // NOP → nghi ngờ, check next
+        if (op26_1 == 0x05 || op26_1 == 0x25) return YES;
+    }
+    return NO;
 }
 
 @implementation SecurityGuard
 
-// ─────────────────────────────────────────────────────────────────────────────
 #pragma mark - Activate
-// ─────────────────────────────────────────────────────────────────────────────
 
 + (void)activate {
     sg_init_bail();
@@ -106,7 +131,7 @@ static void sg_trigger(void) {
     dispatch_source_set_timer(timer,
         dispatch_time(DISPATCH_TIME_NOW, (int64_t)(3 * NSEC_PER_SEC)),
         (uint64_t)(4 * NSEC_PER_SEC),
-        (uint64_t)(1 * NSEC_PER_SEC));
+        (uint64_t)(arc4random_uniform(2000000000)));   // jitter 0–2s
     dispatch_source_set_event_handler(timer, ^{
         if ([self isTampered]) { sg_trigger(); }
     });
@@ -121,23 +146,20 @@ static void sg_trigger(void) {
     sg_trigger();
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
 #pragma mark - Master tamper check
-// ─────────────────────────────────────────────────────────────────────────────
 
 + (BOOL)isTampered {
-    // Kiểm tra theo thứ tự từ nhanh → chậm
     return [self isBeingDebugged]
         || [self hasInsertedLibraries]
         || [self hasInjectionTools]
+        || [self hasJailbreakPaths]
         || [self hasBundleIDMismatch]
         || [self hasDisplayNameMismatch]
-        || [self hasCriticalMethodHooked];
+        || [self hasCriticalMethodHooked]
+        || [self isTimingAnomalous];
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
 #pragma mark - Anti-debug
-// ─────────────────────────────────────────────────────────────────────────────
 
 + (void)denyDebugger {
     void *handle = dlopen(0, RTLD_GLOBAL | RTLD_NOW);
@@ -154,7 +176,7 @@ static void sg_trigger(void) {
     if (sysctl(mib, 4, &info, &sz, NULL, 0) == 0) {
         if ((info.kp_proc.p_flag & P_TRACED) != 0) return YES;
     }
-    // Check 2: exception port (lldb dùng exception port)
+    // Check 2: exception port — lldb đăng ký exception handler
     mach_port_t task = mach_task_self();
     exception_mask_t masks[EXC_TYPES_COUNT];
     mach_msg_type_number_t count = 0;
@@ -171,15 +193,19 @@ static void sg_trigger(void) {
     return NO;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-#pragma mark - Anti-inject
-// ─────────────────────────────────────────────────────────────────────────────
+#pragma mark - Anti-inject / Anti-hook env
 
 + (BOOL)hasInsertedLibraries {
-    return getenv("DYLD_INSERT_LIBRARIES") != NULL;
+    // DYLD_INSERT_LIBRARIES — cũ, nhưng vẫn check
+    if (getenv("DYLD_INSERT_LIBRARIES") != NULL) return YES;
+    // DYLD_* bất kỳ → nghi ngờ môi trường bị thao túng
+    if (getenv("DYLD_FRAMEWORK_PATH") != NULL) return YES;
+    if (getenv("DYLD_LIBRARY_PATH")   != NULL) return YES;
+    return NO;
 }
 
 + (BOOL)hasInjectionTools {
+    // Check 1: dylib names trong image list
     uint32_t n = _dyld_image_count();
     for (uint32_t i = 0; i < n; i++) {
         const char *name = _dyld_get_image_name(i);
@@ -191,11 +217,17 @@ static void sg_trigger(void) {
     return NO;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-#pragma mark - Anti-repackage / rebranding
-// ─────────────────────────────────────────────────────────────────────────────
++ (BOOL)hasJailbreakPaths {
+    for (int i = 0; kJBPaths[i] != NULL; i++) {
+        // Dùng open() thay access() — bypass một số hook trên access()
+        int fd = open(kJBPaths[i], O_RDONLY);
+        if (fd >= 0) { close(fd); return YES; }
+    }
+    return NO;
+}
 
-// Nếu ai đổi CFBundleIdentifier → phát hiện
+#pragma mark - Anti-repackage
+
 + (BOOL)hasBundleIDMismatch {
     NSString *bid = [[NSBundle mainBundle] bundleIdentifier];
     if (!bid) return YES;
@@ -203,7 +235,6 @@ static void sg_trigger(void) {
     return (strcmp(bid.UTF8String, expected) != 0);
 }
 
-// Nếu ai đổi CFBundleDisplayName ("HQUAN CRACK VN"...) → phát hiện
 + (BOOL)hasDisplayNameMismatch {
     NSBundle *mb = [NSBundle mainBundle];
     NSString *display = [mb objectForInfoDictionaryKey:@"CFBundleDisplayName"]
@@ -213,29 +244,9 @@ static void sg_trigger(void) {
     return (strcmp(display.UTF8String, expected) != 0);
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-#pragma mark - Anti-hook (ARM64)
-// ─────────────────────────────────────────────────────────────────────────────
-//
-// Substrate / fishhook / Frida thường replace byte đầu của method bằng:
-//   B  (branch)    : bits[31:26] = 000101 → (instr >> 26) = 0x05
-//   BL (branch+lr) : bits[31:26] = 100101 → (instr >> 26) = 0x25
-//   BRK            : 0xD4200000 (Frida software breakpoint)
-// Prologue hợp lệ thường là STP/SUB/MOV → bits[31:26] khác 0x05/0x25.
-
-static BOOL sg_is_hooked_imp(IMP imp) {
-    if (!imp) return YES;
-    const uint32_t *code = (const uint32_t *)imp;
-    uint32_t first = code[0];
-    uint32_t op26  = first >> 26;
-    // Branch unconditional hoặc BRK → nghi ngờ hook
-    if (op26 == 0x05 || op26 == 0x25) return YES;
-    if (first == 0xD4200000)           return YES; // BRK #0 (Frida)
-    return NO;
-}
+#pragma mark - Anti-hook (method IMP check)
 
 + (BOOL)hasCriticalMethodHooked {
-    // Kiểm tra các method quan trọng của KeyManager
     Class km = [KeyManager class];
     SEL selectors[] = {
         @selector(postKey:confirm:completion:),
@@ -245,15 +256,31 @@ static BOOL sg_is_hooked_imp(IMP imp) {
     };
     for (int i = 0; selectors[i] != NULL; i++) {
         Method m = class_getInstanceMethod(km, selectors[i]);
-        if (!m) return YES; // method không tồn tại → swizzle đã xoá
+        if (!m) return YES;
         if (sg_is_hooked_imp(method_getImplementation(m))) return YES;
     }
-
-    // Kiểm tra chính SecurityGuard.isTampered không bị swizzle
     Method sg = class_getClassMethod([SecurityGuard class], @selector(isTampered));
     if (!sg || sg_is_hooked_imp(method_getImplementation(sg))) return YES;
-
     return NO;
+}
+
+#pragma mark - Timing-based debugger detection
+
+// Debugger tạo ra thêm overhead khi step/breakpoint → loop đơn giản mất lâu bất thường
++ (BOOL)isTimingAnomalous {
+    struct timespec t0, t1;
+    clock_gettime(CLOCK_MONOTONIC, &t0);
+    // Busy-loop nhỏ — không thể tối ưu đi bởi compiler nhờ volatile
+    volatile uint64_t acc = 0;
+    for (volatile int i = 0; i < 5000; i++) acc += (uint64_t)i * i;
+    clock_gettime(CLOCK_MONOTONIC, &t1);
+    // Chênh lệch nanoseconds
+    int64_t diff = ((int64_t)t1.tv_sec - t0.tv_sec) * 1000000000LL
+                 + ((int64_t)t1.tv_nsec - t0.tv_nsec);
+    // Trên thiết bị thật: < 1ms (< 1_000_000 ns)
+    // Dưới debugger với tracing: thường > 5ms
+    // Ngưỡng 80ms — bảo thủ để không false-positive trên máy chậm
+    return (diff > 80000000LL);
 }
 
 @end

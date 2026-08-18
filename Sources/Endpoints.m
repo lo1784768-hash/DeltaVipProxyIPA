@@ -27,9 +27,16 @@ static NSString *decodeURL(const unsigned char *bytes, int len) {
     return [[NSString alloc] initWithData:d encoding:NSUTF8StringEncoding];
 }
 
+// https://getuid.vip/get_udid.php  (31 bytes)
+static const unsigned char kGetUDID[31] = {
+    0x2c,0x0c,0x4d,0x51,0x02,0x6d,0x55,0x6b,0x1f,0x5c,0x55,0x04,0x3e,0x1e,0x6a,0x0e,
+    0x50,0x51,0x5e,0x30,0x1f,0x30,0x27,0x4c,0x45,0x18,0x33,0x54,0x34,0x10,0x49
+};
+
 NSString *EndpointCheckKey(void)       { return decodeURL(kCheckKey,  (int)sizeof(kCheckKey));  }
 NSString *EndpointResetBind(void)      { return decodeURL(kResetBind, (int)sizeof(kResetBind)); }
 NSString *EndpointGetMod(void)         { return decodeURL(kGetMod,    (int)sizeof(kGetMod));    }
 NSString *EndpointVersion(void)        { return decodeURL(kVersion,   (int)sizeof(kVersion));   }
 NSString *EndpointImgFreeFireMax(void) { return decodeURL(kImgFFMax,  (int)sizeof(kImgFFMax));  }
 NSString *EndpointImgFreeFireTH(void)  { return decodeURL(kImgFFTH,   (int)sizeof(kImgFFTH));   }
+NSString *EndpointGetUDID(void)        { return decodeURL(kGetUDID,   (int)sizeof(kGetUDID));   }

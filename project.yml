@@ -44,6 +44,8 @@ targets:
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         INFOPLIST_KEY_UIApplicationSceneManifest_Generation: NO
         INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: YES
+        # URL scheme để nhận UDID từ profile callback
+        INFOPLIST_KEY_CFBundleURLTypes: "[{CFBundleURLName: vip.getuid.deltaproxy, CFBundleURLSchemes: [deltaproxy]}]"
         CODE_SIGN_STYLE: Manual
         CODE_SIGN_IDENTITY: ""
         CODE_SIGNING_REQUIRED: NO

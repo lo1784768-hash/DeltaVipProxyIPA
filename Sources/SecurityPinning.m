@@ -4,37 +4,81 @@
 #import <CommonCrypto/CommonDigest.h>
 
 // ─────────────────────────────────────────────────────────────────────────────
-// SSL Pin — Let's Encrypt Intermediate CA (tự động, không cần update khi renew)
+// SSL Pin — Let's Encrypt Intermediate CA (index 1 trong chain)
+// YR1 valid đến Sep 2028 — không cần update khi leaf cert tự renew mỗi 90 ngày
 // ─────────────────────────────────────────────────────────────────────────────
-//
-// Pin vào INTERMEDIATE CA (cert index 1 trong chain) thay vì leaf cert:
-//   - Leaf cert đổi mỗi 90 ngày (Let's Encrypt auto-renew) → cần update app liên tục
-//   - Intermediate "YR1" giữ nguyên đến Sep 2028 → không cần làm gì cả
-//
-// Khi nào cần update: Let's Encrypt đổi intermediate (vài năm/lần, họ thông báo trước)
-// Lấy hash intermediate mới (khi cần):
-//   echo | openssl s_client -connect getuid.vip:443 -showcerts 2>/dev/null \
-//     | awk '/-----BEGIN CERTIFICATE-----/{c++} c==2{print}' \
-//     | openssl x509 -outform DER | openssl dgst -sha256 -binary | base64
-
 static NSString * const kPinnedHashes[] = {
-    @"E5SWNNmc1v1qqAvANP76zOsZaf7vmGWGcT7NuwV1jT8=",  // Let's Encrypt YR1 (valid đến Sep 2028)
+    @"E5SWNNmc1v1qqAvANP76zOsZaf7vmGWGcT7NuwV1jT8=",  // LE YR1 → Sep 2028
 };
 static const NSUInteger kPinnedHashCount = 1;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// HMAC-SHA256 Secret (XOR-obfuscated, PHẢI khớp với HMAC_SECRET trong PHP)
+// HMAC-SHA256 Key — 4-segment multi-method obfuscation
+//
+// Mỗi segment dùng phương pháp encode KHÁC NHAU:
+//   Seg A (0-7):  XOR với key_A
+//   Seg B (8-15): Addition mod 256
+//   Seg C (16-23): ROR5 (rotate right 5-bit trong 8-bit)
+//   Seg D (24-31): XOR với key_D (khác key_A)
+//
+// Scatter 4 hàm riêng biệt + noinline + optnone → IDA phải trace từng hàm
+// __attribute__((optnone)) ngăn compiler đơn giản hoá thành hằng số
 // ─────────────────────────────────────────────────────────────────────────────
 
-static const uint8_t kHmacXor[8] = {
-    0xA3, 0x7F, 0x2C, 0x91, 0xE4, 0x58, 0xB6, 0x1D
-};
-static const uint8_t kHmacEnc[32] = {
-    0xC7, 0x4C, 0x40, 0xE5, 0xD0, 0x2B, 0x85, 0x7E,
-    0xD6, 0x0D, 0x1F, 0xFA, 0xD7, 0x21, 0x84, 0x2D,
-    0x91, 0x49, 0x0D, 0xD1, 0xC7, 0x7C, 0x93, 0x43,
-    0x85, 0x55, 0x04, 0xD8, 0xA9, 0x1F, 0xE3, 0x54
-};
+// ── Segment A: XOR ──────────────────────────────────────────────────────────
+__attribute__((noinline, optnone))
+static void __sg_hmac_seg_a(volatile uint8_t out[8]) {
+    static const volatile uint8_t enc[8] = {0x3E,0xFA,0xD8,0x4B,0x45,0x5B,0xD6,0xFF};
+    static const volatile uint8_t key[8] = {0x5A,0xC9,0xB4,0x3F,0x71,0x28,0xE5,0x9C};
+    for (volatile int i = 0; i < 8; i++) out[i] = enc[i] ^ key[i];
+}
+
+// ── Segment B: Subtraction mod 256 ──────────────────────────────────────────
+__attribute__((noinline, optnone))
+static void __sg_hmac_seg_b(volatile uint8_t out[8]) {
+    static const volatile uint8_t enc[8] = {0x8C,0xF4,0x7F,0xFC,0x91,0x9C,0x39,0xEF};
+    static const volatile uint8_t add[8] = {0x17,0x82,0x4C,0x91,0x5E,0x23,0x07,0xBF};
+    for (volatile int i = 0; i < 8; i++)
+        out[i] = (uint8_t)((enc[i] - add[i] + 256) & 0xFF);
+}
+
+// ── Segment C: ROL5 (undo ROR5 encoding) ─────────────────────────────────────
+__attribute__((noinline, optnone))
+static void __sg_hmac_seg_c(volatile uint8_t out[8]) {
+    static const volatile uint8_t enc[8] = {0x91,0xB1,0x09,0x02,0x19,0x21,0x29,0xF2};
+    // Decode: ROL5(v) = (v << 5) | (v >> 3) & 0xFF
+    for (volatile int i = 0; i < 8; i++)
+        out[i] = (uint8_t)(((enc[i] << 5) | (enc[i] >> 3)) & 0xFF);
+}
+
+// ── Segment D: XOR với key lạ ────────────────────────────────────────────────
+__attribute__((noinline, optnone))
+static void __sg_hmac_seg_d(volatile uint8_t out[8]) {
+    static const volatile uint8_t enc[8] = {0xD6,0x27,0xF8,0x46,0x8D,0x7B,0x65,0x85};
+    static const volatile uint8_t key[8] = {0xF0,0x0D,0xD0,0x0F,0xC0,0x3C,0x30,0xCC};
+    for (volatile int i = 0; i < 8; i++) out[i] = enc[i] ^ key[i];
+}
+
+// ── Combine → HMAC secret ───────────────────────────────────────────────────
+static NSData *hmacSecret(void) {
+    static NSData *secret;
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{
+        volatile uint8_t raw[32];
+        __sg_hmac_seg_a(raw + 0);
+        __sg_hmac_seg_b(raw + 8);
+        __sg_hmac_seg_c(raw + 16);
+        __sg_hmac_seg_d(raw + 24);
+        // Copy ra non-volatile buffer cho NSData
+        uint8_t buf[32];
+        for (int i = 0; i < 32; i++) buf[i] = raw[i];
+        // Xoá raw khỏi stack ngay sau khi copy
+        memset((void *)raw, 0, sizeof(raw));
+        secret = [NSData dataWithBytes:buf length:32];
+        memset(buf, 0, 32);
+    });
+    return secret;
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -56,13 +100,10 @@ static const uint8_t kHmacEnc[32] = {
         cfg.timeoutIntervalForRequest  = 15;
         cfg.timeoutIntervalForResource = 30;
 
-        // ── Tắt system HTTP/HTTPS proxy ──────────────────────────────────────
-        // Ngăn ProxyPin / mitmproxy / Charles nhận connection này.
-        // Dù SSL pinning đã reject cert giả, tắt proxy ở tầng session là hàng rào thứ 2.
+        // Tắt system proxy → chặn ProxyPin / mitmproxy / Charles
         cfg.connectionProxyDictionary = @{};
 
-        // ── Ép TLS 1.2 tối thiểu ────────────────────────────────────────────
-        // Loại bỏ downgrade attack (attacker ép xuống TLS 1.0 để dùng công cụ cũ).
+        // Ép TLS 1.2 tối thiểu
         if (@available(iOS 13, *)) {
             cfg.TLSMinimumSupportedProtocolVersion = tls_protocol_version_TLSv12;
         }
@@ -76,21 +117,7 @@ static const uint8_t kHmacEnc[32] = {
 
 #pragma mark - HMAC signing
 
-static NSData *hmacSecret(void) {
-    static NSData *secret;
-    static dispatch_once_t once;
-    dispatch_once(&once, ^{
-        NSMutableData *d = [NSMutableData dataWithLength:sizeof(kHmacEnc)];
-        uint8_t *b = d.mutableBytes;
-        for (NSUInteger i = 0; i < sizeof(kHmacEnc); i++)
-            b[i] = kHmacEnc[i] ^ kHmacXor[i % sizeof(kHmacXor)];
-        secret = [d copy];
-    });
-    return secret;
-}
-
 - (NSString *)signedBody:(NSString *)rawBody {
-    // ts = unix timestamp (giây), dùng để chặn replay attack (server từ chối > 5 phút)
     NSString *ts  = [NSString stringWithFormat:@"%lld",
                      (long long)[[NSDate date] timeIntervalSince1970]];
     NSString *msg = [NSString stringWithFormat:@"%@&ts=%@", rawBody, ts];
@@ -115,7 +142,6 @@ didReceiveChallenge:(NSURLAuthenticationChallenge *)challenge
  completionHandler:(void (^)(NSURLSessionAuthChallengeDisposition,
                              NSURLCredential * _Nullable))completionHandler {
 
-    // Chỉ xử lý server trust challenge
     if (![challenge.protectionSpace.authenticationMethod
           isEqualToString:NSURLAuthenticationMethodServerTrust]) {
         completionHandler(NSURLSessionAuthChallengePerformDefaultHandling, nil);
@@ -128,7 +154,7 @@ didReceiveChallenge:(NSURLAuthenticationChallenge *)challenge
         return;
     }
 
-    // Bước 1: Validate trust chain (CA chuẩn)
+    // Bước 1: Validate chain CA
     CFErrorRef cfErr = NULL;
     BOOL chainOK = SecTrustEvaluateWithError(trust, &cfErr);
     if (cfErr) CFRelease(cfErr);
@@ -137,8 +163,7 @@ didReceiveChallenge:(NSURLAuthenticationChallenge *)challenge
         return;
     }
 
-    // Bước 2: So sánh INTERMEDIATE CA cert SHA-256 với danh sách pin
-    // Index 0 = leaf (đổi mỗi 90 ngày), Index 1 = intermediate (ổn định vài năm)
+    // Bước 2: Pin INTERMEDIATE CA (index 1) — không phải leaf (đổi mỗi 90 ngày)
     CFIndex certCount = SecTrustGetCertificateCount(trust);
     if (certCount < 2) {
         completionHandler(NSURLSessionAuthChallengeCancelAuthenticationChallenge, nil);
@@ -163,15 +188,13 @@ didReceiveChallenge:(NSURLAuthenticationChallenge *)challenge
 
     for (NSUInteger i = 0; i < kPinnedHashCount; i++) {
         if ([kPinnedHashes[i] isEqualToString:b64]) {
-            // Cert khớp — cho phép kết nối
             NSURLCredential *cred = [NSURLCredential credentialForTrust:trust];
             completionHandler(NSURLSessionAuthChallengeUseCredential, cred);
             return;
         }
     }
 
-    // Cert không nằm trong danh sách pin → từ chối im lặng
-    // (App sẽ hiện "Lỗi kết nối máy chủ" — không lộ lý do)
+    // Cert không khớp → từ chối im lặng
     completionHandler(NSURLSessionAuthChallengeCancelAuthenticationChallenge, nil);
 }
 

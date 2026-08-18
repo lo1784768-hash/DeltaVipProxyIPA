@@ -1,6 +1,7 @@
 #import "KeyBarView.h"
 #import "KeyManager.h"
 #import "BrandTheme.h"
+#import "Endpoints.h"
 
 #define KB_GREEN [UIColor colorWithRed:0.204 green:0.780 blue:0.349 alpha:1.0]
 #define KB_RED   [UIColor colorWithRed:1.000 green:0.231 blue:0.322 alpha:1.0]
@@ -14,6 +15,7 @@
 @property (nonatomic, strong) UILabel  *subLabel;
 @property (nonatomic, strong) UIButton *addButton;
 @property (nonatomic, strong) UIButton *infoButton;
+@property (nonatomic, strong) UIButton *udidButton;   // nút đăng ký UDID phần cứng
 @property (nonatomic, strong) UIView   *topLine;
 @property (nonatomic, strong) CAGradientLayer *addGradient;
 @property (nonatomic, strong) CAGradientLayer *lineGradient;
@@ -84,6 +86,14 @@
     [_infoButton addTarget:self action:@selector(infoTapped) forControlEvents:UIControlEventTouchUpInside];
     [self addSubview:_infoButton];
 
+    // UDID button — đăng ký phần cứng qua profile
+    _udidButton = [UIButton buttonWithType:UIButtonTypeSystem];
+    [_udidButton setImage:[UIImage systemImageNamed:@"shield.lefthalf.filled"] forState:UIControlStateNormal];
+    _udidButton.tintColor = [KeyManager shared].usingHardwareUDID ? KB_GREEN : KB_MUTED;
+    _udidButton.translatesAutoresizingMaskIntoConstraints = NO;
+    [_udidButton addTarget:self action:@selector(udidTapped) forControlEvents:UIControlEventTouchUpInside];
+    [self addSubview:_udidButton];
+
     [NSLayoutConstraint activateConstraints:@[
         [_topLine.topAnchor constraintEqualToAnchor:self.topAnchor],
         [_topLine.leadingAnchor constraintEqualToAnchor:self.leadingAnchor],
@@ -105,13 +115,18 @@
         [_addButton.centerYAnchor constraintEqualToAnchor:self.topAnchor constant:31],
         [_addButton.heightAnchor constraintEqualToConstant:36],
 
-        [_infoButton.trailingAnchor constraintEqualToAnchor:_addButton.leadingAnchor constant:-6],
+        [_infoButton.trailingAnchor constraintEqualToAnchor:_addButton.leadingAnchor constant:-4],
         [_infoButton.centerYAnchor constraintEqualToAnchor:_addButton.centerYAnchor],
-        [_infoButton.widthAnchor constraintEqualToConstant:36],
+        [_infoButton.widthAnchor constraintEqualToConstant:32],
         [_infoButton.heightAnchor constraintEqualToConstant:36],
 
-        [_titleLabel.trailingAnchor constraintLessThanOrEqualToAnchor:_infoButton.leadingAnchor constant:-8],
-        [_subLabel.trailingAnchor constraintLessThanOrEqualToAnchor:_infoButton.leadingAnchor constant:-8],
+        [_udidButton.trailingAnchor constraintEqualToAnchor:_infoButton.leadingAnchor constant:-2],
+        [_udidButton.centerYAnchor constraintEqualToAnchor:_addButton.centerYAnchor],
+        [_udidButton.widthAnchor constraintEqualToConstant:32],
+        [_udidButton.heightAnchor constraintEqualToConstant:36],
+
+        [_titleLabel.trailingAnchor constraintLessThanOrEqualToAnchor:_udidButton.leadingAnchor constant:-8],
+        [_subLabel.trailingAnchor constraintLessThanOrEqualToAnchor:_udidButton.leadingAnchor constant:-8],
     ]];
 }
 
@@ -178,6 +193,39 @@
 
 - (void)infoTapped {
     if (self.onInfoTapped) self.onInfoTapped();
+}
+
+- (void)udidTapped {
+    // Tạo token ngẫu nhiên (32 hex chars)
+    uint8_t rand_bytes[16];
+    arc4random_buf(rand_bytes, sizeof(rand_bytes));
+    NSMutableString *tok = [NSMutableString stringWithCapacity:32];
+    for (int i = 0; i < 16; i++) [tok appendFormat:@"%02x", rand_bytes[i]];
+
+    NSString *base = EndpointGetUDID();
+    NSString *urlStr = [NSString stringWithFormat:@"%@?tok=%@", base, tok];
+    NSURL *url = [NSURL URLWithString:urlStr];
+    if (!url) return;
+
+    BOOL hw = [[KeyManager shared] usingHardwareUDID];
+    NSString *msg = hw
+        ? @"Thiết bị đã được đăng ký UDID phần cứng ✅\n\nBạn có muốn đăng ký lại không?"
+        : @"Đăng ký UDID phần cứng giúp bind key chặt hơn vào thiết bị, ngăn chia sẻ key.\n\nSafari sẽ mở → cài profile → tự động quay về app.";
+
+    UIAlertController *alert = [UIAlertController
+        alertControllerWithTitle:@"🛡️ Đăng Ký Thiết Bị"
+        message:msg
+        preferredStyle:UIAlertControllerStyleAlert];
+
+    [alert addAction:[UIAlertAction actionWithTitle:@"Đăng ký ngay" style:UIAlertActionStyleDefault
+        handler:^(UIAlertAction *a) {
+            [[UIApplication sharedApplication] openURL:url options:@{} completionHandler:nil];
+        }]];
+    [alert addAction:[UIAlertAction actionWithTitle:@"Huỷ" style:UIAlertActionStyleCancel handler:nil]];
+
+    UIViewController *top = [UIApplication sharedApplication].keyWindow.rootViewController;
+    while (top.presentedViewController) top = top.presentedViewController;
+    [top presentViewController:alert animated:YES completion:nil];
 }
 
 @end

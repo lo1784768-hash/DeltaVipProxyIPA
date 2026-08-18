@@ -9,3 +9,6 @@ NSString *EndpointVersion(void);
 // URL ảnh (cũng mã hoá XOR)
 NSString *EndpointImgFreeFireMax(void);
 NSString *EndpointImgFreeFireTH(void);
+
+// UDID enrollment qua profile
+NSString *EndpointGetUDID(void);

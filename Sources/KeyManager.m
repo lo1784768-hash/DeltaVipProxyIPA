@@ -6,15 +6,21 @@
 #import <Security/Security.h>
 #import <dlfcn.h>
 
+// ─── Keychain service/account constants ─────────────────────────────────────
+// Key code lưu trong Keychain (không phải NSUserDefaults) để chống extract
+static NSString *const kKCService  = @"vip.getuid.delta.license";
+static NSString *const kKCAccKey   = @"key_code";
+static NSString *const kKCAccExp   = @"expiry_epoch";
+static NSString *const kKCAccUDID  = @"hw_udid";       // UDID lấy qua profile
+
+// NSUserDefaults keys (legacy — migration)
 static NSString *const kDefKey     = @"lk_key";
-static NSString *const kDefExpiry  = @"lk_expiry_epoch";   // absolute expiry (seconds since 1970)
+static NSString *const kDefExpiry  = @"lk_expiry_epoch";
 
-// libMobileGestalt — đọc UDID phần cứng thật
+// libMobileGestalt
 typedef CFStringRef (*MGCopyAnswer_t)(CFStringRef);
+static BOOL sIsHardwareUDID = NO;
 
-static BOOL sIsHardwareUDID = NO;   // đọc được UDID thật hay không
-
-// Redeclare readonly (header) → readwrite (internal) — pattern chuẩn ObjC
 @interface KeyManager ()
 @property (nonatomic, copy, readwrite) NSString *pendingConfirmKey;
 @property (nonatomic, copy, readwrite) NSString *pendingConfirmMessage;
@@ -29,15 +35,91 @@ static BOOL sIsHardwareUDID = NO;   // đọc được UDID thật hay không
     return inst;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+#pragma mark - Keychain helpers
+// ─────────────────────────────────────────────────────────────────────────────
+
+- (NSString *)_kcRead:(NSString *)account {
+    NSDictionary *q = @{
+        (__bridge id)kSecClass:       (__bridge id)kSecClassGenericPassword,
+        (__bridge id)kSecAttrService: kKCService,
+        (__bridge id)kSecAttrAccount: account,
+        (__bridge id)kSecReturnData:  @YES,
+        (__bridge id)kSecMatchLimit:  (__bridge id)kSecMatchLimitOne
+    };
+    CFTypeRef out = NULL;
+    if (SecItemCopyMatching((__bridge CFDictionaryRef)q, &out) == errSecSuccess && out) {
+        NSData *d = (__bridge_transfer NSData *)out;
+        return [[NSString alloc] initWithData:d encoding:NSUTF8StringEncoding];
+    }
+    return nil;
+}
+
+- (void)_kcWrite:(NSString *)value account:(NSString *)account {
+    if (!value || !account) return;
+    NSData *d = [value dataUsingEncoding:NSUTF8StringEncoding];
+
+    // Delete old first
+    NSDictionary *del = @{
+        (__bridge id)kSecClass:       (__bridge id)kSecClassGenericPassword,
+        (__bridge id)kSecAttrService: kKCService,
+        (__bridge id)kSecAttrAccount: account,
+    };
+    SecItemDelete((__bridge CFDictionaryRef)del);
+
+    NSDictionary *add = @{
+        (__bridge id)kSecClass:            (__bridge id)kSecClassGenericPassword,
+        (__bridge id)kSecAttrService:      kKCService,
+        (__bridge id)kSecAttrAccount:      account,
+        (__bridge id)kSecValueData:        d,
+        // Không sync iCloud, không backup, gắn với thiết bị
+        (__bridge id)kSecAttrAccessible:   (__bridge id)kSecAttrAccessibleWhenUnlockedThisDeviceOnly,
+    };
+    SecItemAdd((__bridge CFDictionaryRef)add, NULL);
+}
+
+- (void)_kcDelete:(NSString *)account {
+    NSDictionary *del = @{
+        (__bridge id)kSecClass:       (__bridge id)kSecClassGenericPassword,
+        (__bridge id)kSecAttrService: kKCService,
+        (__bridge id)kSecAttrAccount: account,
+    };
+    SecItemDelete((__bridge CFDictionaryRef)del);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+#pragma mark - Migration: NSUserDefaults → Keychain
+// ─────────────────────────────────────────────────────────────────────────────
+
+- (void)_migrateIfNeeded {
+    // Nếu Keychain đã có key → không cần migrate
+    if ([self _kcRead:kKCAccKey].length > 0) return;
+
+    NSUserDefaults *d = [NSUserDefaults standardUserDefaults];
+    NSString *oldKey = [d stringForKey:kDefKey];
+    if (oldKey.length) {
+        [self _kcWrite:oldKey account:kKCAccKey];
+        double exp = [d doubleForKey:kDefExpiry];
+        if (exp > 0) [self _kcWrite:[@(exp) stringValue] account:kKCAccExp];
+        // Xoá khỏi NSUserDefaults sau khi migrate
+        [d removeObjectForKey:kDefKey];
+        [d removeObjectForKey:kDefExpiry];
+        [d synchronize];
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 #pragma mark - Stored state
+// ─────────────────────────────────────────────────────────────────────────────
 
 - (NSString *)keyCode {
-    NSString *k = [[NSUserDefaults standardUserDefaults] stringForKey:kDefKey];
-    return k.length ? k : nil;
+    [self _migrateIfNeeded];
+    return [self _kcRead:kKCAccKey];
 }
 
 - (NSDate *)expiry {
-    double e = [[NSUserDefaults standardUserDefaults] doubleForKey:kDefExpiry];
+    NSString *s = [self _kcRead:kKCAccExp];
+    double e = s.doubleValue;
     return e > 0 ? [NSDate dateWithTimeIntervalSince1970:e] : nil;
 }
 
@@ -56,28 +138,38 @@ static BOOL sIsHardwareUDID = NO;   // đọc được UDID thật hay không
     NSTimeInterval s = [self secondsLeft];
     if (self.state == KeyStateNone) return @"Chưa kích hoạt key";
     if (s <= 0) return @"Đã hết hạn";
-
     long total = (long)s;
     long days  = total / 86400;
     long hours = (total % 86400) / 3600;
     long mins  = (total % 3600) / 60;
-
     if (days > 0)  return [NSString stringWithFormat:@"Còn %ld ngày %ld giờ", days, hours];
     if (hours > 0) return [NSString stringWithFormat:@"Còn %ld giờ %ld phút", hours, mins];
     return [NSString stringWithFormat:@"Còn %ld phút", mins];
 }
 
-#pragma mark - Device id
+// ─────────────────────────────────────────────────────────────────────────────
+#pragma mark - Device UDID
+// ─────────────────────────────────────────────────────────────────────────────
+// Thứ tự ưu tiên:
+//   0. UDID từ profile (lưu trong Keychain "hw_udid") — gắn phần cứng thật
+//   1. MobileGestalt "UniqueDeviceID" — phần cứng, cần entitlement đặc biệt
+//   2. identifierForVendor (IDFV) — ổn định theo vendor
+//   3. Keychain random UUID ("KC-") — last resort
 
-// Thứ tự ưu tiên lấy UDID:
-//   1. MobileGestalt "UniqueDeviceID" — UDID phần cứng thật (TrollStore / SideStore có entitlement)
-//   2. identifierForVendor (IDFV) — gắn với máy+vendor, ổn định trên eSign miễn còn ≥1 app cùng vendor
-//   3. Keychain random UUID ("KC-") — sinh 1 lần, lưu mãi; last resort nếu cả 2 trên đều thất bại
 - (NSString *)deviceUDID {
     static NSString *cached = nil;
     static dispatch_once_t once;
     dispatch_once(&once, ^{
-        // 1. UDID phần cứng qua MobileGestalt
+        // 0. Profile UDID — chắc nhất
+        NSString *profUDID = [self _kcRead:kKCAccUDID];
+        if (profUDID.length == 40 || profUDID.length == 36) {
+            // 40 = hex UDID, 36 = UUID format (thường thấy ở iOS 17+)
+            sIsHardwareUDID = YES;
+            cached = [@"HW-" stringByAppendingString:profUDID];
+            return;
+        }
+
+        // 1. MobileGestalt hardware UDID
         NSString *hw = [self readHardwareUDID];
         if (hw.length) {
             sIsHardwareUDID = YES;
@@ -85,24 +177,22 @@ static BOOL sIsHardwareUDID = NO;   // đọc được UDID thật hay không
             return;
         }
 
-        // 2. identifierForVendor — ổn định hơn random UUID, không thay đổi khi cài lại app
+        // 2. identifierForVendor
         NSString *idfv = [UIDevice currentDevice].identifierForVendor.UUIDString;
         if (idfv.length) {
             sIsHardwareUDID = NO;
-            // Xóa KC- cũ trong keychain (nếu có) để tránh dùng lại khi upgrade IPA
             [self clearKeychainDeviceID];
             cached = [@"IV-" stringByAppendingString:idfv];
             return;
         }
 
-        // 3. Keychain UUID — last resort (IDFV không khả dụng)
+        // 3. Keychain UUID
         sIsHardwareUDID = NO;
         cached = [self keychainDeviceID];
     });
     return cached;
 }
 
-// Trả UDID phần cứng qua MobileGestalt, hoặc nil nếu không đọc được (sandbox eSign).
 - (NSString *)readHardwareUDID {
     NSString *result = nil;
     void *handle = dlopen("/usr/lib/libMobileGestalt.dylib", RTLD_NOW);
@@ -110,19 +200,27 @@ static BOOL sIsHardwareUDID = NO;   // đọc được UDID thật hay không
         MGCopyAnswer_t MGCopyAnswer = (MGCopyAnswer_t)dlsym(handle, "MGCopyAnswer");
         if (MGCopyAnswer) {
             CFStringRef udid = MGCopyAnswer(CFSTR("UniqueDeviceID"));
-            if (udid) {
-                result = (__bridge_transfer NSString *)udid;
-            }
+            if (udid) result = (__bridge_transfer NSString *)udid;
         }
     }
     return result.length ? result : nil;
 }
 
-// ID cố định trong Keychain — sinh 1 lần, tái dùng mãi. Prefix "KC-" để phân biệt.
+// Lưu UDID lấy được từ profile vào Keychain (gọi từ AppDelegate URL handler)
+- (void)saveHardwareUDIDFromProfile:(NSString *)udid {
+    if (!udid.length) return;
+    NSString *clean = [udid stringByTrimmingCharactersInSet:
+                       [NSCharacterSet whitespaceAndNewlineCharacterSet]];
+    // Chấp nhận 40-char hex hoặc 36-char UUID
+    if (clean.length != 40 && clean.length != 36) return;
+    [self _kcWrite:clean account:kKCAccUDID];
+    // Reset cache để lần sau lấy lại từ Keychain
+    // (dispatch_once không reset được — sẽ có hiệu lực sau app restart)
+}
+
 - (NSString *)keychainDeviceID {
     NSString *service = @"com.imguidelta.license";
     NSString *account = @"app_device_id";
-
     NSDictionary *query = @{
         (__bridge id)kSecClass:       (__bridge id)kSecClassGenericPassword,
         (__bridge id)kSecAttrService: service,
@@ -130,30 +228,25 @@ static BOOL sIsHardwareUDID = NO;   // đọc được UDID thật hay không
         (__bridge id)kSecReturnData:  @YES,
         (__bridge id)kSecMatchLimit:  (__bridge id)kSecMatchLimitOne
     };
-
     CFTypeRef out = NULL;
-    OSStatus st = SecItemCopyMatching((__bridge CFDictionaryRef)query, &out);
-    if (st == errSecSuccess && out) {
+    if (SecItemCopyMatching((__bridge CFDictionaryRef)query, &out) == errSecSuccess && out) {
         NSData *data = (__bridge_transfer NSData *)out;
         NSString *s = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
         if (s.length) return s;
     }
-
-    // Chưa có → sinh mới và lưu
     NSString *newID = [@"KC-" stringByAppendingString:[[NSUUID UUID] UUIDString]];
     NSDictionary *add = @{
-        (__bridge id)kSecClass:       (__bridge id)kSecClassGenericPassword,
-        (__bridge id)kSecAttrService: service,
-        (__bridge id)kSecAttrAccount: account,
-        (__bridge id)kSecValueData:   [newID dataUsingEncoding:NSUTF8StringEncoding],
-        (__bridge id)kSecAttrAccessible: (__bridge id)kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
+        (__bridge id)kSecClass:           (__bridge id)kSecClassGenericPassword,
+        (__bridge id)kSecAttrService:     service,
+        (__bridge id)kSecAttrAccount:     account,
+        (__bridge id)kSecValueData:       [newID dataUsingEncoding:NSUTF8StringEncoding],
+        (__bridge id)kSecAttrAccessible:  (__bridge id)kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
     };
-    SecItemDelete((__bridge CFDictionaryRef)add); // đảm bảo không trùng
+    SecItemDelete((__bridge CFDictionaryRef)add);
     SecItemAdd((__bridge CFDictionaryRef)add, NULL);
     return newID;
 }
 
-// Xóa KC- khỏi Keychain — gọi khi đã có IDFV/hardware để tránh dùng lại KC- cũ sau upgrade
 - (void)clearKeychainDeviceID {
     NSDictionary *del = @{
         (__bridge id)kSecClass:       (__bridge id)kSecClassGenericPassword,
@@ -163,19 +256,16 @@ static BOOL sIsHardwareUDID = NO;   // đọc được UDID thật hay không
     SecItemDelete((__bridge CFDictionaryRef)del);
 }
 
-- (BOOL)usingHardwareUDID {
-    [self deviceUDID];   // đảm bảo đã tính (dispatch_once)
-    return sIsHardwareUDID;
-}
+- (BOOL)usingHardwareUDID { [self deviceUDID]; return sIsHardwareUDID; }
 
+// ─────────────────────────────────────────────────────────────────────────────
 #pragma mark - Networking
+// ─────────────────────────────────────────────────────────────────────────────
 
 - (void)activateKey:(NSString *)key completion:(void (^)(BOOL, NSString *))completion {
-    NSString *trimmed = [key stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
-    if (trimmed.length == 0) {
-        if (completion) completion(NO, @"Vui lòng nhập key.");
-        return;
-    }
+    NSString *trimmed = [key stringByTrimmingCharactersInSet:
+                         [NSCharacterSet whitespaceAndNewlineCharacterSet]];
+    if (trimmed.length == 0) { if (completion) completion(NO, @"Vui lòng nhập key."); return; }
     [self postKey:trimmed completion:completion];
 }
 
@@ -189,42 +279,39 @@ static BOOL sIsHardwareUDID = NO;   // đọc được UDID thật hay không
     [self postKey:key confirm:NO completion:completion];
 }
 
-- (void)postKey:(NSString *)key confirm:(BOOL)confirmed completion:(void (^)(BOOL, NSString *))completion {
-    // Check tại điểm nóng nhất — ngay trước khi gửi key lên server
+- (void)postKey:(NSString *)key confirm:(BOOL)confirmed
+     completion:(void (^)(BOOL, NSString *))completion {
     if (![SecurityGuard isEnvironmentTrusted]) {
         if (completion) completion(NO, @"Lỗi kết nối máy chủ.");
         return;
     }
-    NSMutableURLRequest *req = [NSMutableURLRequest requestWithURL:[NSURL URLWithString:EndpointCheckKey()]];
+    NSMutableURLRequest *req = [NSMutableURLRequest requestWithURL:
+                                [NSURL URLWithString:EndpointCheckKey()]];
     req.HTTPMethod = @"POST";
     req.timeoutInterval = 15;
     [req setValue:@"application/x-www-form-urlencoded" forHTTPHeaderField:@"Content-Type"];
 
-    // Ký request: thêm &ts=<unix>&sig=<hmac> → server từ chối nếu thiếu/sai sig
-    NSString *rawBody = [NSString stringWithFormat:@"key_code=%@&udid=%@%@",
-                         [self urlEncode:key], [self urlEncode:[self deviceUDID]],
+    NSString *ver = [[NSBundle mainBundle]
+                     objectForInfoDictionaryKey:@"CFBundleShortVersionString"] ?: @"0";
+    NSString *rawBody = [NSString stringWithFormat:@"key_code=%@&udid=%@&app_ver=%@%@",
+                         [self urlEncode:key],
+                         [self urlEncode:[self deviceUDID]],
+                         [self urlEncode:ver],
                          confirmed ? @"&confirm=1" : @""];
     NSString *signedBody = [[SecurityPinning shared] signedBody:rawBody];
     req.HTTPBody = [signedBody dataUsingEncoding:NSUTF8StringEncoding];
 
     __weak typeof(self) weakSelf = self;
-    // Dùng pinnedSession thay sharedSession → SSL certificate pinning
-    NSURLSessionDataTask *task = [[SecurityPinning shared].pinnedSession dataTaskWithRequest:req
-        completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
+    NSURLSessionDataTask *task = [[SecurityPinning shared].pinnedSession
+        dataTaskWithRequest:req completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
         void (^finish)(BOOL, NSString *) = ^(BOOL ok, NSString *msg) {
             dispatch_async(dispatch_get_main_queue(), ^{ if (completion) completion(ok, msg); });
         };
+        if (error || !data) { finish(NO, @"Lỗi kết nối máy chủ."); return; }
 
-        if (error || !data) {
-            finish(NO, @"Lỗi kết nối máy chủ.");
-            return;
-        }
-
-        NSError *jerrr = nil;
-        NSDictionary *json = [NSJSONSerialization JSONObjectWithData:data options:0 error:&jerrr];
+        NSDictionary *json = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
         if (![json isKindOfClass:[NSDictionary class]]) {
-            finish(NO, @"Phản hồi máy chủ không hợp lệ.");
-            return;
+            finish(NO, @"Phản hồi máy chủ không hợp lệ."); return;
         }
 
         NSString *status  = json[@"status"];
@@ -237,36 +324,33 @@ static BOOL sIsHardwareUDID = NO;   // đọc được UDID thật hay không
             NSNumber *secs = json[@"seconds_left"];
             NSTimeInterval left = secs ? secs.doubleValue : 0;
             NSDate *expiry = [NSDate dateWithTimeIntervalSinceNow:left];
-
-            NSUserDefaults *d = [NSUserDefaults standardUserDefaults];
-            [d setObject:key forKey:kDefKey];
-            [d setDouble:[expiry timeIntervalSince1970] forKey:kDefExpiry];
-
+            // Lưu vào Keychain (không phải NSUserDefaults)
+            [weakSelf _kcWrite:key account:kKCAccKey];
+            [weakSelf _kcWrite:[@([expiry timeIntervalSince1970]) stringValue] account:kKCAccExp];
             finish(YES, message.length ? message : @"Key hợp lệ.");
+
         } else if ([status isEqualToString:@"needs_confirm"]) {
-            // Key 365/999/9999 ngày → cần user xác nhận chuyển sang 3 tháng
             NSString *confirmMsg = message.length ? message
                 : @"Key vĩnh viễn sẽ được chuyển thành 3 tháng. Ấn Đồng Ý để tiếp tục.";
             weakSelf.pendingConfirmKey     = key;
             weakSelf.pendingConfirmMessage = confirmMsg;
             finish(NO, confirmMsg);
+
         } else if ([status isEqualToString:@"expired"]) {
             weakSelf.pendingConfirmKey     = nil;
             weakSelf.pendingConfirmMessage = nil;
-            // vẫn lưu key nhưng hạn = quá khứ để hiển thị "hết hạn"
-            NSUserDefaults *d = [NSUserDefaults standardUserDefaults];
-            [d setObject:key forKey:kDefKey];
-            [d setDouble:[[NSDate date] timeIntervalSince1970] - 1 forKey:kDefExpiry];
+            [weakSelf _kcWrite:key account:kKCAccKey];
+            NSDate *past = [NSDate dateWithTimeIntervalSinceNow:-1];
+            [weakSelf _kcWrite:[@([past timeIntervalSince1970]) stringValue] account:kKCAccExp];
             finish(NO, message.length ? message : @"Key đã hết hạn.");
+
         } else {
             weakSelf.pendingConfirmKey     = nil;
             weakSelf.pendingConfirmMessage = nil;
-            // Server từ chối dứt khoát (sai máy / không tồn tại / bị khoá):
-            // XOÁ trạng thái đã lưu để backup mang sang máy khác không còn "active" giả.
             if ([code isEqualToString:@"device_mismatch"] ||
                 [code isEqualToString:@"not_found"]       ||
                 [code isEqualToString:@"banned"]          ||
-                [code isEqualToString:@"wrong_type"]) {   // key proxy-only, không dùng được trên IPA
+                [code isEqualToString:@"wrong_type"]) {
                 [weakSelf clearStored];
             }
             finish(NO, message.length ? message : @"Key không hợp lệ.");
@@ -275,25 +359,25 @@ static BOOL sIsHardwareUDID = NO;   // đọc được UDID thật hay không
     [task resume];
 }
 
-- (void)resetBindForKey:(NSString *)key adminPass:(NSString *)pass completion:(void (^)(BOOL, NSString *))completion {
+- (void)resetBindForKey:(NSString *)key adminPass:(NSString *)pass
+            completion:(void (^)(BOOL, NSString *))completion {
     NSString *k = [key stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
     NSString *p = [pass stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
     if (k.length == 0 || p.length == 0) {
-        if (completion) completion(NO, @"Nhập đủ key và mật khẩu admin.");
-        return;
+        if (completion) completion(NO, @"Nhập đủ key và mật khẩu admin."); return;
     }
-
-    NSMutableURLRequest *req = [NSMutableURLRequest requestWithURL:[NSURL URLWithString:EndpointResetBind()]];
+    NSMutableURLRequest *req = [NSMutableURLRequest requestWithURL:
+                                [NSURL URLWithString:EndpointResetBind()]];
     req.HTTPMethod = @"POST";
     req.timeoutInterval = 15;
     [req setValue:@"application/x-www-form-urlencoded" forHTTPHeaderField:@"Content-Type"];
-    NSString *rawResetBody = [NSString stringWithFormat:@"key_code=%@&admin_pass=%@",
-                              [self urlEncode:k], [self urlEncode:p]];
-    NSString *signedResetBody = [[SecurityPinning shared] signedBody:rawResetBody];
-    req.HTTPBody = [signedResetBody dataUsingEncoding:NSUTF8StringEncoding];
+    NSString *rawBody = [NSString stringWithFormat:@"key_code=%@&admin_pass=%@",
+                         [self urlEncode:k], [self urlEncode:p]];
+    NSString *signedBody = [[SecurityPinning shared] signedBody:rawBody];
+    req.HTTPBody = [signedBody dataUsingEncoding:NSUTF8StringEncoding];
 
-    NSURLSessionDataTask *task = [[SecurityPinning shared].pinnedSession dataTaskWithRequest:req
-        completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
+    NSURLSessionDataTask *task = [[SecurityPinning shared].pinnedSession
+        dataTaskWithRequest:req completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
         void (^finish)(BOOL, NSString *) = ^(BOOL ok, NSString *msg) {
             dispatch_async(dispatch_get_main_queue(), ^{ if (completion) completion(ok, msg); });
         };
@@ -308,25 +392,22 @@ static BOOL sIsHardwareUDID = NO;   // đọc được UDID thật hay không
 
 - (void)confirmPendingActivationWithCompletion:(void (^)(BOOL, NSString *))completion {
     NSString *key = self.pendingConfirmKey;
-    if (!key) {
-        if (completion) completion(NO, @"Không có key chờ xác nhận.");
-        return;
-    }
+    if (!key) { if (completion) completion(NO, @"Không có key chờ xác nhận."); return; }
     self.pendingConfirmKey     = nil;
     self.pendingConfirmMessage = nil;
     [self postKey:key confirm:YES completion:completion];
 }
 
 - (void)clearStored {
-    NSUserDefaults *d = [NSUserDefaults standardUserDefaults];
-    [d removeObjectForKey:kDefKey];
-    [d removeObjectForKey:kDefExpiry];
+    [self _kcDelete:kKCAccKey];
+    [self _kcDelete:kKCAccExp];
+    // Không xoá kKCAccUDID — UDID hardware không liên quan đến key
 }
 
 - (NSString *)urlEncode:(NSString *)s {
     NSCharacterSet *allowed = [NSCharacterSet characterSetWithCharactersInString:
                                @"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_.~"];
-    return [s stringByAddingPercentEncodingWithAllowedCharacters:allowed];
+    return [s stringByAddingPercentEncodingWithAllowedCharacters:allowed] ?: @"";
 }
 
 @end
