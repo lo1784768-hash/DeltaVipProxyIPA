@@ -1,144 +1,150 @@
-# IMGUIDELTA - iOS File Manager (Xcode Version)
+# DELTA PROXY (IMGUIDELTA)
 
-A file system browser for iOS with sandbox escape capabilities, built using **Xcode + XcodeGen**.
+> **Fork / build on top of** [`darksword-kexploit-fun`](https://github.com/lo1784768-hash/darksword-kexploit-fun) bởi **seo** — kernel exploit OPA334/ICMPv6 cho iOS 17–26.
 
-## Features
+Ứng dụng iOS standalone (không cần jailbreak, không cần Substrate/Theos) cho phép quản lý file và áp dụng các bản vá game trực tiếp từ thiết bị, thông qua sandbox escape kernel-level.
 
-- Browse file system across sandboxed containers
-- Access app data containers, shared app groups, and system directories
-- Built on sandbox escape techniques for iOS 15+
-- Modern Xcode build system
+---
 
-## Requirements
+## Nguồn gốc & Attribution
 
-- macOS 12+ with Xcode
-- iOS SDK 15.0+
-- XcodeGen (optional - can generate Xcode project)
+| Thành phần | Nguồn gốc | Tác giả |
+|---|---|---|
+| `kexploit/` — OPA334/ICMPv6 kernel exploit | [`darksword-kexploit-fun`](https://github.com/lo1784768-hash/darksword-kexploit-fun) | **seo** |
+| `sandbox_escape.m` — kernel memory patching | [`18.3_sandbox/root.m`](https://github.com/CrazyMind90) | **CrazyMind90** |
+| `XPF/` — kernel patchfinder | XPF framework | open-source |
+| `XPF/external/ChOma/` — MachO/dyld utilities | [ChOma](https://github.com/opa334/ChOma) | **opa334** |
+| `Sources/` — HUD, AutoPaste, VirtualFS, Key system | IMGUIDELTA | project này |
+
+Mọi thành phần bên ngoài đều là **open-source** và được tích hợp nguyên trạng hoặc có ghi chú rõ ràng tại đầu file.
+
+---
+
+## Ứng dụng làm gì (minh bạch)
+
+### 1. Sandbox Escape — truy cập container của app khác
+
+**iOS 17.0 → 26.0.x (Cơ chế B):**
+```
+kexploit_opa334()       ← OPA334/ICMPv6 kernel exploit → kernel R/W primitives
+sandbox_escape()        ← patch proc → ucred → cr_label → sandbox ext_set
+                           ghi "/" vào 16 hash slot → filesystem R+W toàn phần
+```
+
+**iOS 26.1+ (Cơ chế A):**
+```
+libsystem_containermanager.dylib
+  container_copy_sandbox_token()
+  container_object_sandbox_extension_activate()
+  → MCM trực tiếp, không cần kernel exploit
+```
+
+### 2. Virtual FileSystem
+
+Sau khi escape, build cây symlink tại `~/Documents/Device Storage/`:
+```
+[MHA-C2] App Data/
+    com.dts.freefireth   → /var/mobile/Containers/Data/Application/{UUID}/
+    com.dts.freefiremax  → /var/mobile/Containers/Data/Application/{UUID}/
+[MHA-C7] App Groups/
+[MHA-C10] Service Data/
+...
+```
+Container path tìm bằng 3 lớp fallback: scan metadata plist → MCM C API → LSApplicationProxy.
+
+### 3. DELTA PROXY HUD
+
+Overlay HUD (3 tab) cho phép bật/tắt các bản vá:
+
+| Tab | Màu | Chức năng |
+|---|---|---|
+| Proxy | Cyan | Body, Cổ V1/V2, Drag, Magic, Speed Hack, Fake Dame |
+| Định Vị | Green | Định Vị Xanh/Đỏ/Hồng |
+| Mod NV | Purple | Mod Skin (Maro, Alok V1-V8, Hayato, Dimitri) |
+
+Mỗi bản vá:
+- Download file từ server qua HTTPS (HMAC-SHA256 signed, SSL pinned)
+- Tìm file đệ quy trong container game theo tên
+- Ghi đè tại chỗ (không cần restart thiết bị, chỉ cần restart game)
+
+### 4. Key System
+
+- License key kiểm tra qua HTTPS endpoint
+- UDID = `identifierForVendor` (bind key vào thiết bị)
+- Key hết hạn → tự cập nhật status `expired`
+
+---
+
+## iOS Support
+
+| iOS | Cơ chế |
+|---|---|
+| < 17.0 | ❌ Không hỗ trợ |
+| 17.0 – 26.0.x | ✅ kexploit_opa334 + sandbox_escape |
+| 26.1+ | ✅ MCM direct (không exploit) |
+
+---
 
 ## Build
 
-### Using XcodeGen (Recommended)
-
 ```sh
-# Install XcodeGen if not present
+# Yêu cầu: macOS + Xcode, XcodeGen
 brew install xcodegen
 
-# Generate Xcode project
+# Tạo project
 xcodegen generate
 
-# Build app
-xcodebuild -scheme IMGUIDELTA -configuration Release build
+# Build
+xcodebuild -scheme IMGUIDELTA -configuration Release \
+  -destination 'generic/platform=iOS' build
 ```
 
-### Using Xcode GUI
-
+Đóng gói IPA:
 ```sh
-# Generate project
-xcodegen generate
-
-# Open in Xcode
-open IMGUIDELTA.xcodeproj
-
-# Build: Cmd+B
-```
-
-## Output
-
-Built app will be in:
-```
-build/Release-iphoneos/IMGUIDELTA.app
-```
-
-## Packaging to IPA
-
-```sh
-# Create IPA from built app
 mkdir -p Payload
 cp -r build/Release-iphoneos/IMGUIDELTA.app Payload/
 zip -r IMGUIDELTA-unsigned.ipa Payload/
 ```
 
-## Signing & Installation
-
-Use `esign` to sign the IPA:
-
+Ký và cài:
 ```sh
-esign -s <certificate.p12>:<password> \
-       -p <provisioning.mobileprovision> \
-       -o IMGUIDELTA-signed.ipa \
-       IMGUIDELTA-unsigned.ipa
+# esign, Sideloadly, AltStore, TrollStore
+esign -s cert.p12:password -p prov.mobileprovision \
+  -o IMGUIDELTA-signed.ipa IMGUIDELTA-unsigned.ipa
 ```
 
-Then install via:
-- Sideloadly
-- AltStore
-- TrollStore (jailbroken devices)
+---
 
-## Project Structure
+## Cấu trúc Project
 
 ```
 IMGUIDELTA/
-├── project.yml              # XcodeGen config
-├── Sources/                 # Objective-C app source
-│   ├── main.m
+├── Sources/                    # Objective-C app
 │   ├── AppDelegate.{h,m}
-│   └── FileManagerViewController.{h,m}
-│
-├── IMGUIDELTA/              # App resources
-│   └── IMGUIDELTA.entitlements
-│
-├── kexploit/                # Kernel exploit code (from FilzaSlop)
-├── kpf/                     # Kernel patchfinder
-├── XPF/                     # XPF kernel framework
-├── utils/                   # Utility functions
-└── compat/                  # Compatibility headers
+│   ├── HUDControlViewController.{h,m}  # HUD 3 tab
+│   ├── AutoPasteManager.{h,m}          # Download & ghi file mod
+│   ├── SandboxEscapeManager.{h,m}      # Chọn cơ chế A/B
+│   ├── sandbox_escape.{h,m}            # Kernel memory patching
+│   ├── MCMFilzaIntegration.{h,m}       # MCM + sandbox token
+│   ├── VirtualFileSystemBuilder.{h,m}  # Symlink tree
+│   ├── KeyManager.{h,m}                # License key
+│   ├── SecurityPinning.{h,m}           # SSL pinning + HMAC
+│   └── ...
+├── kexploit/                   # OPA334 kernel exploit (darksword-kexploit-fun/seo)
+├── XPF/                        # Kernel patchfinder
+│   └── external/ChOma/         # MachO utilities (opa334)
+├── kpf/                        # Kernel patchfinder helpers
+├── utils/                      # C utilities
+├── compat/                     # Compatibility headers
+└── project.yml                 # XcodeGen config
 ```
 
-## Customization
-
-### Change App Appearance
-
-Edit `Sources/FileManagerViewController.m` to modify UI.
-
-### Modify Entitlements
-
-Edit `IMGUIDELTA/IMGUIDELTA.entitlements` to change sandbox permissions.
-
-### Update Bundle ID
-
-Edit `project.yml`:
-```yaml
-options:
-  bundleIdPrefix: your.custom.id
-```
-
-Then regenerate:
-```sh
-xcodegen generate
-```
-
-## Troubleshooting
-
-### XcodeGen not found
-
-```sh
-brew install xcodegen
-```
-
-### Project generation fails
-
-```sh
-xcodegen generate --verbose
-```
-
-### Build fails with missing frameworks
-
-Check `project.yml` dependencies section matches your Xcode version.
-
-## GitHub Actions Build
-
-Automatic builds triggered on push to `main` branch. See `.github/workflows/` for CI/CD config.
+---
 
 ## License
 
-MIT
+Code gốc của project (`Sources/`) — **MIT**.  
+`kexploit/` — giữ nguyên license của `darksword-kexploit-fun`.  
+`XPF/external/ChOma/` — giữ nguyên license của ChOma (MIT).
+
+Xem chi tiết tại từng thư mục.
