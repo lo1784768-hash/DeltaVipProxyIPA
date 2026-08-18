@@ -302,6 +302,24 @@
 
     // Chặn bản cũ: bắt buộc cập nhật nếu app cũ hơn min_version
     [UpdateGate checkFromViewController:self];
+
+    // Cập nhật support label khi đổi ngôn ngữ
+    [[NSNotificationCenter defaultCenter] addObserver:self
+        selector:@selector(refreshLocalizedStrings)
+        name:LMLanguageChangedNotification object:nil];
+}
+
+- (void)refreshLocalizedStrings {
+    // Cập nhật label "Supported" / "Not Supported" (tag 998)
+    BOOL supported = [self isIOSSupported];
+    UILabel *supportLabel = (UILabel *)[self.statsView viewWithTag:998];
+    if (supportLabel) {
+        supportLabel.text = supported
+            ? LS(@"Có Hỗ Trợ", @"Supported")
+            : LS(@"Chưa Hỗ Trợ", @"Not Supported");
+    }
+    // Refresh keyBar labels
+    [self.keyBar update];
 }
 
 #pragma mark - License key
@@ -590,12 +608,12 @@
                                  symbol:@"iphone" tint:BRAND_CYAN valueColor:BRAND_MUTED labelTag:0];
 
     BOOL supported = [self isIOSSupported];
-    NSString *supportText   = supported ? @"Supported" : @"Not Supported";
+    NSString *supportText   = supported ? LS(@"Có Hỗ Trợ", @"Supported") : LS(@"Chưa Hỗ Trợ", @"Not Supported");
     NSString *supportSymbol = supported ? @"checkmark.shield.fill" : @"xmark.shield.fill";
     UIColor  *supportTint   = supported
         ? [UIColor colorWithRed:0.2 green:0.85 blue:0.4 alpha:1.0]   // xanh lá
         : [UIColor colorWithRed:1.0 green:0.55 blue:0.0 alpha:1.0];  // cam
-    UIView *supportRow = [self statRowText:supportText symbol:supportSymbol tint:supportTint valueColor:supportTint labelTag:0];
+    UIView *supportRow = [self statRowText:supportText symbol:supportSymbol tint:supportTint valueColor:supportTint labelTag:998];
 
     UIStackView *stack = [[UIStackView alloc] initWithArrangedSubviews:@[iosRow, devRow, supportRow]];
     stack.axis = UILayoutConstraintAxisVertical;

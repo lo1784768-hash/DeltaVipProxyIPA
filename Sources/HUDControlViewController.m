@@ -31,8 +31,10 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 @interface HUDFeature : NSObject
 @property (nonatomic, copy)   NSString *symbol;
 @property (nonatomic, strong) UIColor  *tint;
-@property (nonatomic, copy)   NSString *title;
-@property (nonatomic, copy)   NSString *subtitle;
+@property (nonatomic, copy)   NSString *title;      // VI title (default)
+@property (nonatomic, copy)   NSString *subtitle;   // VI subtitle (default)
+@property (nonatomic, copy)   NSString *enTitle;    // EN title (nil = same as title)
+@property (nonatomic, copy)   NSString *enSubtitle; // EN subtitle (nil = same as subtitle)
 @property (nonatomic, copy)   NSString *featureKey;  // body/neck/drag/magic (gửi server)
 @property (nonatomic, copy)   NSString *fileName;    // tên file cần tìm & ghi đè
 @property (nonatomic, copy)   NSString *searchRoot;  // thư mục gốc để tìm (tương đối Documents)
@@ -61,12 +63,15 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 @property (nonatomic, strong) UIActivityIndicatorView *spinner;
 @property (nonatomic, strong) UILabel *statusDot;
 @property (nonatomic, strong) UIButton *previewButton;   // nil nếu không có ảnh preview
+@property (nonatomic, strong) UILabel *rowTitleLabel;    // để cập nhật khi đổi ngôn ngữ
+@property (nonatomic, strong) UILabel *rowSubtitleLabel; // để cập nhật khi đổi ngôn ngữ
 @property (nonatomic, copy)   void (^onChanged)(HUDFeatureRow *row, BOOL isOn);
 @property (nonatomic, copy)   void (^onPreviewTapped)(void);
 - (instancetype)initWithFeature:(HUDFeature *)feature;
 - (void)setLoading:(BOOL)loading;
 - (void)showResult:(BOOL)success;
 - (void)setActive:(BOOL)active;
+- (void)refreshLanguage;   // cập nhật VI/EN label khi ngôn ngữ thay đổi
 @end
 
 @implementation HUDFeatureRow
@@ -122,18 +127,20 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
         [_chip addSubview:symbol];
 
         UILabel *title = [[UILabel alloc] init];
-        title.text = feature.title;
         title.font = [UIFont systemFontOfSize:15 weight:UIFontWeightSemibold];
         title.textColor = HUD_TEXT;
         title.translatesAutoresizingMaskIntoConstraints = NO;
         [self addSubview:title];
+        self.rowTitleLabel = title;
 
         UILabel *subtitle = [[UILabel alloc] init];
-        subtitle.text = feature.subtitle;
         subtitle.font = [UIFont systemFontOfSize:11 weight:UIFontWeightRegular];
         subtitle.textColor = HUD_MUTED;
         subtitle.translatesAutoresizingMaskIntoConstraints = NO;
         [self addSubview:subtitle];
+        self.rowSubtitleLabel = subtitle;
+
+        [self refreshLanguage];  // set initial text based on current language
 
         _statusDot = [[UILabel alloc] init];
         _statusDot.font = [UIFont systemFontOfSize:14 weight:UIFontWeightBold];
@@ -272,6 +279,14 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     self.statusDot.textColor = success ? HUD_GREEN : HUD_RED;
 }
 
+- (void)refreshLanguage {
+    BOOL en = ([LanguageManager shared].language == AppLanguageEnglish);
+    self.rowTitleLabel.text    = (en && self.feature.enTitle.length)
+        ? self.feature.enTitle    : self.feature.title;
+    self.rowSubtitleLabel.text = (en && self.feature.enSubtitle.length)
+        ? self.feature.enSubtitle : self.feature.subtitle;
+}
+
 @end
 
 #pragma mark - HUD Control View Controller
@@ -289,9 +304,11 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 // ── Tab UI ──
 @property (nonatomic, strong) NSArray<UIButton *> *tabButtons;   // 3 tab pills
 @property (nonatomic, strong) NSArray<UIColor *>  *tabTints;     // per-tab neon color
-@property (nonatomic, strong) UIView *panelProxy;
-@property (nonatomic, strong) UIView *panelDinhVi;
-@property (nonatomic, strong) UIView *panelModNV;
+@property (nonatomic, strong) UIView  *panelProxy;
+@property (nonatomic, strong) UIView  *panelDinhVi;
+@property (nonatomic, strong) UIView  *panelModNV;
+@property (nonatomic, strong) UILabel *panelDinhViTitleLabel;  // để cập nhật ngôn ngữ
+@property (nonatomic, strong) UILabel *panelModNVTitleLabel;   // để cập nhật ngôn ngữ
 @end
 
 // Private API để mở app game theo bundle id
@@ -479,7 +496,8 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     }
 
     if (!ok) {
-        [self setStatus:@"⚠️ Không mở được game (mở tay giúp mình nhé)" color:HUD_RED];
+        [self setStatus:LS(@"⚠️ Không mở được game (mở tay giúp mình nhé)",
+                          @"⚠️ Could not open game — please open it manually") color:HUD_RED];
     }
 }
 
@@ -733,13 +751,16 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 
     self.panelProxy  = [self buildPanelWithTitle:@"PROXY DELTA VIP"
                                           symbol:@"bolt.fill"              tint:HUD_CYAN   badge:@"AUTO"
-                                        features:[self proxyFeaturesForBundle:self.bundleID]];
+                                        features:[self proxyFeaturesForBundle:self.bundleID]
+                                  outTitleLabel:nil];
     self.panelDinhVi = [self buildPanelWithTitle:LS(@"ĐỊNH VỊ SÚNG", @"AIM BOT")
                                           symbol:@"location.fill"          tint:HUD_GREEN  badge:@"LIVE"
-                                        features:[self dinhViFeaturesForBundle:self.bundleID]];
+                                        features:[self dinhViFeaturesForBundle:self.bundleID]
+                                  outTitleLabel:&_panelDinhViTitleLabel];
     self.panelModNV  = [self buildPanelWithTitle:LS(@"MOD NHÂN VẬT", @"CHARACTER MOD")
                                           symbol:@"person.fill.badge.plus" tint:HUD_PURPLE badge:@"SOON"
-                                        features:[self modNVFeaturesForBundle:self.bundleID]];
+                                        features:[self modNVFeaturesForBundle:self.bundleID]
+                                  outTitleLabel:&_panelModNVTitleLabel];
 
     self.panelDinhVi.hidden = YES;
     self.panelModNV.hidden  = YES;
@@ -826,7 +847,8 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
                          symbol:(NSString *)symbol
                            tint:(UIColor *)tint
                           badge:(NSString *)badge
-                       features:(NSArray<HUDFeature *> *)features {
+                       features:(NSArray<HUDFeature *> *)features
+                 outTitleLabel:(UILabel **)outTitleLabel {
     UIView *panelWrap = [[UIView alloc] init];
     panelWrap.backgroundColor = [UIColor clearColor];
     panelWrap.layer.shadowColor = tint.CGColor;
@@ -881,6 +903,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     menuTitle.layer.shadowOffset = CGSizeZero;
     menuTitle.translatesAutoresizingMaskIntoConstraints = NO;
     [titleBar addSubview:menuTitle];
+    if (outTitleLabel) *outTitleLabel = menuTitle;
 
     UILabel *hint = [[UILabel alloc] init];
     hint.text = [NSString stringWithFormat:@"  %@  ", badge];
@@ -1041,24 +1064,33 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     NSString *rt = supported ? root : nil;
     NSString *(^k)(NSString *) = ^NSString *(NSString *key) { return supported ? key : nil; };
 
-    return @[
-        [self featureWithSymbol:@"figure.stand" tint:HUD_ORANGE title:@"Proxy Body" subtitle:@"Full Đỏ Xoá Máu Vàng"
-                     featureKey:k(@"body")  fileName:fn searchRoot:rt],
+    HUDFeature *body = [self featureWithSymbol:@"figure.stand" tint:HUD_ORANGE
+        title:@"Proxy Body" subtitle:@"Full Đỏ Xoá Máu Vàng"
+        featureKey:k(@"body") fileName:fn searchRoot:rt];
+    body.enTitle = @"Proxy Body"; body.enSubtitle = @"Full Red + Remove Yellow HP";
 
-        [self featureWithSymbol:@"camera.metering.center.weighted"
-                           tint:[UIColor colorWithRed:1.0 green:0.78 blue:0.25 alpha:1.0]
-                          title:@"Proxy Cổ V1" subtitle:@"Aim Cổ Ít Lộ Hơn"
-                     featureKey:k(@"chest") fileName:fn searchRoot:rt],
+    HUDFeature *coV1 = [self featureWithSymbol:@"camera.metering.center.weighted"
+        tint:[UIColor colorWithRed:1.0 green:0.78 blue:0.25 alpha:1.0]
+        title:@"Proxy Cổ V1" subtitle:@"Aim Cổ Ít Lộ Hơn"
+        featureKey:k(@"chest") fileName:fn searchRoot:rt];
+    coV1.enTitle = @"Proxy Neck V1"; coV1.enSubtitle = @"Neck Aim — Less Visible";
 
-        [self featureWithSymbol:@"scope"          tint:HUD_PINK   title:@"Proxy Cổ V2"  subtitle:@"Vùng Cổ Máu Đỏ To Hơn, Bám Hơn"
-                     featureKey:k(@"neck")  fileName:fn searchRoot:rt],
+    HUDFeature *coV2 = [self featureWithSymbol:@"scope" tint:HUD_PINK
+        title:@"Proxy Cổ V2" subtitle:@"Vùng Cổ Máu Đỏ To Hơn, Bám Hơn"
+        featureKey:k(@"neck") fileName:fn searchRoot:rt];
+    coV2.enTitle = @"Proxy Neck V2"; coV2.enSubtitle = @"Bigger Red Neck Zone, Stickier";
 
-        [self featureWithSymbol:@"hand.draw.fill" tint:HUD_CYAN   title:@"Proxy Drag"  subtitle:@"Hỗ Trợ Kéo Nhẹ Tâm Lên Đỉnh Đầu"
-                     featureKey:k(@"drag")  fileName:fn searchRoot:rt],
+    HUDFeature *drag = [self featureWithSymbol:@"hand.draw.fill" tint:HUD_CYAN
+        title:@"Proxy Drag" subtitle:@"Hỗ Trợ Kéo Nhẹ Tâm Lên Đỉnh Đầu"
+        featureKey:k(@"drag") fileName:fn searchRoot:rt];
+    drag.enTitle = @"Proxy Drag"; drag.enSubtitle = @"Soft Drag — Aim Pulls to Head";
 
-        [self featureWithSymbol:@"wand.and.stars" tint:HUD_PURPLE title:@"Proxy Magic" subtitle:@"Đạn Ma Thuật"
-                     featureKey:k(@"magic") fileName:fn searchRoot:rt],
-    ];
+    HUDFeature *magic = [self featureWithSymbol:@"wand.and.stars" tint:HUD_PURPLE
+        title:@"Proxy Magic" subtitle:@"Đạn Ma Thuật"
+        featureKey:k(@"magic") fileName:fn searchRoot:rt];
+    magic.enTitle = @"Proxy Magic"; magic.enSubtitle = @"Magic Bullet";
+
+    return @[body, coV1, coV2, drag, magic];
 }
 
 // ── Tab 2: Định Vị Súng ─────────────────────────────────────
@@ -1086,24 +1118,28 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
                                            title:@"Định Vị Súng Xanh" subtitle:@"Hiện Vị Trí Súng Trên Map"
                                       featureKey:k(@"dinhvixanh") fileName:sf searchRoot:rt];
     dvXanh.exclusive = NO;
+    dvXanh.enTitle = @"Blue Gun Locator"; dvXanh.enSubtitle = @"Show Gun Locations on Map";
 
     // Định Vị Súng Đỏ (cả 2 game)
     HUDFeature *dvDo = [self featureWithSymbol:@"location.fill.viewfinder" tint:HUD_RED
                                          title:@"Định Vị Súng Đỏ" subtitle:@"Hiện Vị Trí Súng Trên Map"
                                     featureKey:k(@"dinhvido") fileName:sf searchRoot:rt];
     dvDo.exclusive = NO;
+    dvDo.enTitle = @"Red Gun Locator"; dvDo.enSubtitle = @"Show Gun Locations on Map";
 
     // Định Vị Xanh Lá — chỉ FF Thường (folder dinhvihong, file TH)
     HUDFeature *dvXanhLa = [self featureWithSymbol:@"location.fill" tint:HUD_GREEN
                                              title:@"Định Vị Xanh Lá" subtitle:@"Hiện Vị Trí Súng Trên Map"
                                         featureKey:kTH(@"dinhvihong") fileName:(isTH ? sfTH : nil) searchRoot:rtTH];
     dvXanhLa.exclusive = NO;
+    dvXanhLa.enTitle = @"Green Locator"; dvXanhLa.enSubtitle = @"Show Gun Locations on Map";
 
     // Định Vị Hồng — chỉ FF Max (folder dinhvihong, file Max)
     HUDFeature *dvHong = [self featureWithSymbol:@"location.fill" tint:HUD_PINK
                                            title:@"Định Vị Hồng" subtitle:@"Hiện Vị Trí Súng Trên Map"
                                       featureKey:kMax(@"dinhvihong") fileName:(isMax ? sfMax : nil) searchRoot:rtMax];
     dvHong.exclusive = NO;
+    dvHong.enTitle = @"Pink Locator"; dvHong.enSubtitle = @"Show Gun Locations on Map";
 
     // Lọc theo game (tránh hiện "Bảo Trì" cho feature sai game)
     NSMutableArray *result = [NSMutableArray array];
@@ -1137,6 +1173,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
                                         searchRoot:rt];
     skinMaro.exclusive = YES; skinMaro.exclusiveGroup = @"skin";
     skinMaro.previewImageURL = @"https://getuid.vip/skin_previews/maro.jpg";
+    skinMaro.enSubtitle = @"Maro — One Punch Man Skin";
 
     NSString *alokFileTH  = @"optionalab_avatar_66.DfUs7MzeaoXWJ4jWN8zRBmYoY7Q~3D";
     NSString *alokFileMax = @"optionalab_avatar_66.CoOEgYl5yYUMEbFNIb8L3onAO6o~3D";
@@ -1151,6 +1188,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
                                           searchRoot:rt];
     skinAlokV1.exclusive = YES; skinAlokV1.exclusiveGroup = @"skin";
     skinAlokV1.previewImageURL = @"https://getuid.vip/skin_previews/skinalokv1.jpg";
+    skinAlokV1.enSubtitle = @"Alok Skin";
 
     // Mod Skin Alok V2
     HUDFeature *skinAlokV2 = [self featureWithSymbol:@"crown.fill" tint:HUD_CYAN
@@ -1158,6 +1196,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
                                           featureKey:kTH(@"skinalokv2") fileName:(isTH ? alokFileTH : nil) searchRoot:rtTH];
     skinAlokV2.exclusive = YES; skinAlokV2.exclusiveGroup = @"skin";
     skinAlokV2.previewImageURL = @"https://getuid.vip/skin_previews/skinalokv2.jpg";
+    skinAlokV2.enSubtitle = @"Alok Skin — Free Fire";
 
     // Mod Skin Alok V3
     HUDFeature *skinAlokV3 = [self featureWithSymbol:@"crown.fill" tint:HUD_PINK
@@ -1165,6 +1204,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
                                           featureKey:kTH(@"skinalokv3") fileName:(isTH ? alokFileTH : nil) searchRoot:rtTH];
     skinAlokV3.exclusive = YES; skinAlokV3.exclusiveGroup = @"skin";
     skinAlokV3.previewImageURL = @"https://getuid.vip/skin_previews/skinalokv3.jpg";
+    skinAlokV3.enSubtitle = @"Alok Skin — Free Fire";
 
     // Mod Skin Alok V4
     HUDFeature *skinAlokV4 = [self featureWithSymbol:@"crown.fill" tint:HUD_ORANGE
@@ -1172,6 +1212,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
                                           featureKey:kTH(@"skinalokv4") fileName:(isTH ? alokFileTH : nil) searchRoot:rtTH];
     skinAlokV4.exclusive = YES; skinAlokV4.exclusiveGroup = @"skin";
     skinAlokV4.previewImageURL = @"https://getuid.vip/skin_previews/skinalokv4.jpg";
+    skinAlokV4.enSubtitle = @"Alok Skin — Free Fire";
 
     // Mod Skin Alok V5
     HUDFeature *skinAlokV5 = [self featureWithSymbol:@"crown.fill" tint:HUD_GREEN
@@ -1179,6 +1220,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
                                           featureKey:kTH(@"skinalokv5") fileName:(isTH ? alokFileTH : nil) searchRoot:rtTH];
     skinAlokV5.exclusive = YES; skinAlokV5.exclusiveGroup = @"skin";
     skinAlokV5.previewImageURL = @"https://getuid.vip/skin_previews/skinalokv5.jpg";
+    skinAlokV5.enSubtitle = @"Alok Skin — Free Fire";
 
     // Mod Skin Alok V6
     HUDFeature *skinAlokV6 = [self featureWithSymbol:@"crown.fill" tint:HUD_RED
@@ -1186,6 +1228,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
                                           featureKey:kTH(@"skinalokv6") fileName:(isTH ? alokFileTH : nil) searchRoot:rtTH];
     skinAlokV6.exclusive = YES; skinAlokV6.exclusiveGroup = @"skin";
     skinAlokV6.previewImageURL = @"https://getuid.vip/skin_previews/skinalokv6.jpg";
+    skinAlokV6.enSubtitle = @"Alok Skin — Free Fire";
 
     // Mod Skin Alok V7
     HUDFeature *skinAlokV7 = [self featureWithSymbol:@"crown.fill" tint:HUD_MUTED
@@ -1193,6 +1236,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
                                           featureKey:kTH(@"skinalokv7") fileName:(isTH ? alokFileTH : nil) searchRoot:rtTH];
     skinAlokV7.exclusive = YES; skinAlokV7.exclusiveGroup = @"skin";
     skinAlokV7.previewImageURL = @"https://getuid.vip/skin_previews/skinalokv7.jpg";
+    skinAlokV7.enSubtitle = @"Alok Skin — Free Fire";
 
     // Mod Skin Alok V8
     HUDFeature *skinAlokV8 = [self featureWithSymbol:@"crown.fill" tint:HUD_PURPLE
@@ -1200,6 +1244,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
                                           featureKey:kTH(@"skinalokv8") fileName:(isTH ? alokFileTH : nil) searchRoot:rtTH];
     skinAlokV8.exclusive = YES; skinAlokV8.exclusiveGroup = @"skin";
     skinAlokV8.previewImageURL = @"https://getuid.vip/skin_previews/skinalokv8.jpg";
+    skinAlokV8.enSubtitle = @"Alok Skin — Free Fire";
 
     // Mod Skin Hayato V1 (chỉ FF Max)
     HUDFeature *skinHayatoV1 = [self featureWithSymbol:@"flame.fill"
@@ -1211,6 +1256,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
                                             searchRoot:rtMax];
     skinHayatoV1.exclusive = YES; skinHayatoV1.exclusiveGroup = @"skin";
     skinHayatoV1.previewImageURL = @"https://getuid.vip/skin_previews/skinhayatov1.jpg";
+    skinHayatoV1.enSubtitle = @"Hayato Skin — Free Fire Max";
 
     // Mod Skin Dimitri V1 (chỉ FF Max)
     HUDFeature *skinDimitriV1 = [self featureWithSymbol:@"waveform.path"
@@ -1222,6 +1268,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
                                              searchRoot:rtMax];
     skinDimitriV1.exclusive = YES; skinDimitriV1.exclusiveGroup = @"skin";
     skinDimitriV1.previewImageURL = @"https://getuid.vip/skin_previews/skindimitriv1.jpg";
+    skinDimitriV1.enSubtitle = @"Dimitri Skin — Free Fire Max";
 
     // Chỉ trả features phù hợp với game đang chạy (tránh hiện "Bảo Trì" cho skin sai game)
     NSMutableArray *result = [NSMutableArray array];
@@ -1341,6 +1388,16 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
         }];
         btn.configuration = conf;
     }
+
+    // Panel header titles (DinhVi + ModNV)
+    self.panelDinhViTitleLabel.text = LS(@"ĐỊNH VỊ SÚNG", @"AIM BOT");
+    self.panelModNVTitleLabel.text  = LS(@"MOD NHÂN VẬT", @"CHARACTER MOD");
+
+    // Feature row title + subtitle
+    for (HUDFeatureRow *row in self.rows) {
+        [row refreshLanguage];
+    }
+
     // Nút mở game
     [self.openGameButton setTitle:LS(@"▶  MỞ GAME", @"▶  OPEN GAME") forState:UIControlStateNormal];
     // Status label (chỉ reset khi đang ở trạng thái idle)

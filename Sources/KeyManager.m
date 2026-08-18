@@ -2,6 +2,7 @@
 #import "Endpoints.h"
 #import "SecurityPinning.h"
 #import "SecurityGuard.h"
+#import "LanguageManager.h"
 #import <UIKit/UIKit.h>
 #import <Security/Security.h>
 #import <dlfcn.h>
@@ -136,15 +137,15 @@ static BOOL sIsHardwareUDID = NO;
 
 - (NSString *)formattedRemaining {
     NSTimeInterval s = [self secondsLeft];
-    if (self.state == KeyStateNone) return @"Key not activated";
-    if (s <= 0) return @"Expired";
+    if (self.state == KeyStateNone) return LS(@"Chưa kích hoạt key", @"Key not activated");
+    if (s <= 0) return LS(@"Đã hết hạn", @"Expired");
     long total = (long)s;
     long days  = total / 86400;
     long hours = (total % 86400) / 3600;
     long mins  = (total % 3600) / 60;
-    if (days > 0)  return [NSString stringWithFormat:@"%ld day(s) %ld hr left", days, hours];
-    if (hours > 0) return [NSString stringWithFormat:@"%ld hr %ld min left", hours, mins];
-    return [NSString stringWithFormat:@"%ld min left", mins];
+    if (days > 0)  return [NSString stringWithFormat:LS(@"Còn %ld ngày %ld giờ", @"%ld day(s) %ld hr left"), days, hours];
+    if (hours > 0) return [NSString stringWithFormat:LS(@"Còn %ld giờ %ld phút", @"%ld hr %ld min left"), hours, mins];
+    return [NSString stringWithFormat:LS(@"Còn %ld phút", @"%ld min left"), mins];
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
