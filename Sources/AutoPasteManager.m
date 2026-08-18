@@ -34,14 +34,14 @@
           completion:(void (^)(BOOL success, NSString *message))completion {
 
     if (feature.length == 0 || fileName.length == 0) {
-        [self finish:completion ok:NO msg:@"⚠️ Chưa cấu hình chức năng"];
+        [self finish:completion ok:NO msg:@"⚠️ Feature not configured"];
         return;
     }
 
     NSString *key  = [KeyManager shared].keyCode;
     NSString *udid = [[KeyManager shared] deviceUDID];
     if (key.length == 0) {
-        [self finish:completion ok:NO msg:@"🔒 Chưa có license key"];
+        [self finish:completion ok:NO msg:@"🔒 No license key"];
         return;
     }
 
@@ -70,7 +70,7 @@
         completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
 
         if (error || !data) {
-            [self finish:completion ok:NO msg:@"⚠️ Lỗi Từ Phía Delta, Liên Hệ Seller / Admin Hỗ Trợ"];
+            [self finish:completion ok:NO msg:@"⚠️ Delta server error — contact seller / admin for support"];
             return;
         }
 
@@ -80,13 +80,13 @@
         if (code != 200) {
             NSDictionary *j = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
             NSString *msg = ([j isKindOfClass:[NSDictionary class]] ? j[@"message"] : nil)
-                            ?: @"🔒 Key không hợp lệ / hết hạn";
+                            ?: @"🔒 Invalid / expired key";
             [self finish:completion ok:NO msg:msg];
             return;
         }
 
         if (data.length == 0) {
-            [self finish:completion ok:NO msg:@"⚠️ Lỗi Từ Phía Delta, Liên Hệ Seller / Admin Hỗ Trợ"];
+            [self finish:completion ok:NO msg:@"⚠️ Delta server error — contact seller / admin for support"];
             return;
         }
 
@@ -112,7 +112,7 @@
         }
 
         if (matches.count == 0) {
-            [self finish:completion ok:NO msg:@"❌ Không Tìm Thấy Ở Thiết Bị Này, Vui Lòng Kiểm Tra Lại"];
+            [self finish:completion ok:NO msg:@"❌ File not found on this device — please check game installation"];
             return;
         }
 
@@ -124,7 +124,7 @@
         if (okCount > 0) {
             [self finish:completion ok:YES msg:@"OK"];
         } else {
-            [self finish:completion ok:NO msg:@"❌ Ghi file thất bại"];
+            [self finish:completion ok:NO msg:@"❌ Failed to write file"];
         }
     });
 }

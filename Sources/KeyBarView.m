@@ -15,7 +15,6 @@
 @property (nonatomic, strong) UILabel  *subLabel;
 @property (nonatomic, strong) UIButton *addButton;
 @property (nonatomic, strong) UIButton *infoButton;
-@property (nonatomic, strong) UIButton *langButton;   // nút đổi ngôn ngữ VI / EN
 @property (nonatomic, strong) UIView   *topLine;
 @property (nonatomic, strong) CAGradientLayer *addGradient;
 @property (nonatomic, strong) CAGradientLayer *lineGradient;
@@ -41,7 +40,6 @@
 }
 
 - (void)onLanguageChanged {
-    [self updateLangButton];
     [self update];
 }
 
@@ -102,18 +100,6 @@
     [_infoButton addTarget:self action:@selector(infoTapped) forControlEvents:UIControlEventTouchUpInside];
     [self addSubview:_infoButton];
 
-    // Language toggle button — VI / EN
-    _langButton = [UIButton buttonWithType:UIButtonTypeSystem];
-    _langButton.layer.cornerRadius = 8;
-    _langButton.layer.cornerCurve = kCACornerCurveContinuous;
-    _langButton.layer.borderColor = [UIColor colorWithWhite:1 alpha:0.18].CGColor;
-    _langButton.layer.borderWidth = 1;
-    _langButton.clipsToBounds = YES;
-    _langButton.translatesAutoresizingMaskIntoConstraints = NO;
-    [_langButton addTarget:self action:@selector(langTapped) forControlEvents:UIControlEventTouchUpInside];
-    [self addSubview:_langButton];
-    [self updateLangButton];
-
     [NSLayoutConstraint activateConstraints:@[
         [_topLine.topAnchor constraintEqualToAnchor:self.topAnchor],
         [_topLine.leadingAnchor constraintEqualToAnchor:self.leadingAnchor],
@@ -140,13 +126,8 @@
         [_infoButton.widthAnchor constraintEqualToConstant:32],
         [_infoButton.heightAnchor constraintEqualToConstant:36],
 
-        [_langButton.trailingAnchor constraintEqualToAnchor:_infoButton.leadingAnchor constant:-4],
-        [_langButton.centerYAnchor constraintEqualToAnchor:_addButton.centerYAnchor],
-        [_langButton.widthAnchor constraintEqualToConstant:36],
-        [_langButton.heightAnchor constraintEqualToConstant:28],
-
-        [_titleLabel.trailingAnchor constraintLessThanOrEqualToAnchor:_langButton.leadingAnchor constant:-8],
-        [_subLabel.trailingAnchor constraintLessThanOrEqualToAnchor:_langButton.leadingAnchor constant:-8],
+        [_titleLabel.trailingAnchor constraintLessThanOrEqualToAnchor:_infoButton.leadingAnchor constant:-8],
+        [_subLabel.trailingAnchor constraintLessThanOrEqualToAnchor:_infoButton.leadingAnchor constant:-8],
     ]];
 }
 
@@ -189,19 +170,6 @@
     }
 }
 
-- (void)updateLangButton {
-    LanguageManager *lm = [LanguageManager shared];
-    // Hiển thị ngôn ngữ HIỆN TẠI — tap để chuyển sang ngôn ngữ kia
-    NSString *label = (lm.language == AppLanguageVietnamese) ? @"VI" : @"EN";
-    UIColor  *tint  = (lm.language == AppLanguageVietnamese) ? KB_CYAN : KB_GREEN;
-    UIButtonConfiguration *c = [UIButtonConfiguration plainButtonConfiguration];
-    c.attributedTitle = [[NSAttributedString alloc] initWithString:label attributes:@{
-        NSFontAttributeName: [UIFont monospacedSystemFontOfSize:11 weight:UIFontWeightBold],
-        NSForegroundColorAttributeName: tint
-    }];
-    _langButton.configuration = c;
-}
-
 - (void)glowDot:(UIColor *)color {
     if (color) {
         _dot.layer.shadowColor = color.CGColor;
@@ -226,12 +194,6 @@
 
 - (void)infoTapped {
     if (self.onInfoTapped) self.onInfoTapped();
-}
-
-- (void)langTapped {
-    LanguageManager *lm = [LanguageManager shared];
-    lm.language = (lm.language == AppLanguageVietnamese) ? AppLanguageEnglish : AppLanguageVietnamese;
-    // LMLanguageChangedNotification → onLanguageChanged → updateLangButton + update
 }
 
 @end

@@ -13,6 +13,7 @@
 #import "BrandTheme.h"
 #import "AppPaths.h"
 #import "UpdateGate.h"
+#import "LanguageManager.h"
 #import <sys/sysctl.h>
 
 #pragma mark - GlassView (frosted card khớp web)
@@ -205,7 +206,7 @@
     // Display name mapping
     self.appDisplayNames = @{
         @"com.dts.freefiremax": @"Free Fire Max",
-        @"com.dts.freefireth": @"Free Fire Thường"
+        @"com.dts.freefireth": @"Free Fire"
     };
 
     // Custom image mapping - specific filenames
@@ -308,30 +309,30 @@
 - (void)promptAddKey {
     KeyManager *km = [KeyManager shared];
     NSString *udid = [km deviceUDID];
-    NSString *msg  = [NSString stringWithFormat:@"Dán key để kích hoạt.\n\nThiết bị này:\n%@", udid];
+    NSString *msg  = [NSString stringWithFormat:LS(@"Dán key để kích hoạt.\n\nThiết bị này:\n%@",
+                                                    @"Paste key to activate.\n\nThis device:\n%@"), udid];
 
     UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"License Key"
                                                                   message:msg
                                                            preferredStyle:UIAlertControllerStyleAlert];
     [alert addTextFieldWithConfigurationHandler:^(UITextField *tf) {
-        tf.placeholder = @"Nhập / dán key…";
+        tf.placeholder = LS(@"Nhập / dán key…", @"Enter / paste key…");
         tf.autocapitalizationType = UITextAutocapitalizationTypeAllCharacters;
         tf.clearButtonMode = UITextFieldViewModeWhileEditing;
         tf.text = [KeyManager shared].keyCode;
     }];
 
     __weak typeof(self) weakSelf = self;
-    [alert addAction:[UIAlertAction actionWithTitle:@"Kích hoạt" style:UIAlertActionStyleDefault handler:^(UIAlertAction *a) {
+    [alert addAction:[UIAlertAction actionWithTitle:LS(@"Kích hoạt", @"Activate") style:UIAlertActionStyleDefault handler:^(UIAlertAction *a) {
         NSString *key = alert.textFields.firstObject.text;
         [[KeyManager shared] activateKey:key completion:^(BOOL success, NSString *message) {
             KeyManager *km = [KeyManager shared];
             if (!success && km.pendingConfirmKey) {
-                // Server yêu cầu xác nhận chuyển key vĩnh viễn → 3 tháng
                 UIAlertController *confirm = [UIAlertController
-                    alertControllerWithTitle:@"⚠️ Thông Báo Quan Trọng"
+                    alertControllerWithTitle:LS(@"⚠️ Thông Báo Quan Trọng", @"⚠️ Important Notice")
                                     message:km.pendingConfirmMessage
                              preferredStyle:UIAlertControllerStyleAlert];
-                [confirm addAction:[UIAlertAction actionWithTitle:@"Đồng Ý"
+                [confirm addAction:[UIAlertAction actionWithTitle:LS(@"Đồng Ý", @"Agree")
                                                            style:UIAlertActionStyleDefault
                                                          handler:^(UIAlertAction *ca) {
                     [[KeyManager shared] confirmPendingActivationWithCompletion:^(BOOL ok, NSString *msg) {
@@ -339,7 +340,7 @@
                         [weakSelf toast:msg success:ok];
                     }];
                 }]];
-                [confirm addAction:[UIAlertAction actionWithTitle:@"Huỷ"
+                [confirm addAction:[UIAlertAction actionWithTitle:LS(@"Huỷ", @"Cancel")
                                                            style:UIAlertActionStyleCancel
                                                          handler:nil]];
                 [weakSelf presentViewController:confirm animated:YES completion:nil];
@@ -349,11 +350,11 @@
             }
         }];
     }]];
-    [alert addAction:[UIAlertAction actionWithTitle:@"Sao chép UDID" style:UIAlertActionStyleDefault handler:^(UIAlertAction *a) {
+    [alert addAction:[UIAlertAction actionWithTitle:LS(@"Sao chép UDID", @"Copy UDID") style:UIAlertActionStyleDefault handler:^(UIAlertAction *a) {
         [UIPasteboard generalPasteboard].string = udid;
-        [weakSelf toast:@"Đã sao chép UDID vào clipboard." success:YES];
+        [weakSelf toast:LS(@"Đã sao chép UDID vào clipboard.", @"Copied UDID to clipboard.") success:YES];
     }]];
-    [alert addAction:[UIAlertAction actionWithTitle:@"Đóng" style:UIAlertActionStyleCancel handler:nil]];
+    [alert addAction:[UIAlertAction actionWithTitle:LS(@"Đóng", @"Close") style:UIAlertActionStyleCancel handler:nil]];
     [self presentViewController:alert animated:YES completion:nil];
 }
 
@@ -361,35 +362,38 @@
     KeyManager *km = [KeyManager shared];
     NSString *udid = [km deviceUDID];
     NSString *udidSrc;
-    if (km.usingHardwareUDID)              udidSrc = @"UDID phần cứng (MobileGestalt)";
-    else if ([udid hasPrefix:@"IV-"])      udidSrc = @"Vendor ID (eSign ổn định)";
-    else                                   udidSrc = @"ID Keychain (last resort)";
+    if (km.usingHardwareUDID)              udidSrc = LS(@"UDID phần cứng (MobileGestalt)", @"Hardware UDID (MobileGestalt)");
+    else if ([udid hasPrefix:@"IV-"])      udidSrc = LS(@"Vendor ID (eSign ổn định)", @"Vendor ID (eSign stable)");
+    else                                   udidSrc = @"Keychain UUID (last resort)";
     NSString *src = udidSrc;
-    NSString *msg  = [NSString stringWithFormat:@"Nguồn: %@\n\n%@\n\nGửi ID này cho admin khi cần mở khoá / chuyển máy.", src, udid];
+    NSString *msg  = [NSString stringWithFormat:
+        LS(@"Nguồn: %@\n\n%@\n\nGửi ID này cho admin khi cần mở khoá / chuyển máy.",
+           @"Source: %@\n\n%@\n\nSend this ID to admin when you need to unlock / transfer device."),
+        src, udid];
 
-    UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"🆔 ID Thiết Bị"
+    UIAlertController *alert = [UIAlertController alertControllerWithTitle:LS(@"🆔 ID Thiết Bị", @"🆔 Device ID")
                                                                   message:msg
                                                            preferredStyle:UIAlertControllerStyleAlert];
     __weak typeof(self) weakSelf = self;
-    [alert addAction:[UIAlertAction actionWithTitle:@"Sao chép ID" style:UIAlertActionStyleDefault handler:^(UIAlertAction *a) {
+    [alert addAction:[UIAlertAction actionWithTitle:LS(@"Sao chép ID", @"Copy ID") style:UIAlertActionStyleDefault handler:^(UIAlertAction *a) {
         [UIPasteboard generalPasteboard].string = udid;
-        [weakSelf toast:@"Đã sao chép ID thiết bị." success:YES];
+        [weakSelf toast:LS(@"Đã sao chép ID thiết bị.", @"Copied device ID.") success:YES];
     }]];
-    [alert addAction:[UIAlertAction actionWithTitle:@"Đóng" style:UIAlertActionStyleCancel handler:nil]];
+    [alert addAction:[UIAlertAction actionWithTitle:LS(@"Đóng", @"Close") style:UIAlertActionStyleCancel handler:nil]];
     [self presentViewController:alert animated:YES completion:nil];
 }
 
 - (void)showAdminReset {
-    UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"🔧 Admin — Gỡ khoá thiết bị"
-                                                                  message:@"Nhập key + mật khẩu admin để reset bind (thiết bị mới sẽ bind lại)."
+    UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"🔧 Admin — Unlock Device"
+                                                                  message:@"Enter key + admin password to reset bind (new device will re-bind)."
                                                            preferredStyle:UIAlertControllerStyleAlert];
     [alert addTextFieldWithConfigurationHandler:^(UITextField *tf) {
-        tf.placeholder = @"Key cần gỡ khoá";
+        tf.placeholder = @"Key to unlock";
         tf.autocapitalizationType = UITextAutocapitalizationTypeAllCharacters;
         tf.text = [KeyManager shared].keyCode;
     }];
     [alert addTextFieldWithConfigurationHandler:^(UITextField *tf) {
-        tf.placeholder = @"Mật khẩu admin";
+        tf.placeholder = @"Admin password";
         tf.secureTextEntry = YES;
     }];
 
@@ -401,12 +405,12 @@
             [weakSelf toast:message success:success];
         }];
     }]];
-    [alert addAction:[UIAlertAction actionWithTitle:@"Đóng" style:UIAlertActionStyleCancel handler:nil]];
+    [alert addAction:[UIAlertAction actionWithTitle:@"Close" style:UIAlertActionStyleCancel handler:nil]];
     [self presentViewController:alert animated:YES completion:nil];
 }
 
 - (void)toast:(NSString *)message success:(BOOL)success {
-    UIAlertController *a = [UIAlertController alertControllerWithTitle:(success ? @"✅ Thành công" : @"⚠️ Lỗi")
+    UIAlertController *a = [UIAlertController alertControllerWithTitle:(success ? @"✅ Success" : @"⚠️ Error")
                                                               message:message
                                                        preferredStyle:UIAlertControllerStyleAlert];
     [a addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
@@ -586,7 +590,7 @@
                                  symbol:@"iphone" tint:BRAND_CYAN valueColor:BRAND_MUTED labelTag:0];
 
     BOOL supported = [self isIOSSupported];
-    NSString *supportText   = supported ? @"Có Hỗ Trợ" : @"Chưa Hỗ Trợ";
+    NSString *supportText   = supported ? @"Supported" : @"Not Supported";
     NSString *supportSymbol = supported ? @"checkmark.shield.fill" : @"xmark.shield.fill";
     UIColor  *supportTint   = supported
         ? [UIColor colorWithRed:0.2 green:0.85 blue:0.4 alpha:1.0]   // xanh lá
@@ -945,7 +949,7 @@
 
     // Subtitle
     UILabel *sub = [[UILabel alloc] init];
-    sub.text = @"Đang khởi động...";
+    sub.text = @"Starting up...";
     sub.font = [UIFont systemFontOfSize:13 weight:UIFontWeightRegular];
     sub.textColor = [UIColor colorWithRed:0.561 green:0.561 blue:0.659 alpha:1.0];
     sub.textAlignment = NSTextAlignmentCenter;

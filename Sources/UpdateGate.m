@@ -39,7 +39,7 @@
         if ([self version:[self appVersion] lessThan:minVer]) {
             // URL lấy từ server, fallback dùng EndpointVersion() domain (không hardcode plaintext)
             NSString *url = j[@"url"] ?: EndpointVersion();
-            NSString *msg = j[@"message"] ?: @"Phiên bản đã cũ. Vui lòng cập nhật IPA mới để tiếp tục sử dụng.";
+            NSString *msg = j[@"message"] ?: @"Your version is outdated. Please update to the latest IPA to continue.";
             dispatch_async(dispatch_get_main_queue(), ^{ [self blockOn:host message:msg url:url]; });
         }
     }];
@@ -59,7 +59,7 @@
     [blocker.view addSubview:icon];
 
     UILabel *title = [[UILabel alloc] init];
-    title.text = @"CẦN CẬP NHẬT";
+    title.text = @"UPDATE REQUIRED";
     title.font = [UIFont systemFontOfSize:22 weight:UIFontWeightHeavy];
     title.textColor = [UIColor colorWithRed:0.941 green:0.941 blue:0.961 alpha:1.0];
     title.textAlignment = NSTextAlignmentCenter;
@@ -76,7 +76,7 @@
     [blocker.view addSubview:body];
 
     UIButton *btn = [UIButton buttonWithType:UIButtonTypeSystem];
-    [btn setTitle:@"CẬP NHẬT NGAY" forState:UIControlStateNormal];
+    [btn setTitle:@"UPDATE NOW" forState:UIControlStateNormal];
     [btn setTitleColor:[UIColor colorWithRed:0.04 green:0.06 blue:0.13 alpha:1.0] forState:UIControlStateNormal];
     btn.titleLabel.font = [UIFont systemFontOfSize:17 weight:UIFontWeightHeavy];
     btn.backgroundColor = [UIColor colorWithRed:0.133 green:0.827 blue:0.933 alpha:1.0];

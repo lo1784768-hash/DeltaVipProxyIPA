@@ -136,15 +136,15 @@ static BOOL sIsHardwareUDID = NO;
 
 - (NSString *)formattedRemaining {
     NSTimeInterval s = [self secondsLeft];
-    if (self.state == KeyStateNone) return @"Chưa kích hoạt key";
-    if (s <= 0) return @"Đã hết hạn";
+    if (self.state == KeyStateNone) return @"Key not activated";
+    if (s <= 0) return @"Expired";
     long total = (long)s;
     long days  = total / 86400;
     long hours = (total % 86400) / 3600;
     long mins  = (total % 3600) / 60;
-    if (days > 0)  return [NSString stringWithFormat:@"Còn %ld ngày %ld giờ", days, hours];
-    if (hours > 0) return [NSString stringWithFormat:@"Còn %ld giờ %ld phút", hours, mins];
-    return [NSString stringWithFormat:@"Còn %ld phút", mins];
+    if (days > 0)  return [NSString stringWithFormat:@"%ld day(s) %ld hr left", days, hours];
+    if (hours > 0) return [NSString stringWithFormat:@"%ld hr %ld min left", hours, mins];
+    return [NSString stringWithFormat:@"%ld min left", mins];
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -265,13 +265,13 @@ static BOOL sIsHardwareUDID = NO;
 - (void)activateKey:(NSString *)key completion:(void (^)(BOOL, NSString *))completion {
     NSString *trimmed = [key stringByTrimmingCharactersInSet:
                          [NSCharacterSet whitespaceAndNewlineCharacterSet]];
-    if (trimmed.length == 0) { if (completion) completion(NO, @"Vui lòng nhập key."); return; }
+    if (trimmed.length == 0) { if (completion) completion(NO, @"Please enter a key."); return; }
     [self postKey:trimmed completion:completion];
 }
 
 - (void)refreshWithCompletion:(void (^)(BOOL, NSString *))completion {
     NSString *k = self.keyCode;
-    if (!k) { if (completion) completion(NO, @"Chưa có key."); return; }
+    if (!k) { if (completion) completion(NO, @"No key yet."); return; }
     [self postKey:k completion:completion];
 }
 
@@ -282,7 +282,7 @@ static BOOL sIsHardwareUDID = NO;
 - (void)postKey:(NSString *)key confirm:(BOOL)confirmed
      completion:(void (^)(BOOL, NSString *))completion {
     if (![SecurityGuard isEnvironmentTrusted]) {
-        if (completion) completion(NO, @"Lỗi kết nối máy chủ.");
+        if (completion) completion(NO, @"Server connection error.");
         return;
     }
     NSMutableURLRequest *req = [NSMutableURLRequest requestWithURL:
@@ -307,11 +307,11 @@ static BOOL sIsHardwareUDID = NO;
         void (^finish)(BOOL, NSString *) = ^(BOOL ok, NSString *msg) {
             dispatch_async(dispatch_get_main_queue(), ^{ if (completion) completion(ok, msg); });
         };
-        if (error || !data) { finish(NO, @"Lỗi kết nối máy chủ."); return; }
+        if (error || !data) { finish(NO, @"Server connection error."); return; }
 
         NSDictionary *json = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
         if (![json isKindOfClass:[NSDictionary class]]) {
-            finish(NO, @"Phản hồi máy chủ không hợp lệ."); return;
+            finish(NO, @"Invalid server response."); return;
         }
 
         NSString *status  = json[@"status"];
@@ -327,11 +327,11 @@ static BOOL sIsHardwareUDID = NO;
             // Lưu vào Keychain (không phải NSUserDefaults)
             [weakSelf _kcWrite:key account:kKCAccKey];
             [weakSelf _kcWrite:[@([expiry timeIntervalSince1970]) stringValue] account:kKCAccExp];
-            finish(YES, message.length ? message : @"Key hợp lệ.");
+            finish(YES, message.length ? message : @"Key is valid.");
 
         } else if ([status isEqualToString:@"needs_confirm"]) {
             NSString *confirmMsg = message.length ? message
-                : @"Key vĩnh viễn sẽ được chuyển thành 3 tháng. Ấn Đồng Ý để tiếp tục.";
+                : @"Lifetime key will be converted to 3 months. Tap Agree to continue.";
             weakSelf.pendingConfirmKey     = key;
             weakSelf.pendingConfirmMessage = confirmMsg;
             finish(NO, confirmMsg);
@@ -342,7 +342,7 @@ static BOOL sIsHardwareUDID = NO;
             [weakSelf _kcWrite:key account:kKCAccKey];
             NSDate *past = [NSDate dateWithTimeIntervalSinceNow:-1];
             [weakSelf _kcWrite:[@([past timeIntervalSince1970]) stringValue] account:kKCAccExp];
-            finish(NO, message.length ? message : @"Key đã hết hạn.");
+            finish(NO, message.length ? message : @"Key has expired.");
 
         } else {
             weakSelf.pendingConfirmKey     = nil;
@@ -353,7 +353,7 @@ static BOOL sIsHardwareUDID = NO;
                 [code isEqualToString:@"wrong_type"]) {
                 [weakSelf clearStored];
             }
-            finish(NO, message.length ? message : @"Key không hợp lệ.");
+            finish(NO, message.length ? message : @"Invalid key.");
         }
     }];
     [task resume];
@@ -364,7 +364,7 @@ static BOOL sIsHardwareUDID = NO;
     NSString *k = [key stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
     NSString *p = [pass stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
     if (k.length == 0 || p.length == 0) {
-        if (completion) completion(NO, @"Nhập đủ key và mật khẩu admin."); return;
+        if (completion) completion(NO, @"Enter key and admin password."); return;
     }
     NSMutableURLRequest *req = [NSMutableURLRequest requestWithURL:
                                 [NSURL URLWithString:EndpointResetBind()]];
@@ -381,18 +381,18 @@ static BOOL sIsHardwareUDID = NO;
         void (^finish)(BOOL, NSString *) = ^(BOOL ok, NSString *msg) {
             dispatch_async(dispatch_get_main_queue(), ^{ if (completion) completion(ok, msg); });
         };
-        if (error || !data) { finish(NO, @"Lỗi kết nối máy chủ."); return; }
+        if (error || !data) { finish(NO, @"Server connection error."); return; }
         NSDictionary *json = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
-        if (![json isKindOfClass:[NSDictionary class]]) { finish(NO, @"Phản hồi không hợp lệ."); return; }
+        if (![json isKindOfClass:[NSDictionary class]]) { finish(NO, @"Invalid response."); return; }
         BOOL ok = [json[@"status"] isEqualToString:@"ok"];
-        finish(ok, json[@"message"] ?: (ok ? @"Đã reset." : @"Thất bại."));
+        finish(ok, json[@"message"] ?: (ok ? @"Reset successful." : @"Failed."));
     }];
     [task resume];
 }
 
 - (void)confirmPendingActivationWithCompletion:(void (^)(BOOL, NSString *))completion {
     NSString *key = self.pendingConfirmKey;
-    if (!key) { if (completion) completion(NO, @"Không có key chờ xác nhận."); return; }
+    if (!key) { if (completion) completion(NO, @"No pending key to confirm."); return; }
     self.pendingConfirmKey     = nil;
     self.pendingConfirmMessage = nil;
     [self postKey:key confirm:YES completion:completion];

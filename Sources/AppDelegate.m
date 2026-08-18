@@ -5,6 +5,7 @@
 #import "SecurityGuard.h"
 #import "SandboxEscapeManager.h"
 #import "KeyManager.h"
+#import "LangTabView.h"
 
 @interface AppDelegate ()
 @end
@@ -25,6 +26,7 @@
     UINavigationController *nav   = [[UINavigationController alloc] initWithRootViewController:rootVC];
     self.window.rootViewController = nav;
     [self.window makeKeyAndVisible];
+    [LangTabView installOnWindow:self.window];
     [logger log:@"✅ App UI initialized"];
 
     // Kernel exploit + sandbox escape
@@ -78,9 +80,9 @@
             [[KeyManager shared] saveHardwareUDIDFromProfile:udid];
             dispatch_async(dispatch_get_main_queue(), ^{
                 UIAlertController *alert = [UIAlertController
-                    alertControllerWithTitle:@"✅ Đã Đăng Ký Thiết Bị"
+                    alertControllerWithTitle:@"✅ Device Registered"
                     message:[NSString stringWithFormat:
-                             @"UDID phần cứng đã được lưu.\nKey của bạn sẽ được bind chặt hơn vào thiết bị này.\n\nUDID: %@",
+                             @"Hardware UDID saved.\nYour key will be bound more tightly to this device.\n\nUDID: %@",
                              udid]
                     preferredStyle:UIAlertControllerStyleAlert];
                 [alert addAction:[UIAlertAction actionWithTitle:@"OK"
