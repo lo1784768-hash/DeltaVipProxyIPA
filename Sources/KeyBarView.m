@@ -1,7 +1,7 @@
 #import "KeyBarView.h"
 #import "KeyManager.h"
 #import "BrandTheme.h"
-#import "Endpoints.h"
+#import "LanguageManager.h"
 
 #define KB_GREEN [UIColor colorWithRed:0.204 green:0.780 blue:0.349 alpha:1.0]
 #define KB_RED   [UIColor colorWithRed:1.000 green:0.231 blue:0.322 alpha:1.0]
@@ -15,7 +15,7 @@
 @property (nonatomic, strong) UILabel  *subLabel;
 @property (nonatomic, strong) UIButton *addButton;
 @property (nonatomic, strong) UIButton *infoButton;
-@property (nonatomic, strong) UIButton *udidButton;   // nút đăng ký UDID phần cứng
+@property (nonatomic, strong) UIButton *langButton;   // nút đổi ngôn ngữ VI / EN
 @property (nonatomic, strong) UIView   *topLine;
 @property (nonatomic, strong) CAGradientLayer *addGradient;
 @property (nonatomic, strong) CAGradientLayer *lineGradient;
@@ -25,8 +25,24 @@
 
 - (instancetype)initWithFrame:(CGRect)frame {
     self = [super initWithFrame:frame];
-    if (self) { [self build]; [self update]; }
+    if (self) {
+        [self build];
+        [self update];
+        [[NSNotificationCenter defaultCenter] addObserver:self
+            selector:@selector(onLanguageChanged)
+            name:LMLanguageChangedNotification
+            object:nil];
+    }
     return self;
+}
+
+- (void)dealloc {
+    [[NSNotificationCenter defaultCenter] removeObserver:self];
+}
+
+- (void)onLanguageChanged {
+    [self updateLangButton];
+    [self update];
 }
 
 - (void)build {
@@ -86,13 +102,17 @@
     [_infoButton addTarget:self action:@selector(infoTapped) forControlEvents:UIControlEventTouchUpInside];
     [self addSubview:_infoButton];
 
-    // UDID button — đăng ký phần cứng qua profile
-    _udidButton = [UIButton buttonWithType:UIButtonTypeSystem];
-    [_udidButton setImage:[UIImage systemImageNamed:@"shield.lefthalf.filled"] forState:UIControlStateNormal];
-    _udidButton.tintColor = [KeyManager shared].usingHardwareUDID ? KB_GREEN : KB_MUTED;
-    _udidButton.translatesAutoresizingMaskIntoConstraints = NO;
-    [_udidButton addTarget:self action:@selector(udidTapped) forControlEvents:UIControlEventTouchUpInside];
-    [self addSubview:_udidButton];
+    // Language toggle button — VI / EN
+    _langButton = [UIButton buttonWithType:UIButtonTypeSystem];
+    _langButton.layer.cornerRadius = 8;
+    _langButton.layer.cornerCurve = kCACornerCurveContinuous;
+    _langButton.layer.borderColor = [UIColor colorWithWhite:1 alpha:0.18].CGColor;
+    _langButton.layer.borderWidth = 1;
+    _langButton.clipsToBounds = YES;
+    _langButton.translatesAutoresizingMaskIntoConstraints = NO;
+    [_langButton addTarget:self action:@selector(langTapped) forControlEvents:UIControlEventTouchUpInside];
+    [self addSubview:_langButton];
+    [self updateLangButton];
 
     [NSLayoutConstraint activateConstraints:@[
         [_topLine.topAnchor constraintEqualToAnchor:self.topAnchor],
@@ -120,13 +140,13 @@
         [_infoButton.widthAnchor constraintEqualToConstant:32],
         [_infoButton.heightAnchor constraintEqualToConstant:36],
 
-        [_udidButton.trailingAnchor constraintEqualToAnchor:_infoButton.leadingAnchor constant:-2],
-        [_udidButton.centerYAnchor constraintEqualToAnchor:_addButton.centerYAnchor],
-        [_udidButton.widthAnchor constraintEqualToConstant:32],
-        [_udidButton.heightAnchor constraintEqualToConstant:36],
+        [_langButton.trailingAnchor constraintEqualToAnchor:_infoButton.leadingAnchor constant:-4],
+        [_langButton.centerYAnchor constraintEqualToAnchor:_addButton.centerYAnchor],
+        [_langButton.widthAnchor constraintEqualToConstant:36],
+        [_langButton.heightAnchor constraintEqualToConstant:28],
 
-        [_titleLabel.trailingAnchor constraintLessThanOrEqualToAnchor:_udidButton.leadingAnchor constant:-8],
-        [_subLabel.trailingAnchor constraintLessThanOrEqualToAnchor:_udidButton.leadingAnchor constant:-8],
+        [_titleLabel.trailingAnchor constraintLessThanOrEqualToAnchor:_langButton.leadingAnchor constant:-8],
+        [_subLabel.trailingAnchor constraintLessThanOrEqualToAnchor:_langButton.leadingAnchor constant:-8],
     ]];
 }
 
@@ -145,28 +165,41 @@
             _titleLabel.text = [NSString stringWithFormat:@"KEY  %@", [self maskKey:km.keyCode]];
             _subLabel.text = km.formattedRemaining;
             _subLabel.textColor = KB_GREEN;
-            [_addButton setTitle:@"Đổi Key" forState:UIControlStateNormal];
+            [_addButton setTitle:LS(@"Đổi Key", @"Change Key") forState:UIControlStateNormal];
             break;
         }
         case KeyStateExpired: {
             _dot.backgroundColor = KB_RED;
             [self glowDot:KB_RED];
             _titleLabel.text = [NSString stringWithFormat:@"KEY  %@", [self maskKey:km.keyCode]];
-            _subLabel.text = @"Đã hết hạn — vui lòng gia hạn";
+            _subLabel.text = LS(@"Đã hết hạn — vui lòng gia hạn", @"Expired — please renew");
             _subLabel.textColor = KB_RED;
-            [_addButton setTitle:@"Gia hạn" forState:UIControlStateNormal];
+            [_addButton setTitle:LS(@"Gia hạn", @"Renew") forState:UIControlStateNormal];
             break;
         }
         default: {
             _dot.backgroundColor = KB_MUTED;
             [self glowDot:nil];
-            _titleLabel.text = @"License Key";
-            _subLabel.text = @"Chưa kích hoạt — nhấn Thêm Key";
+            _titleLabel.text = LS(@"License Key", @"License Key");
+            _subLabel.text = LS(@"Chưa kích hoạt — nhấn Thêm Key", @"Not activated — tap Add Key");
             _subLabel.textColor = KB_MUTED;
-            [_addButton setTitle:@"Thêm Key" forState:UIControlStateNormal];
+            [_addButton setTitle:LS(@"Thêm Key", @"Add Key") forState:UIControlStateNormal];
             break;
         }
     }
+}
+
+- (void)updateLangButton {
+    LanguageManager *lm = [LanguageManager shared];
+    // Hiển thị ngôn ngữ HIỆN TẠI — tap để chuyển sang ngôn ngữ kia
+    NSString *label = (lm.language == AppLanguageVietnamese) ? @"VI" : @"EN";
+    UIColor  *tint  = (lm.language == AppLanguageVietnamese) ? KB_CYAN : KB_GREEN;
+    UIButtonConfiguration *c = [UIButtonConfiguration plainButtonConfiguration];
+    c.attributedTitle = [[NSAttributedString alloc] initWithString:label attributes:@{
+        NSFontAttributeName: [UIFont monospacedSystemFontOfSize:11 weight:UIFontWeightBold],
+        NSForegroundColorAttributeName: tint
+    }];
+    _langButton.configuration = c;
 }
 
 - (void)glowDot:(UIColor *)color {
@@ -195,37 +228,10 @@
     if (self.onInfoTapped) self.onInfoTapped();
 }
 
-- (void)udidTapped {
-    // Tạo token ngẫu nhiên (32 hex chars)
-    uint8_t rand_bytes[16];
-    arc4random_buf(rand_bytes, sizeof(rand_bytes));
-    NSMutableString *tok = [NSMutableString stringWithCapacity:32];
-    for (int i = 0; i < 16; i++) [tok appendFormat:@"%02x", rand_bytes[i]];
-
-    NSString *base = EndpointGetUDID();
-    NSString *urlStr = [NSString stringWithFormat:@"%@?tok=%@", base, tok];
-    NSURL *url = [NSURL URLWithString:urlStr];
-    if (!url) return;
-
-    BOOL hw = [[KeyManager shared] usingHardwareUDID];
-    NSString *msg = hw
-        ? @"Thiết bị đã được đăng ký UDID phần cứng ✅\n\nBạn có muốn đăng ký lại không?"
-        : @"Đăng ký UDID phần cứng giúp bind key chặt hơn vào thiết bị, ngăn chia sẻ key.\n\nSafari sẽ mở → cài profile → tự động quay về app.";
-
-    UIAlertController *alert = [UIAlertController
-        alertControllerWithTitle:@"🛡️ Đăng Ký Thiết Bị"
-        message:msg
-        preferredStyle:UIAlertControllerStyleAlert];
-
-    [alert addAction:[UIAlertAction actionWithTitle:@"Đăng ký ngay" style:UIAlertActionStyleDefault
-        handler:^(UIAlertAction *a) {
-            [[UIApplication sharedApplication] openURL:url options:@{} completionHandler:nil];
-        }]];
-    [alert addAction:[UIAlertAction actionWithTitle:@"Huỷ" style:UIAlertActionStyleCancel handler:nil]];
-
-    UIViewController *top = [UIApplication sharedApplication].keyWindow.rootViewController;
-    while (top.presentedViewController) top = top.presentedViewController;
-    [top presentViewController:alert animated:YES completion:nil];
+- (void)langTapped {
+    LanguageManager *lm = [LanguageManager shared];
+    lm.language = (lm.language == AppLanguageVietnamese) ? AppLanguageEnglish : AppLanguageVietnamese;
+    // LMLanguageChangedNotification → onLanguageChanged → updateLangButton + update
 }
 
 @end

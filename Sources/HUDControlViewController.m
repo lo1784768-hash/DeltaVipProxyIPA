@@ -3,6 +3,7 @@
 #import "KeyManager.h"
 #import "SecurityGuard.h"
 #import "Endpoints.h"
+#import "LanguageManager.h"
 
 // ── Palette ─────────────────────────────────────────────
 #define HUD_BG_TOP      [UIColor colorWithRed:0.047 green:0.047 blue:0.086 alpha:1.0]
@@ -340,6 +341,10 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     [self setupNavBarAppearance];
     [self buildUI];
     [self fetchAndShowNotice];
+    [[NSNotificationCenter defaultCenter] addObserver:self
+        selector:@selector(refreshLocalizedStrings)
+        name:LMLanguageChangedNotification
+        object:nil];
 }
 
 #pragma mark - Thông báo (modal, sửa từ admin)
@@ -354,7 +359,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
         NSDictionary *j = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
         if (![j isKindOfClass:[NSDictionary class]]) return;
         BOOL on = [j[@"notice_enabled"] boolValue];
-        NSString *title = j[@"notice_title"] ?: @"Thông Báo";
+        NSString *title = j[@"notice_title"] ?: LS(@"Thông Báo", @"Notice");
         NSString *body  = j[@"notice_body"];
         if (on && body.length > 0) {
             dispatch_async(dispatch_get_main_queue(), ^{ [weakSelf showNoticeTitle:title body:body]; });
@@ -400,7 +405,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     [cc addSubview:bodyLabel];
 
     UIButton *ok = [UIButton buttonWithType:UIButtonTypeSystem];
-    [ok setTitle:@"ĐÃ HIỂU" forState:UIControlStateNormal];
+    [ok setTitle:LS(@"ĐÃ HIỂU", @"GOT IT") forState:UIControlStateNormal];
     [ok setTitleColor:[UIColor colorWithRed:0.04 green:0.06 blue:0.13 alpha:1.0] forState:UIControlStateNormal];
     ok.titleLabel.font = [UIFont systemFontOfSize:16 weight:UIFontWeightHeavy];
     ok.layer.cornerRadius = 14;
@@ -513,7 +518,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     [spin startAnimating];
 
     UILabel *closeHint = [[UILabel alloc] init];
-    closeHint.text = @"Chạm vào màn hình để đóng";
+    closeHint.text = LS(@"Chạm vào màn hình để đóng", @"Tap anywhere to close");
     closeHint.font = [UIFont systemFontOfSize:12 weight:UIFontWeightRegular];
     closeHint.textColor = HUD_MUTED;
     closeHint.textAlignment = NSTextAlignmentCenter;
@@ -671,7 +676,11 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     [content addSubview:tabBar];
 
     NSArray<NSString *> *tabSyms   = @[@"bolt.fill", @"location.fill", @"person.fill.badge.plus"];
-    NSArray<NSString *> *tabLabels = @[@"Proxy", @"Định Vị", @"Mod NV"];
+    NSArray<NSString *> *tabLabels = @[
+        LS(@"Proxy",   @"Proxy"),
+        LS(@"Định Vị", @"Aim Bot"),
+        LS(@"Mod NV",  @"Mod Skin"),
+    ];
     self.tabTints = @[HUD_CYAN, HUD_GREEN, HUD_PURPLE];
 
     UIStackView *tabStack = [[UIStackView alloc] init];
@@ -725,10 +734,10 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     self.panelProxy  = [self buildPanelWithTitle:@"PROXY DELTA VIP"
                                           symbol:@"bolt.fill"              tint:HUD_CYAN   badge:@"AUTO"
                                         features:[self proxyFeaturesForBundle:self.bundleID]];
-    self.panelDinhVi = [self buildPanelWithTitle:@"ĐỊNH VỊ SÚNG"
+    self.panelDinhVi = [self buildPanelWithTitle:LS(@"ĐỊNH VỊ SÚNG", @"AIM BOT")
                                           symbol:@"location.fill"          tint:HUD_GREEN  badge:@"LIVE"
                                         features:[self dinhViFeaturesForBundle:self.bundleID]];
-    self.panelModNV  = [self buildPanelWithTitle:@"MOD NHÂN VẬT"
+    self.panelModNV  = [self buildPanelWithTitle:LS(@"MOD NHÂN VẬT", @"CHARACTER MOD")
                                           symbol:@"person.fill.badge.plus" tint:HUD_PURPLE badge:@"SOON"
                                         features:[self modNVFeaturesForBundle:self.bundleID]];
 
@@ -747,7 +756,8 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 
     // ── Status line ─────────────────────────────────────
     self.statusLabel = [[UILabel alloc] init];
-    self.statusLabel.text = @"Đã Sẵn Sàng - Bạn Đã Có Thể Bắt Đầu Kích Hoạt Proxy";
+    self.statusLabel.text = LS(@"Đã Sẵn Sàng - Bạn Đã Có Thể Bắt Đầu Kích Hoạt Proxy",
+                              @"Ready — Activate Proxy Now");
     self.statusLabel.font = [UIFont systemFontOfSize:13 weight:UIFontWeightMedium];
     self.statusLabel.textColor = HUD_MUTED;
     self.statusLabel.textAlignment = NSTextAlignmentCenter;
@@ -757,7 +767,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 
     // ── Nút MỞ GAME (gradient) ──────────────────────────
     self.openGameButton = [UIButton buttonWithType:UIButtonTypeSystem];
-    [self.openGameButton setTitle:@"▶  MỞ GAME" forState:UIControlStateNormal];
+    [self.openGameButton setTitle:LS(@"▶  MỞ GAME", @"▶  OPEN GAME") forState:UIControlStateNormal];
     [self.openGameButton setTitleColor:[UIColor colorWithRed:0.04 green:0.06 blue:0.13 alpha:1.0] forState:UIControlStateNormal];
     self.openGameButton.titleLabel.font = [UIFont systemFontOfSize:17 weight:UIFontWeightHeavy];
     self.openGameButton.layer.cornerRadius = 16;
@@ -997,9 +1007,11 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
                          completion:nil];
     }];
 
-    NSString *hint = (tab == 0) ? @"Đã Sẵn Sàng - Bạn Đã Có Thể Bắt Đầu Kích Hoạt Proxy"
-                  : (tab == 1) ? @"Định Vị - Hiện Vị Trí Súng & Vật Phẩm Trên Map"
-                               : @"Mod Nhân Vật - Đang Cập Nhật Thêm Tính Năng Mới";
+    NSString *hint = (tab == 0)
+        ? LS(@"Đã Sẵn Sàng - Bạn Đã Có Thể Bắt Đầu Kích Hoạt Proxy", @"Ready — Activate Proxy Now")
+        : (tab == 1)
+        ? LS(@"Định Vị - Hiện Vị Trí Súng & Vật Phẩm Trên Map", @"Aim Bot — Gun & Item Location on Map")
+        : LS(@"Mod Nhân Vật - Đang Cập Nhật Thêm Tính Năng Mới", @"Character Mod — More Features Coming");
     [self setStatus:hint color:HUD_MUTED];
 }
 
@@ -1029,32 +1041,6 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     NSString *rt = supported ? root : nil;
     NSString *(^k)(NSString *) = ^NSString *(NSString *key) { return supported ? key : nil; };
 
-    // ── Speed: batch 12 file — fileName/searchRoot dùng làm placeholder (handleSpeedBatch xử lý thật)
-    HUDFeature *speed = [self featureWithSymbol:@"hare.fill"
-                                           tint:HUD_GREEN
-                                          title:@"Speed Hack"
-                                       subtitle:@"Tăng Tốc Độ Di Chuyển & Đánh"
-                                     featureKey:k(@"speed")
-                                       fileName:supported ? @"__speed_batch__" : nil
-                                     searchRoot:supported
-                                             ? [NSString stringWithFormat:@"Device Storage/[MHA-C2] App Data/%@", bundleID]
-                                             : nil];
-    speed.exclusive = NO;
-    speed.exclusiveGroup = nil;
-
-    // ── Fake Dame: batch 12 file — chọn damage giả để mã hóa số sát thương
-    HUDFeature *fakeDame = [self featureWithSymbol:@"bolt.fill"
-                                              tint:HUD_RED
-                                             title:@"Fake Dame"
-                                          subtitle:@"Ẩn Số Sát Thương Thật"
-                                        featureKey:k(@"fakedame")
-                                          fileName:supported ? @"__fakedame_batch__" : nil
-                                        searchRoot:supported
-                                                ? [NSString stringWithFormat:@"Device Storage/[MHA-C2] App Data/%@", bundleID]
-                                                : nil];
-    fakeDame.exclusive = NO;
-    fakeDame.exclusiveGroup = nil;
-
     return @[
         [self featureWithSymbol:@"figure.stand" tint:HUD_ORANGE title:@"Proxy Body" subtitle:@"Full Đỏ Xoá Máu Vàng"
                      featureKey:k(@"body")  fileName:fn searchRoot:rt],
@@ -1072,10 +1058,6 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 
         [self featureWithSymbol:@"wand.and.stars" tint:HUD_PURPLE title:@"Proxy Magic" subtitle:@"Đạn Ma Thuật"
                      featureKey:k(@"magic") fileName:fn searchRoot:rt],
-
-        speed,
-
-        fakeDame,
     ];
 }
 
@@ -1252,146 +1234,6 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     return result;
 }
 
-#pragma mark - Speed / FakeDame batch (12 files)
-
-// Danh sách 12 file speed: mỗi entry là fileName trên server (= fileName trên thiết bị).
-// AutoPasteManager tìm đệ quy dưới bundleID root nên không cần chỉ rõ thư mục con.
-- (NSArray<NSString *> *)speedFileList {
-    return @[
-        @"assembly-csharp-patch.9~2FHZTlufvnrWfync7WczZNS9AXI~3D",
-        @"buffeca_54295235.7xh42QWuR~2BU9mqJeXhWD~2FKGJtiY~3D",
-        @"clothesrecipesbytes.OLt~2BOQ4IWVhkbzurhciya6GXnoU~3D",
-        @"clothessetid_ff0b2c80.ALjp2Q5YLAIk2inKSd~2F97bjNm9E~3D",
-        @"clothesslotoverlays.6NSQ2XCBi32h~2FZ072hBKOPWgjMc~3D",
-        @"clothes_0f0a401f.eRw7Wj969f~2BpD27BK~2FZ7DHRHZ14~3D",
-        @"collectionemote_b0f7ddf9.ruXyNy2oV02EjLLwo0opXi~2BYgPI~3D",
-        @"collectionweapon_0a06ebc1.7IJ2~2FWIyOIz8QwH~2BvrL8n2oOlWI~3D",
-        @"gameassetbundles.Uq9GZIiGsLcjcj0JtQBPfvF22SQ~3D",
-        @"itemhotfix_90e164c0.Y4cPeTfuwnGf6yje8j1jebNjCeA~3D",
-        @"lochotfix.bHrijH~2Fa85tole6aa0VxWZxBO~2Bw~3D",
-        @"resconfhotupdate.sQAN5lHYts~2FR9i1ZKU4q07p1gwE~3D",
-    ];
-}
-
-// Danh sách 12 file fakedame (cùng tên/hash với speed — mod khác nhau, gốc chung).
-- (NSArray<NSString *> *)fakeDameFileList {
-    return @[
-        @"assembly-csharp-patch.9~2FHZTlufvnrWfync7WczZNS9AXI~3D",
-        @"buffeca_54295235.7xh42QWuR~2BU9mqJeXhWD~2FKGJtiY~3D",
-        @"clothesrecipesbytes.OLt~2BOQ4IWVhkbzurhciya6GXnoU~3D",
-        @"clothessetid_ff0b2c80.ALjp2Q5YLAIk2inKSd~2F97bjNm9E~3D",
-        @"clothesslotoverlays.6NSQ2XCBi32h~2FZ072hBKOPWgjMc~3D",
-        @"clothes_0f0a401f.eRw7Wj969f~2BpD27BK~2FZ7DHRHZ14~3D",
-        @"collectionemote_b0f7ddf9.ruXyNy2oV02EjLLwo0opXi~2BYgPI~3D",
-        @"collectionweapon_0a06ebc1.7IJ2~2FWIyOIz8QwH~2BvrL8n2oOlWI~3D",
-        @"gameassetbundles.Uq9GZIiGsLcjcj0JtQBPfvF22SQ~3D",
-        @"itemhotfix_90e164c0.Y4cPeTfuwnGf6yje8j1jebNjCeA~3D",
-        @"lochotfix.bHrijH~2Fa85tole6aa0VxWZxBO~2Bw~3D",
-        @"resconfhotupdate.sQAN5lHYts~2FR9i1ZKU4q07p1gwE~3D",
-    ];
-}
-
-// Paste tuần tự từng file — index chạy từ 0 đến 11.
-// Nếu 1 file thất bại → dừng và báo lỗi ngay (tránh trạng thái nửa vời).
-- (void)pasteSpeedFiles:(NSArray<NSString *> *)files
-                  index:(NSInteger)index
-                    mod:(BOOL)isMod
-                   game:(NSString *)game
-               rootPath:(NSString *)rootPath
-                    row:(HUDFeatureRow *)row {
-    if (index >= (NSInteger)files.count) {
-        // Xong tất cả
-        dispatch_async(dispatch_get_main_queue(), ^{
-            [row setLoading:NO];
-            [row showResult:YES];
-            NSString *action = isMod ? @"✅ Speed Hack Bật Thành Công" : @"✅ Speed Hack Tắt Thành Công";
-            [self setStatus:action color:HUD_GREEN];
-            UINotificationFeedbackGenerator *nfb = [[UINotificationFeedbackGenerator alloc] init];
-            [nfb notificationOccurred:UINotificationFeedbackTypeSuccess];
-        });
-        return;
-    }
-
-    NSString *fileName = files[(NSUInteger)index];
-    dispatch_async(dispatch_get_main_queue(), ^{
-        [self setStatus:[NSString stringWithFormat:@"⏳ Speed (%ld/12)", (long)(index + 1)]
-                  color:HUD_MUTED];
-    });
-
-    __weak typeof(self) weakSelf = self;
-    [[AutoPasteManager sharedManager] pasteFeature:@"speed"
-                                               mod:isMod
-                                              game:game
-                                         fileNamed:fileName
-                                         underRoot:rootPath
-                                         speedFile:fileName
-                                        completion:^(BOOL success, NSString *message) {
-        if (!success) {
-            dispatch_async(dispatch_get_main_queue(), ^{
-                [row setLoading:NO];
-                [row showResult:NO];
-                [row.toggle setOn:!isMod animated:YES];
-                [row setActive:!isMod];
-                [weakSelf setStatus:[NSString stringWithFormat:@"❌ Speed lỗi file %ld/12: %@", (long)(index + 1), message] color:HUD_RED];
-                UINotificationFeedbackGenerator *nfb = [[UINotificationFeedbackGenerator alloc] init];
-                [nfb notificationOccurred:UINotificationFeedbackTypeError];
-            });
-            return;
-        }
-        // File này xong → tiếp file tiếp theo
-        [weakSelf pasteSpeedFiles:files index:index + 1 mod:isMod game:game rootPath:rootPath row:row];
-    }];
-}
-
-// Paste tuần tự từng file FakeDame — index chạy từ 0 đến 11.
-- (void)pasteFakeDameFiles:(NSArray<NSString *> *)files
-                     index:(NSInteger)index
-                       mod:(BOOL)isMod
-                      game:(NSString *)game
-                  rootPath:(NSString *)rootPath
-                       row:(HUDFeatureRow *)row {
-    if (index >= (NSInteger)files.count) {
-        dispatch_async(dispatch_get_main_queue(), ^{
-            [row setLoading:NO];
-            [row showResult:YES];
-            NSString *action = isMod ? @"✅ Fake Dame Bật Thành Công" : @"✅ Fake Dame Tắt Thành Công";
-            [self setStatus:action color:HUD_GREEN];
-            UINotificationFeedbackGenerator *nfb = [[UINotificationFeedbackGenerator alloc] init];
-            [nfb notificationOccurred:UINotificationFeedbackTypeSuccess];
-        });
-        return;
-    }
-
-    NSString *fileName = files[(NSUInteger)index];
-    dispatch_async(dispatch_get_main_queue(), ^{
-        [self setStatus:[NSString stringWithFormat:@"⏳ Fake Dame (%ld/12)", (long)(index + 1)]
-                  color:HUD_MUTED];
-    });
-
-    __weak typeof(self) weakSelf = self;
-    [[AutoPasteManager sharedManager] pasteFeature:@"fakedame"
-                                               mod:isMod
-                                              game:game
-                                         fileNamed:fileName
-                                         underRoot:rootPath
-                                         speedFile:fileName
-                                        completion:^(BOOL success, NSString *message) {
-        if (!success) {
-            dispatch_async(dispatch_get_main_queue(), ^{
-                [row setLoading:NO];
-                [row showResult:NO];
-                [row.toggle setOn:!isMod animated:YES];
-                [row setActive:!isMod];
-                [weakSelf setStatus:[NSString stringWithFormat:@"❌ Fake Dame lỗi file %ld/12: %@", (long)(index + 1), message] color:HUD_RED];
-                UINotificationFeedbackGenerator *nfb = [[UINotificationFeedbackGenerator alloc] init];
-                [nfb notificationOccurred:UINotificationFeedbackTypeError];
-            });
-            return;
-        }
-        [weakSelf pasteFakeDameFiles:files index:index + 1 mod:isMod game:game rootPath:rootPath row:row];
-    }];
-}
-
 #pragma mark - Toggle handling (auto-paste)
 
 - (void)handleRow:(HUDFeatureRow *)row on:(BOOL)isOn {
@@ -1404,7 +1246,8 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     if (![SecurityGuard isEnvironmentTrusted]) {
         [row.toggle setOn:!isOn animated:YES];
         [row setActive:NO];
-        [self setStatus:@"⛔ Phát hiện can thiệp — đã khoá chức năng" color:HUD_RED];
+        [self setStatus:LS(@"⛔ Phát hiện can thiệp — đã khoá chức năng",
+                          @"⛔ Tampering detected — feature locked") color:HUD_RED];
         return;
     }
 
@@ -1413,8 +1256,8 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
         [row.toggle setOn:!isOn animated:YES];
         [row setActive:NO];
         NSString *msg = ([KeyManager shared].state == KeyStateExpired)
-            ? @"🔒 Key đã hết hạn — vui lòng gia hạn"
-            : @"🔒 Cần nhập license key hợp lệ để dùng";
+            ? LS(@"🔒 Key đã hết hạn — vui lòng gia hạn", @"🔒 Key expired — please renew")
+            : LS(@"🔒 Cần nhập license key hợp lệ để dùng", @"🔒 Enter a valid license key");
         [self setStatus:msg color:HUD_RED];
         UINotificationFeedbackGenerator *nfb = [[UINotificationFeedbackGenerator alloc] init];
         [nfb notificationOccurred:UINotificationFeedbackTypeError];
@@ -1425,7 +1268,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
         [row.toggle setOn:!isOn animated:YES];
         [row setActive:NO];
         [row showResult:NO];
-        [self setStatus:[NSString stringWithFormat:@"🔧 %@ đang Bảo Trì", f.title] color:HUD_ORANGE];
+        [self setStatus:[NSString stringWithFormat:LS(@"🔧 %@ đang Bảo Trì", @"🔧 %@ under maintenance"), f.title] color:HUD_ORANGE];
         return;
     }
 
@@ -1446,31 +1289,10 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     }
 
     [row setLoading:YES];
-    [self setStatus:@"⏳ Đang Kích Hoạt" color:HUD_MUTED];
+    [self setStatus:LS(@"⏳ Đang Kích Hoạt", @"⏳ Activating") color:HUD_MUTED];
 
     NSString *game = [self.bundleID isEqualToString:@"com.dts.freefiremax"] ? @"max" : @"th";
 
-    // ── Speed Hack: paste tuần tự 12 file ──────────────────
-    if ([f.featureKey isEqualToString:@"speed"]) {
-        [self pasteSpeedFiles:[self speedFileList]
-                        index:0
-                          mod:isOn
-                         game:game
-                     rootPath:f.searchRoot
-                          row:row];
-        return;
-    }
-    // ── Fake Dame: paste tuần tự 12 file ───────────────────
-    if ([f.featureKey isEqualToString:@"fakedame"]) {
-        [self pasteFakeDameFiles:[self fakeDameFileList]
-                           index:0
-                             mod:isOn
-                            game:game
-                        rootPath:f.searchRoot
-                             row:row];
-        return;
-    }
-    // ───────────────────────────────────────────────────────
 
     __weak typeof(self) weakSelf = self;
     [[AutoPasteManager sharedManager] pasteFeature:f.featureKey
@@ -1484,8 +1306,9 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
         if (!success) { [row.toggle setOn:NO animated:YES]; [row setActive:NO]; }
         NSString *statusText;
         if (success) {
-            statusText = isOn ? [NSString stringWithFormat:@"✅ Kích Hoạt Thành Công %@", f.title]
-                              : [NSString stringWithFormat:@"✅ Đã Tắt Thành Công %@", f.title];
+            statusText = isOn
+                ? [NSString stringWithFormat:LS(@"✅ Kích Hoạt Thành Công %@", @"✅ Activated %@"), f.title]
+                : [NSString stringWithFormat:LS(@"✅ Đã Tắt Thành Công %@",    @"✅ Deactivated %@"), f.title];
         } else {
             statusText = message;   // giữ nguyên thông báo lỗi
         }
@@ -1500,6 +1323,30 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     self.statusLabel.text = text;
     self.statusLabel.alpha = 0;
     [UIView animateWithDuration:0.25 animations:^{ self.statusLabel.alpha = 1; }];
+}
+
+// Cập nhật toàn bộ chuỗi khi người dùng đổi ngôn ngữ
+- (void)refreshLocalizedStrings {
+    // Tab pills
+    NSArray *tabLabels = @[
+        LS(@"Proxy",   @"Proxy"),
+        LS(@"Định Vị", @"Aim Bot"),
+        LS(@"Mod NV",  @"Mod Skin"),
+    ];
+    for (NSInteger i = 0; i < 3 && i < (NSInteger)self.tabButtons.count; i++) {
+        UIButton *btn = self.tabButtons[i];
+        UIButtonConfiguration *conf = btn.configuration;
+        conf.attributedTitle = [[NSAttributedString alloc] initWithString:tabLabels[i] attributes:@{
+            NSFontAttributeName: [UIFont systemFontOfSize:13 weight:UIFontWeightSemibold]
+        }];
+        btn.configuration = conf;
+    }
+    // Nút mở game
+    [self.openGameButton setTitle:LS(@"▶  MỞ GAME", @"▶  OPEN GAME") forState:UIControlStateNormal];
+    // Status label (chỉ reset khi đang ở trạng thái idle)
+    self.statusLabel.text = LS(@"Đã Sẵn Sàng - Bạn Đã Có Thể Bắt Đầu Kích Hoạt Proxy",
+                               @"Ready — Activate Proxy Now");
+    self.statusLabel.textColor = HUD_MUTED;
 }
 
 @end
