@@ -129,7 +129,6 @@ static NSString *_clipboardFileName = nil;
     if (!cell) {
         cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleDefault reuseIdentifier:@"cell"];
         cell.backgroundColor = [UIColor colorWithRed:0.1 green:0.1 blue:0.12 alpha:1.0];
-        cell.textLabel.textColor = [UIColor colorWithRed:0.94 green:0.94 blue:0.96 alpha:1.0];
     }
 
     NSArray *displayList = self.filteredFileList ? self.filteredFileList : self.fileList;
@@ -139,7 +138,13 @@ static NSString *_clipboardFileName = nil;
     BOOL isDir = NO;
     [[NSFileManager defaultManager] fileExistsAtPath:fullPath isDirectory:&isDir];
 
-    cell.textLabel.text = isDir ? [NSString stringWithFormat:@"📁 %@", fileName] : [NSString stringWithFormat:@"📄 %@", fileName];
+    // textLabel removed in iOS 26 SDK — use UIListContentConfiguration instead
+    UIListContentConfiguration *config = [cell defaultContentConfiguration];
+    config.text = isDir ? [NSString stringWithFormat:@"📁 %@", fileName]
+                        : [NSString stringWithFormat:@"📄 %@", fileName];
+    config.textProperties.color = [UIColor colorWithRed:0.94 green:0.94 blue:0.96 alpha:1.0];
+    [cell setContentConfiguration:config];
+
     cell.accessoryType = isDir ? UITableViewCellAccessoryDisclosureIndicator : UITableViewCellAccessoryNone;
 
     return cell;
