@@ -2,6 +2,8 @@
 
 > **Fork / build on top of** [`darksword-kexploit-fun`](https://github.com/lo1784768-hash/darksword-kexploit-fun) bởi **seo** — kernel exploit OPA334/ICMPv6 cho iOS 17–26.
 
+**Tác giả:** Trần Hữu Long
+
 Ứng dụng iOS standalone (không cần jailbreak, không cần Substrate/Theos) cho phép quản lý file và áp dụng các bản vá game trực tiếp từ thiết bị, thông qua sandbox escape kernel-level.
 
 ---
@@ -14,7 +16,7 @@
 | `sandbox_escape.m` — kernel memory patching | [`18.3_sandbox/root.m`](https://github.com/CrazyMind90) | **CrazyMind90** |
 | `XPF/` — kernel patchfinder | XPF framework | open-source |
 | `XPF/external/ChOma/` — MachO/dyld utilities | [ChOma](https://github.com/opa334/ChOma) | **opa334** |
-| `Sources/` — HUD, AutoPaste, VirtualFS, Key system | IMGUIDELTA | project này |
+| `Sources/` — HUD, AutoPaste, VirtualFS, Key system | IMGUIDELTA | **Trần Hữu Long** |
 
 Mọi thành phần bên ngoài đều là **open-source** và được tích hợp nguyên trạng hoặc có ghi chú rõ ràng tại đầu file.
 
@@ -143,7 +145,7 @@ IMGUIDELTA/
 
 ## License
 
-Code gốc của project (`Sources/`) — **MIT**.  
+Code gốc của project (`Sources/`) — **MIT** © Trần Hữu Long.  
 `kexploit/` — giữ nguyên license của `darksword-kexploit-fun`.  
 `XPF/external/ChOma/` — giữ nguyên license của ChOma (MIT).
 
