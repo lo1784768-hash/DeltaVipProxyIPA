@@ -4,6 +4,7 @@
 #import "SecurityGuard.h"
 #import "Endpoints.h"
 #import "LanguageManager.h"
+#import "BundleScanner.h"
 
 // ── Palette ─────────────────────────────────────────────
 #define HUD_BG_TOP      [UIColor colorWithRed:0.047 green:0.047 blue:0.086 alpha:1.0]
@@ -309,6 +310,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 @property (nonatomic, strong) UIView  *panelModNV;
 @property (nonatomic, strong) UILabel *panelDinhViTitleLabel;  // để cập nhật ngôn ngữ
 @property (nonatomic, strong) UILabel *panelModNVTitleLabel;   // để cập nhật ngôn ngữ
+@property (nonatomic, strong) UIButton *scanBundleButton;      // nút debug scan bundle
 @end
 
 // Private API để mở app game theo bundle id
@@ -499,6 +501,65 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
         [self setStatus:LS(@"⚠️ Không mở được game (mở tay giúp mình nhé)",
                           @"⚠️ Could not open game — please open it manually") color:HUD_RED];
     }
+}
+
+- (void)scanBundleTapped {
+    UIImpactFeedbackGenerator *fb = [[UIImpactFeedbackGenerator alloc] initWithStyle:UIImpactFeedbackStyleLight];
+    [fb impactOccurred];
+
+    [self.scanBundleButton setTitle:@"⏳  Scanning..." forState:UIControlStateNormal];
+    self.scanBundleButton.enabled = NO;
+
+    NSString *targetFile = @"global-metadata.dat";
+    NSString *bundleID   = self.bundleID;
+
+    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+        NSLog(@"[ScanBundle] Starting scan for bundleID=%@ file=%@", bundleID, targetFile);
+
+        NSString *filePath = [BundleScanner findFile:targetFile inBundleForApp:bundleID];
+
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [self.scanBundleButton setTitle:@"🔍  Scan Bundle Container" forState:UIControlStateNormal];
+            self.scanBundleButton.enabled = YES;
+
+            NSString *title, *message;
+            if (filePath) {
+                // Thử đọc vài byte đầu để xác nhận đọc được
+                NSData *sample = [BundleScanner readFileAtPath:filePath];
+                if (sample) {
+                    title   = @"✅ Found & Readable";
+                    message = [NSString stringWithFormat:
+                        @"Path:\n%@\n\nSize: %lu bytes\nFirst 4 bytes: %@",
+                        filePath,
+                        (unsigned long)sample.length,
+                        sample.length >= 4
+                            ? [NSString stringWithFormat:@"%02X %02X %02X %02X",
+                               ((uint8_t *)sample.bytes)[0], ((uint8_t *)sample.bytes)[1],
+                               ((uint8_t *)sample.bytes)[2], ((uint8_t *)sample.bytes)[3]]
+                            : @"(too small)"];
+                } else {
+                    title   = @"⚠️ Found but Unreadable";
+                    message = [NSString stringWithFormat:@"Path:\n%@\n\n(sandbox extension may have expired)", filePath];
+                }
+            } else {
+                title   = @"❌ Not Found";
+                message = [NSString stringWithFormat:
+                    @"'%@' not found in bundle for:\n%@\n\n"
+                    @"Check NSLog for details.\n"
+                    @"Possible reasons:\n"
+                    @"• Game not installed\n"
+                    @"• bad_query not supported on this iOS\n"
+                    @"• Missing entitlement",
+                    targetFile, bundleID];
+            }
+
+            UIAlertController *alert = [UIAlertController alertControllerWithTitle:title
+                                                                           message:message
+                                                                    preferredStyle:UIAlertControllerStyleAlert];
+            [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
+            [self presentViewController:alert animated:YES completion:nil];
+        });
+    });
 }
 
 // Hiện fullscreen ảnh preview từ URL (tap màn hình để đóng)
@@ -837,7 +898,29 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
         [self.openGameButton.leadingAnchor constraintEqualToAnchor:content.leadingAnchor constant:20],
         [self.openGameButton.trailingAnchor constraintEqualToAnchor:content.trailingAnchor constant:-20],
         [self.openGameButton.heightAnchor constraintEqualToConstant:54],
-        [self.openGameButton.bottomAnchor constraintEqualToAnchor:content.bottomAnchor constant:-32],
+    ]];
+
+    // ── Scan Bundle button (debug / iOS 26.1+) ───────────────────────────
+    self.scanBundleButton = [UIButton buttonWithType:UIButtonTypeSystem];
+    [self.scanBundleButton setTitle:@"🔍  Scan Bundle Container" forState:UIControlStateNormal];
+    [self.scanBundleButton setTitleColor:[UIColor colorWithRed:0.0 green:0.83 blue:1.0 alpha:0.85] forState:UIControlStateNormal];
+    self.scanBundleButton.titleLabel.font = [UIFont systemFontOfSize:13 weight:UIFontWeightMedium];
+    self.scanBundleButton.backgroundColor = [[UIColor colorWithRed:0.0 green:0.83 blue:1.0 alpha:1.0] colorWithAlphaComponent:0.08];
+    self.scanBundleButton.layer.cornerRadius = 12;
+    self.scanBundleButton.layer.cornerCurve = kCACornerCurveContinuous;
+    self.scanBundleButton.layer.borderColor = [[UIColor colorWithRed:0.0 green:0.83 blue:1.0 alpha:1.0] colorWithAlphaComponent:0.25].CGColor;
+    self.scanBundleButton.layer.borderWidth = 1;
+    self.scanBundleButton.clipsToBounds = YES;
+    self.scanBundleButton.translatesAutoresizingMaskIntoConstraints = NO;
+    [self.scanBundleButton addTarget:self action:@selector(scanBundleTapped) forControlEvents:UIControlEventTouchUpInside];
+    [content addSubview:self.scanBundleButton];
+
+    [NSLayoutConstraint activateConstraints:@[
+        [self.scanBundleButton.topAnchor constraintEqualToAnchor:self.openGameButton.bottomAnchor constant:12],
+        [self.scanBundleButton.leadingAnchor constraintEqualToAnchor:content.leadingAnchor constant:20],
+        [self.scanBundleButton.trailingAnchor constraintEqualToAnchor:content.trailingAnchor constant:-20],
+        [self.scanBundleButton.heightAnchor constraintEqualToConstant:40],
+        [self.scanBundleButton.bottomAnchor constraintEqualToAnchor:content.bottomAnchor constant:-32],
     ]];
 }
 
