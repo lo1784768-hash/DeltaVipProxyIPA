@@ -28,6 +28,10 @@ NS_ASSUME_NONNULL_BEGIN
 /// @param bundleID   VD: @"com.dts.freefireth"
 + (nullable NSString *)findFile:(NSString *)fileName inBundleForApp:(NSString *)bundleID;
 
+/// Diagnostic full: chạy từng bước và trả về chuỗi log chi tiết.
+/// Dùng để debug trực tiếp trong alert — không cần xem NSLog.
++ (NSString *)diagnosticForFile:(NSString *)fileName bundleID:(NSString *)bundleID;
+
 /// Release sandbox handle từ findAppBundlePath:outHandle:
 + (void)releaseHandle:(int64_t)handle;
 

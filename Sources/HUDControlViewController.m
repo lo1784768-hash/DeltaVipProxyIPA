@@ -514,49 +514,33 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     NSString *bundleID   = self.bundleID;
 
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-        NSLog(@"[ScanBundle] Starting scan for bundleID=%@ file=%@", bundleID, targetFile);
-
-        NSString *filePath = [BundleScanner findFile:targetFile inBundleForApp:bundleID];
+        // Chạy diagnostic đầy đủ — tất cả log nằm trong chuỗi trả về
+        NSString *diagLog = [BundleScanner diagnosticForFile:targetFile bundleID:bundleID];
 
         dispatch_async(dispatch_get_main_queue(), ^{
             [self.scanBundleButton setTitle:@"🔍  Scan Bundle Container" forState:UIControlStateNormal];
             self.scanBundleButton.enabled = YES;
 
-            NSString *title, *message;
-            if (filePath) {
-                // Thử đọc vài byte đầu để xác nhận đọc được
-                NSData *sample = [BundleScanner readFileAtPath:filePath];
-                if (sample) {
-                    title   = @"✅ Found & Readable";
-                    message = [NSString stringWithFormat:
-                        @"Path:\n%@\n\nSize: %lu bytes\nFirst 4 bytes: %@",
-                        filePath,
-                        (unsigned long)sample.length,
-                        sample.length >= 4
-                            ? [NSString stringWithFormat:@"%02X %02X %02X %02X",
-                               ((uint8_t *)sample.bytes)[0], ((uint8_t *)sample.bytes)[1],
-                               ((uint8_t *)sample.bytes)[2], ((uint8_t *)sample.bytes)[3]]
-                            : @"(too small)"];
-                } else {
-                    title   = @"⚠️ Found but Unreadable";
-                    message = [NSString stringWithFormat:@"Path:\n%@\n\n(sandbox extension may have expired)", filePath];
-                }
+            // Xác định title từ nội dung log
+            NSString *title;
+            if ([diagLog containsString:@"🎉 SUCCESS"]) {
+                title = @"✅ Success";
+            } else if ([diagLog containsString:@"FAILED"] || [diagLog containsString:@"❌"]) {
+                title = @"❌ Failed";
             } else {
-                title   = @"❌ Not Found";
-                message = [NSString stringWithFormat:
-                    @"'%@' not found in bundle for:\n%@\n\n"
-                    @"Check NSLog for details.\n"
-                    @"Possible reasons:\n"
-                    @"• Game not installed\n"
-                    @"• bad_query not supported on this iOS\n"
-                    @"• Missing entitlement",
-                    targetFile, bundleID];
+                title = @"⚠️ Partial";
             }
 
             UIAlertController *alert = [UIAlertController alertControllerWithTitle:title
-                                                                           message:message
+                                                                           message:diagLog
                                                                     preferredStyle:UIAlertControllerStyleAlert];
-            [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
+            // Copy log để paste ra ngoài
+            [alert addAction:[UIAlertAction actionWithTitle:@"📋 Copy Log"
+                                                      style:UIAlertActionStyleDefault
+                                                    handler:^(UIAlertAction *_) {
+                [UIPasteboard generalPasteboard].string = diagLog;
+            }]];
+            [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleCancel handler:nil]];
             [self presentViewController:alert animated:YES completion:nil];
         });
     });
