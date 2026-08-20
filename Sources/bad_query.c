@@ -63,8 +63,17 @@ int64_t bad_query(char *path, bool create, char *group_identifier, bool is_group
     container_query_set_class_fn       query_set_class      = (container_query_set_class_fn)dlsym(mgr, "container_query_set_class");
     container_query_set_identifiers_fn query_set_identifiers= (container_query_set_identifiers_fn)dlsym(mgr, "container_query_set_group_identifiers");
     container_query_set_flags_fn       query_set_flags      = (container_query_set_flags_fn)dlsym(mgr, "container_query_operation_set_flags");
-    container_query_set_part_fn        query_set_part       = (container_query_set_part_fn)dlsym(mgr, "container_query_operation_set_part");
-    container_query_set_part_domain_fn query_set_part_domain= (container_query_set_part_domain_fn)dlsym(mgr, "container_query_operation_set_part_domain");
+    // iOS 26+: container_query_operation_set_part
+    // iOS 18:  container_query_set_part  (không có prefix "operation_")
+    container_query_set_part_fn query_set_part =
+        (container_query_set_part_fn)dlsym(mgr, "container_query_operation_set_part");
+    if (!query_set_part)
+        query_set_part = (container_query_set_part_fn)dlsym(mgr, "container_query_set_part");
+
+    container_query_set_part_domain_fn query_set_part_domain =
+        (container_query_set_part_domain_fn)dlsym(mgr, "container_query_operation_set_part_domain");
+    if (!query_set_part_domain)
+        query_set_part_domain = (container_query_set_part_domain_fn)dlsym(mgr, "container_query_set_part_domain");
     container_query_get_single_result_fn query_get_result   = (container_query_get_single_result_fn)dlsym(mgr, "container_query_get_single_result");
     container_query_free_fn            query_free           = (container_query_free_fn)dlsym(mgr, "container_query_free");
     container_copy_sandbox_token_fn    copy_token           = (container_copy_sandbox_token_fn)dlsym(mgr, "container_copy_sandbox_token");

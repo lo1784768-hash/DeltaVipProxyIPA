@@ -208,13 +208,16 @@ static int64_t gActiveHandle = -1;  // handle giữ sandbox extension còn sốn
     if (!diagLib) diagLib = dlopen("/usr/lib/libsystem_containermanager.dylib",
                                    RTLD_NOW | RTLD_LOCAL);
     if (diagLib) {
+        // Kiểm tra cả 2 tên: iOS 26 dùng "operation_set_part*", iOS 18 dùng "set_part*"
         const char *syms[] = {
             "container_query_create",
             "container_query_set_class",
             "container_query_set_group_identifiers",
             "container_query_operation_set_flags",
-            "container_query_operation_set_part",
-            "container_query_operation_set_part_domain",
+            "container_query_operation_set_part",        // iOS 26
+            "container_query_set_part",                  // iOS 18 fallback
+            "container_query_operation_set_part_domain", // iOS 26
+            "container_query_set_part_domain",           // iOS 18 fallback
             "container_query_get_single_result",
             "container_query_free",
             "container_copy_sandbox_token",
