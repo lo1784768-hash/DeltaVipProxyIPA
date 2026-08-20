@@ -6,6 +6,7 @@
 #import "SandboxEscapeManager.h"
 #import "BadQueryManager.h"
 #import "SEPKeyStoreProbe.h"
+#import "SEPExploit.h"
 #import "VirtualFileSystemBuilder.h"
 #import "DebugLogger.h"
 #import "ImageDownloader.h"
@@ -311,6 +312,19 @@
     [sepBtn addTarget:self action:@selector(testSEPProbeTapped) forControlEvents:UIControlEventTouchUpInside];
     [self.view addSubview:sepBtn];
 
+    // Nút Panic PoC — amber/cam, cảnh báo nguy hiểm (device có thể reboot)
+    UIButton *panicBtn = [UIButton buttonWithType:UIButtonTypeSystem];
+    [panicBtn setTitle:@"⚡  CVE-2026-20637 Panic PoC (30s)" forState:UIControlStateNormal];
+    panicBtn.titleLabel.font = [UIFont systemFontOfSize:13 weight:UIFontWeightMedium];
+    [panicBtn setTitleColor:[UIColor colorWithRed:1.0 green:0.7 blue:0.0 alpha:1.0] forState:UIControlStateNormal];
+    panicBtn.backgroundColor = [UIColor colorWithRed:1.0 green:0.7 blue:0.0 alpha:0.08];
+    panicBtn.layer.cornerRadius = 10;
+    panicBtn.layer.borderWidth = 0.5;
+    panicBtn.layer.borderColor = [UIColor colorWithRed:1.0 green:0.7 blue:0.0 alpha:0.4].CGColor;
+    panicBtn.translatesAutoresizingMaskIntoConstraints = NO;
+    [panicBtn addTarget:self action:@selector(panicPoCTapped) forControlEvents:UIControlEventTouchUpInside];
+    [self.view addSubview:panicBtn];
+
     // Position collection view below stats view, above the key bar
     [NSLayoutConstraint activateConstraints:@[
         [bqBtn.topAnchor constraintEqualToAnchor:self.statsView.bottomAnchor constant:8],
@@ -321,7 +335,11 @@
         [sepBtn.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor constant:16],
         [sepBtn.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor constant:-16],
         [sepBtn.heightAnchor constraintEqualToConstant:36],
-        [self.collectionView.topAnchor constraintEqualToAnchor:sepBtn.bottomAnchor constant:8],
+        [panicBtn.topAnchor constraintEqualToAnchor:sepBtn.bottomAnchor constant:6],
+        [panicBtn.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor constant:16],
+        [panicBtn.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor constant:-16],
+        [panicBtn.heightAnchor constraintEqualToConstant:36],
+        [self.collectionView.topAnchor constraintEqualToAnchor:panicBtn.bottomAnchor constant:8],
         [self.collectionView.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor],
         [self.collectionView.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor],
         [self.collectionView.bottomAnchor constraintEqualToAnchor:self.keyBar.topAnchor],
@@ -370,6 +388,23 @@
               runnerBlock:^NSString *{
         return [SEPKeyStoreProbe runProbe];
     }];
+}
+
+- (void)panicPoCTapped {
+    // Cảnh báo trước: device có thể reboot
+    UIAlertController *alert = [UIAlertController
+        alertControllerWithTitle:@"⚡ Panic PoC"
+        message:@"Race IOCommandGate UAF trong 30 giây.\n\nDevice CÓ THỂ REBOOT — đó là dấu hiệu UAF confirmed.\n\nTiếp tục?"
+        preferredStyle:UIAlertControllerStyleAlert];
+    [alert addAction:[UIAlertAction actionWithTitle:@"Huỷ" style:UIAlertActionStyleCancel handler:nil]];
+    [alert addAction:[UIAlertAction actionWithTitle:@"Chạy PoC" style:UIAlertActionStyleDestructive handler:^(UIAlertAction *a) {
+        [self showTerminalLog:nil
+                       title:@"⚡  CVE-2026-20637 — Panic PoC"
+                  runnerBlock:^NSString *{
+            return [SEPExploit runPanicPoC];
+        }];
+    }]];
+    [self presentViewController:alert animated:YES completion:nil];
 }
 
 /** Hiển thị terminal-style debug panel, chạy runnerBlock async để lấy log. */
