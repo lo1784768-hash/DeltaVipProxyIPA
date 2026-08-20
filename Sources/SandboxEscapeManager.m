@@ -1,15 +1,17 @@
 /*
  * SandboxEscapeManager.m
  *
- * Wrapper cho kexploit_opa334 + sandbox_escape để dùng trong standalone app
- * (không cần Substrate / Theos — gọi trực tiếp từ AppDelegate).
+ * Wrapper cho kexploit_opa334 + sandbox_escape để dùng trong standalone app.
  *
- * Sau khi escape thành công, process có thể đọc trực tiếp
- * /var/mobile/Containers/Data/Application/ → dùng containerPathForBundleID:
- * để tìm container game mà KHÔNG cần MCM / private entitlements.
+ * Ba cơ chế theo phiên bản iOS:
+ *   Cơ chế A — iOS 26.1+   : MCM trực tiếp, không cần kernel exploit.
+ *   Cơ chế B — iOS 17–26.0 : kexploit_opa334 → sandbox_escape → scan metadata.
+ *   Cơ chế C — iOS 18–26.6 : bad_query path traversal (fallback khi B không có offsets).
+ *                             Chưa được kiểm chứng trên iOS 18, có thể hoạt động.
  */
 
 #import "SandboxEscapeManager.h"
+#import "BadQueryManager.h"
 #import <Foundation/Foundation.h>
 #import <fcntl.h>
 #import <unistd.h>
@@ -105,8 +107,19 @@ static BOOL _isMechanismB(void) {
             // Bước 1: Kernel exploit OPA334
             int kret = kexploit_opa334();
             if (kret != 0) {
-                NSLog(@"[SEM] ❌ kexploit_opa334 thất bại: %d (iOS này có thể chưa hỗ trợ)", kret);
-                dispatch_async(dispatch_get_main_queue(), ^{ if (completion) completion(NO); });
+                NSLog(@"[SEM] ❌ kexploit_opa334 thất bại: %d — thử Cơ chế C (bad_query)...", kret);
+
+                // Cơ chế C: bad_query — không cần kernel exploit
+                // Hoạt động trên iOS 26.0–26.6.1, chưa kiểm chứng trên iOS 18.x
+                [BadQueryManager activateWithCompletion:^(BOOL bqSuccess) {
+                    if (bqSuccess) {
+                        NSLog(@"[SEM] ✅ Cơ chế C (bad_query) thành công — Data containers accessible");
+                        gEscaped = YES;
+                    } else {
+                        NSLog(@"[SEM] ❌ Cơ chế C (bad_query) cũng thất bại — không có cơ chế nào hoạt động");
+                    }
+                    if (completion) completion(bqSuccess);
+                }];
                 return;
             }
             NSLog(@"[SEM] ✅ kexploit_opa334 thành công");
@@ -132,33 +145,37 @@ static BOOL _isMechanismB(void) {
 + (NSString *)containerPathForBundleID:(NSString *)bundleID {
     if (!bundleID.length) return nil;
 
-    // Đọc trực tiếp /var/mobile/Containers/Data/Application/{UUID}/.metadata.plist
-    // Cần sandbox escaped trước khi gọi hàm này.
     NSString *dataDir = @"/var/mobile/Containers/Data/Application";
     NSFileManager *fm = [NSFileManager defaultManager];
     NSArray *uuids = [fm contentsOfDirectoryAtPath:dataDir error:nil];
 
-    if (!uuids || uuids.count == 0) {
-        NSLog(@"[SEM] ⚠️ Không đọc được %@ (sandbox chưa escaped?)", dataDir);
+    if (uuids.count > 0) {
+        // Cơ chế B hoặc C đã active → scan metadata plists trực tiếp
+        for (NSString *uuid in uuids) {
+            NSString *uuidPath = [dataDir stringByAppendingPathComponent:uuid];
+            NSString *metaPath = [uuidPath stringByAppendingPathComponent:
+                                  @".com.apple.mobile_container_manager.metadata.plist"];
+            NSDictionary *meta = [NSDictionary dictionaryWithContentsOfFile:metaPath];
+            NSString *bid = meta[@"MCMMetadataIdentifier"];
+            if ([bid isEqualToString:bundleID]) {
+                NSLog(@"[SEM] ✅ Container %@: %@", bundleID, uuidPath);
+                return uuidPath;
+            }
+        }
+        NSLog(@"[SEM] ⚠️ Không tìm thấy container cho %@", bundleID);
         return nil;
     }
 
-    for (NSString *uuid in uuids) {
-        NSString *uuidPath = [dataDir stringByAppendingPathComponent:uuid];
-        // Tên file metadata
-        NSString *metaPath = [uuidPath stringByAppendingPathComponent:
-                              @".com.apple.mobile_container_manager.metadata.plist"];
-        NSDictionary *meta = [NSDictionary dictionaryWithContentsOfFile:metaPath];
-        NSString *bid = meta[@"MCMMetadataIdentifier"];
-        if ([bid isEqualToString:bundleID]) {
-            NSLog(@"[SEM] ✅ Container %@: %@", bundleID, uuidPath);
-            return uuidPath;
-        }
+    // Không đọc được qua filesystem trực tiếp → thử Cơ chế C (BadQueryManager)
+    if (BadQueryManager.active) {
+        NSLog(@"[SEM] 🔄 Thử BadQueryManager.containerPathForBundleID: (Cơ chế C)");
+        return [BadQueryManager containerPathForBundleID:bundleID];
     }
 
-    NSLog(@"[SEM] ⚠️ Không tìm thấy container cho %@", bundleID);
+    NSLog(@"[SEM] ⚠️ Không đọc được %@ — sandbox chưa escaped, bad_query chưa active", dataDir);
     return nil;
 }
+
 
 + (NSDictionary<NSString *, NSString *> *)allContainerPaths {
     NSString *dataDir = @"/var/mobile/Containers/Data/Application";

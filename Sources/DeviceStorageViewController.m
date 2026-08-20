@@ -3,6 +3,7 @@
 #import "VirtualFileSystemBuilder.h"
 #import "DebugLogger.h"
 #import "AppPaths.h"
+#import "BadQueryManager.h"
 #import <Foundation/Foundation.h>
 
 @interface DeviceStorageViewController ()
@@ -67,7 +68,14 @@
         target:self
         action:@selector(shareLogs)];
 
-    self.navigationItem.rightBarButtonItems = @[refreshButton, shareButton];
+    // Nút test Cơ chế C (bad_query) — để debug trên iOS 18.7.x
+    UIBarButtonItem *bqButton = [[UIBarButtonItem alloc]
+        initWithTitle:@"🔓 C3"
+        style:UIBarButtonItemStylePlain
+        target:self
+        action:@selector(testBadQuery)];
+
+    self.navigationItem.rightBarButtonItems = @[refreshButton, shareButton, bqButton];
 
     // Initialize MCM + build virtual filesystem
     [self setupVirtualFileSystem];
@@ -176,6 +184,55 @@
 
 - (void)refreshVirtualFS {
     [self setupVirtualFileSystem];
+}
+
+// ── Cơ chế C — bad_query diagnostic ──────────────────────────────────────────
+
+- (void)testBadQuery {
+    // Hiện alert loading
+    UIAlertController *loading = [UIAlertController
+        alertControllerWithTitle:@"🔓 Cơ chế C"
+        message:@"Đang test bad_query...\n\nIOS 26.0–26.6.1: ✅ confirmed\nIOS 18.x: untested"
+        preferredStyle:UIAlertControllerStyleAlert];
+    [self presentViewController:loading animated:YES completion:nil];
+
+    dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
+        NSString *diagLog = [BadQueryManager runDiagnostic];
+
+        // Lưu vào DebugLogger để xem trong Logs
+        [[DebugLogger sharedLogger] log:@"%@", diagLog];
+
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [loading dismissViewControllerAnimated:YES completion:^{
+                // Hiện kết quả
+                NSString *ios = [[UIDevice currentDevice] systemVersion];
+                NSString *status = BadQueryManager.active
+                    ? @"✅ THÀNH CÔNG — Data containers accessible"
+                    : @"❌ THẤT BẠI — Xem 📋 Logs để biết chi tiết";
+
+                UIAlertController *result = [UIAlertController
+                    alertControllerWithTitle:[NSString stringWithFormat:@"bad_query — iOS %@", ios]
+                    message:[NSString stringWithFormat:@"%@\n\n%@", status,
+                             // Hiện 600 ký tự đầu của log
+                             diagLog.length > 600
+                                ? [diagLog substringToIndex:600]
+                                : diagLog]
+                    preferredStyle:UIAlertControllerStyleAlert];
+
+                [result addAction:[UIAlertAction
+                    actionWithTitle:@"Xem đầy đủ (Logs)"
+                    style:UIAlertActionStyleDefault
+                    handler:^(UIAlertAction *a) { [self shareLogs]; }]];
+
+                [result addAction:[UIAlertAction
+                    actionWithTitle:@"OK"
+                    style:UIAlertActionStyleCancel
+                    handler:nil]];
+
+                [self presentViewController:result animated:YES completion:nil];
+            }];
+        });
+    });
 }
 
 #pragma mark - UITableViewDataSource
