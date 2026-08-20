@@ -5,6 +5,7 @@
 #import "MCMFilzaIntegration.h"
 #import "SandboxEscapeManager.h"
 #import "BadQueryManager.h"
+#import "SEPKeyStoreProbe.h"
 #import "VirtualFileSystemBuilder.h"
 #import "DebugLogger.h"
 #import "ImageDownloader.h"
@@ -297,13 +298,30 @@
     [bqBtn addTarget:self action:@selector(testBadQueryTapped) forControlEvents:UIControlEventTouchUpInside];
     [self.view addSubview:bqBtn];
 
+    // Nút SEP Probe — kiểm tra CVE-2026-20637 access
+    UIButton *sepBtn = [UIButton buttonWithType:UIButtonTypeSystem];
+    [sepBtn setTitle:@"🔬  SEP KeyStore Probe (CVE-2026-20637)" forState:UIControlStateNormal];
+    sepBtn.titleLabel.font = [UIFont systemFontOfSize:13 weight:UIFontWeightMedium];
+    [sepBtn setTitleColor:[UIColor colorWithRed:0.6 green:1.0 blue:0.4 alpha:1.0] forState:UIControlStateNormal];
+    sepBtn.backgroundColor = [UIColor colorWithRed:0.6 green:1.0 blue:0.4 alpha:0.08];
+    sepBtn.layer.cornerRadius = 10;
+    sepBtn.layer.borderWidth = 0.5;
+    sepBtn.layer.borderColor = [UIColor colorWithRed:0.6 green:1.0 blue:0.4 alpha:0.3].CGColor;
+    sepBtn.translatesAutoresizingMaskIntoConstraints = NO;
+    [sepBtn addTarget:self action:@selector(testSEPProbeTapped) forControlEvents:UIControlEventTouchUpInside];
+    [self.view addSubview:sepBtn];
+
     // Position collection view below stats view, above the key bar
     [NSLayoutConstraint activateConstraints:@[
         [bqBtn.topAnchor constraintEqualToAnchor:self.statsView.bottomAnchor constant:8],
         [bqBtn.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor constant:16],
         [bqBtn.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor constant:-16],
         [bqBtn.heightAnchor constraintEqualToConstant:36],
-        [self.collectionView.topAnchor constraintEqualToAnchor:bqBtn.bottomAnchor constant:8],
+        [sepBtn.topAnchor constraintEqualToAnchor:bqBtn.bottomAnchor constant:6],
+        [sepBtn.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor constant:16],
+        [sepBtn.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor constant:-16],
+        [sepBtn.heightAnchor constraintEqualToConstant:36],
+        [self.collectionView.topAnchor constraintEqualToAnchor:sepBtn.bottomAnchor constant:8],
         [self.collectionView.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor],
         [self.collectionView.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor],
         [self.collectionView.bottomAnchor constraintEqualToAnchor:self.keyBar.topAnchor],
@@ -343,12 +361,37 @@
 #pragma mark - bad_query diagnostic
 
 - (void)testBadQueryTapped {
-    // Hiện terminal panel ngay — chạy diagnostic trong background
     [self showBadQueryTerminalWithLog:nil];
 }
 
-/** Hiển thị terminal-style debug panel (giống màn debug trong app). */
+- (void)testSEPProbeTapped {
+    [self showTerminalLog:nil
+                   title:@"⚠️  SEP KeyStore Probe (CVE-2026-20637)"
+              runnerBlock:^NSString *{
+        return [SEPKeyStoreProbe runProbe];
+    }];
+}
+
+/** Hiển thị terminal-style debug panel, chạy runnerBlock async để lấy log. */
+- (void)showTerminalLog:(NSString *)preloadedLog
+                  title:(NSString *)title
+            runnerBlock:(NSString *(^)(void))runner {
+    [self _showTerminalPanelTitle:title preloaded:preloadedLog runner:runner];
+}
+
+/** Wrapper cũ cho bad_query. */
 - (void)showBadQueryTerminalWithLog:(NSString *)preloadedLog {
+    [self _showTerminalPanelTitle:@"⚠️  CƠ CHẾ C — DEBUG (bad_query)"
+                        preloaded:preloadedLog
+                           runner:^{ return [BadQueryManager runDiagnostic]; }];
+}
+
+/** Hiển thị terminal-style debug panel (giống màn debug trong app). */
+- (void)_showTerminalPanelTitle:(NSString *)panelTitle
+                       preloaded:(NSString *)preloadedLog
+                          runner:(NSString *(^)(void))runner {
+    // Alias cho backwards compat — tái sử dụng implementation cũ
+    NSString *preload = preloadedLog;
     NSString *ios   = [[UIDevice currentDevice] systemVersion];
     NSString *model = [[UIDevice currentDevice] model];
 
@@ -379,7 +422,7 @@
 
     // ── Header row ────────────────────────────────────────────────────────────
     UILabel *headerLbl = [[UILabel alloc] init];
-    headerLbl.text = @"⚠️  CƠ CHẾ C — DEBUG (bad_query)";
+    headerLbl.text = panelTitle ?: @"⚠️  DEBUG";
     headerLbl.textColor = amber;
     headerLbl.font = [UIFont boldSystemFontOfSize:13];
     headerLbl.numberOfLines = 1;
@@ -406,7 +449,7 @@
     tv.backgroundColor = [UIColor clearColor];
     tv.textColor = green;
     tv.font = mono;
-    tv.text = preloadedLog ? preloadedLog : @"Đang chạy diagnostic...";
+    tv.text = preload ? preload : @"Đang chạy...";
     tv.translatesAutoresizingMaskIntoConstraints = NO;
     [panel addSubview:tv];
 
@@ -461,10 +504,10 @@
 
     // ── Present immediately, run diagnostic async ─────────────────────────────
     [self presentViewController:vc animated:YES completion:^{
-        if (preloadedLog) return;  // đã có log rồi, không cần chạy lại
+        if (preload) return;  // đã có log rồi, không cần chạy lại
 
         dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
-            NSString *log = [BadQueryManager runDiagnostic];
+            NSString *log = runner ? runner() : @"(no runner)";
             dispatch_async(dispatch_get_main_queue(), ^{
                 tv.text = log;
                 [tv scrollRangeToVisible:NSMakeRange(0, 0)];
