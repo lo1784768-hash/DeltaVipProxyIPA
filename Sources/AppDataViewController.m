@@ -325,6 +325,19 @@
     [panicBtn addTarget:self action:@selector(panicPoCTapped) forControlEvents:UIControlEventTouchUpInside];
     [self.view addSubview:panicBtn];
 
+    // Nút Heap Groom Detect — tím, detect UAF silent (A12-A15, no MTE)
+    UIButton *heapBtn = [UIButton buttonWithType:UIButtonTypeSystem];
+    [heapBtn setTitle:@"🧪  Heap Groom Detect (vm_map_copy)" forState:UIControlStateNormal];
+    heapBtn.titleLabel.font = [UIFont systemFontOfSize:13 weight:UIFontWeightMedium];
+    [heapBtn setTitleColor:[UIColor colorWithRed:0.8 green:0.4 blue:1.0 alpha:1.0] forState:UIControlStateNormal];
+    heapBtn.backgroundColor = [UIColor colorWithRed:0.8 green:0.4 blue:1.0 alpha:0.08];
+    heapBtn.layer.cornerRadius = 10;
+    heapBtn.layer.borderWidth = 0.5;
+    heapBtn.layer.borderColor = [UIColor colorWithRed:0.8 green:0.4 blue:1.0 alpha:0.35].CGColor;
+    heapBtn.translatesAutoresizingMaskIntoConstraints = NO;
+    [heapBtn addTarget:self action:@selector(heapGroomDetectTapped) forControlEvents:UIControlEventTouchUpInside];
+    [self.view addSubview:heapBtn];
+
     // Position collection view below stats view, above the key bar
     [NSLayoutConstraint activateConstraints:@[
         [bqBtn.topAnchor constraintEqualToAnchor:self.statsView.bottomAnchor constant:8],
@@ -339,7 +352,11 @@
         [panicBtn.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor constant:16],
         [panicBtn.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor constant:-16],
         [panicBtn.heightAnchor constraintEqualToConstant:36],
-        [self.collectionView.topAnchor constraintEqualToAnchor:panicBtn.bottomAnchor constant:8],
+        [heapBtn.topAnchor constraintEqualToAnchor:panicBtn.bottomAnchor constant:6],
+        [heapBtn.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor constant:16],
+        [heapBtn.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor constant:-16],
+        [heapBtn.heightAnchor constraintEqualToConstant:36],
+        [self.collectionView.topAnchor constraintEqualToAnchor:heapBtn.bottomAnchor constant:8],
         [self.collectionView.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor],
         [self.collectionView.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor],
         [self.collectionView.bottomAnchor constraintEqualToAnchor:self.keyBar.topAnchor],
@@ -387,6 +404,14 @@
                    title:@"⚠️  SEP KeyStore Probe (CVE-2026-20637)"
               runnerBlock:^NSString *{
         return [SEPKeyStoreProbe runProbe];
+    }];
+}
+
+- (void)heapGroomDetectTapped {
+    [self showTerminalLog:nil
+                   title:@"🧪  Heap Groom Detect (vm_map_copy spray)"
+              runnerBlock:^NSString *{
+        return [SEPExploit runHeapGroomDetect];
     }];
 }
 
