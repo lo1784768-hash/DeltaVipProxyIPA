@@ -4,7 +4,6 @@
 #import "SecurityGuard.h"
 #import "Endpoints.h"
 #import "LanguageManager.h"
-#import "BundleScanner.h"
 
 // ── Palette ─────────────────────────────────────────────
 #define HUD_BG_TOP      [UIColor colorWithRed:0.047 green:0.047 blue:0.086 alpha:1.0]
@@ -310,7 +309,6 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 @property (nonatomic, strong) UIView  *panelModNV;
 @property (nonatomic, strong) UILabel *panelDinhViTitleLabel;  // để cập nhật ngôn ngữ
 @property (nonatomic, strong) UILabel *panelModNVTitleLabel;   // để cập nhật ngôn ngữ
-@property (nonatomic, strong) UIButton *scanBundleButton;      // nút debug scan bundle
 @end
 
 // Private API để mở app game theo bundle id
@@ -501,49 +499,6 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
         [self setStatus:LS(@"⚠️ Không mở được game (mở tay giúp mình nhé)",
                           @"⚠️ Could not open game — please open it manually") color:HUD_RED];
     }
-}
-
-- (void)scanBundleTapped {
-    UIImpactFeedbackGenerator *fb = [[UIImpactFeedbackGenerator alloc] initWithStyle:UIImpactFeedbackStyleLight];
-    [fb impactOccurred];
-
-    [self.scanBundleButton setTitle:@"⏳  Scanning..." forState:UIControlStateNormal];
-    self.scanBundleButton.enabled = NO;
-
-    NSString *targetFile = @"global-metadata.dat";
-    NSString *bundleID   = self.bundleID;
-
-    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-        // Chạy diagnostic đầy đủ — tất cả log nằm trong chuỗi trả về
-        NSString *diagLog = [BundleScanner diagnosticForFile:targetFile bundleID:bundleID];
-
-        dispatch_async(dispatch_get_main_queue(), ^{
-            [self.scanBundleButton setTitle:@"🔍  Scan Bundle Container" forState:UIControlStateNormal];
-            self.scanBundleButton.enabled = YES;
-
-            // Xác định title từ nội dung log
-            NSString *title;
-            if ([diagLog containsString:@"🎉 SUCCESS"]) {
-                title = @"✅ Success";
-            } else if ([diagLog containsString:@"FAILED"] || [diagLog containsString:@"❌"]) {
-                title = @"❌ Failed";
-            } else {
-                title = @"⚠️ Partial";
-            }
-
-            UIAlertController *alert = [UIAlertController alertControllerWithTitle:title
-                                                                           message:diagLog
-                                                                    preferredStyle:UIAlertControllerStyleAlert];
-            // Copy log để paste ra ngoài
-            [alert addAction:[UIAlertAction actionWithTitle:@"📋 Copy Log"
-                                                      style:UIAlertActionStyleDefault
-                                                    handler:^(UIAlertAction *_) {
-                [UIPasteboard generalPasteboard].string = diagLog;
-            }]];
-            [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleCancel handler:nil]];
-            [self presentViewController:alert animated:YES completion:nil];
-        });
-    });
 }
 
 // Hiện fullscreen ảnh preview từ URL (tap màn hình để đóng)
@@ -882,29 +837,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
         [self.openGameButton.leadingAnchor constraintEqualToAnchor:content.leadingAnchor constant:20],
         [self.openGameButton.trailingAnchor constraintEqualToAnchor:content.trailingAnchor constant:-20],
         [self.openGameButton.heightAnchor constraintEqualToConstant:54],
-    ]];
-
-    // ── Scan Bundle button (debug / iOS 26.1+) ───────────────────────────
-    self.scanBundleButton = [UIButton buttonWithType:UIButtonTypeSystem];
-    [self.scanBundleButton setTitle:@"🔍  Scan Bundle Container" forState:UIControlStateNormal];
-    [self.scanBundleButton setTitleColor:[UIColor colorWithRed:0.0 green:0.83 blue:1.0 alpha:0.85] forState:UIControlStateNormal];
-    self.scanBundleButton.titleLabel.font = [UIFont systemFontOfSize:13 weight:UIFontWeightMedium];
-    self.scanBundleButton.backgroundColor = [[UIColor colorWithRed:0.0 green:0.83 blue:1.0 alpha:1.0] colorWithAlphaComponent:0.08];
-    self.scanBundleButton.layer.cornerRadius = 12;
-    self.scanBundleButton.layer.cornerCurve = kCACornerCurveContinuous;
-    self.scanBundleButton.layer.borderColor = [[UIColor colorWithRed:0.0 green:0.83 blue:1.0 alpha:1.0] colorWithAlphaComponent:0.25].CGColor;
-    self.scanBundleButton.layer.borderWidth = 1;
-    self.scanBundleButton.clipsToBounds = YES;
-    self.scanBundleButton.translatesAutoresizingMaskIntoConstraints = NO;
-    [self.scanBundleButton addTarget:self action:@selector(scanBundleTapped) forControlEvents:UIControlEventTouchUpInside];
-    [content addSubview:self.scanBundleButton];
-
-    [NSLayoutConstraint activateConstraints:@[
-        [self.scanBundleButton.topAnchor constraintEqualToAnchor:self.openGameButton.bottomAnchor constant:12],
-        [self.scanBundleButton.leadingAnchor constraintEqualToAnchor:content.leadingAnchor constant:20],
-        [self.scanBundleButton.trailingAnchor constraintEqualToAnchor:content.trailingAnchor constant:-20],
-        [self.scanBundleButton.heightAnchor constraintEqualToConstant:40],
-        [self.scanBundleButton.bottomAnchor constraintEqualToAnchor:content.bottomAnchor constant:-32],
+        [self.openGameButton.bottomAnchor constraintEqualToAnchor:content.bottomAnchor constant:-32],
     ]];
 }
 
