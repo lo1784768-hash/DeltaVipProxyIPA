@@ -5,6 +5,7 @@
 //
 
 #include "bad_query.h"
+#include "xpc_shim.h"  // thay <xpc/xpc.h> để tránh non-modular error với -fmodules
 #include <stdio.h>
 #include <stdlib.h>
 #include <dlfcn.h>
@@ -12,14 +13,9 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/mount.h>
-#include <xpc/xpc.h>
 
-// fsgetpath is available iOS 11+ but may lack a public header on older SDKs
-#if __has_include(<sys/fsgetpath.h>)
-#include <sys/fsgetpath.h>
-#else
+// fsgetpath: iOS 11+ — dùng extern thay vì #include private header
 extern ssize_t fsgetpath(char *buf, size_t bufsize, fsid_t *fsid, uint64_t objid);
-#endif
 
 // ── containermanager private function types ───────────────────────────────────
 

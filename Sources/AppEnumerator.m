@@ -1,16 +1,8 @@
 #import "AppEnumerator.h"
 #import "DebugLogger.h"
 
-@interface LSApplicationWorkspace : NSObject
-+ (instancetype)defaultWorkspace;
-- (NSArray *)allApplications;
-@end
-
-@interface LSApplicationProxy : NSObject
-@property (nonatomic, readonly) NSString *bundleIdentifier;
-@property (nonatomic, readonly) NSString *localizedName;
-@property (nonatomic, readonly) BOOL isSystemApplication;
-@end
+// Dùng NSClassFromString + performSelector thay vì khai báo lại interface
+// để tránh conflict với iOS 26 SDK khi Apple expose private class công khai.
 
 @implementation AppEnumerator
 
