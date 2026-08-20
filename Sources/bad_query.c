@@ -74,7 +74,7 @@ int64_t bad_query(char *path, bool create, char *group_identifier, bool is_group
         !query_set_flags || !query_set_part || !query_set_part_domain ||
         !query_get_result || !query_free || !copy_token || !consume_ext) {
         dlclose(mgr);
-        return -1; // symbol resolution failed
+        return -6; // dlsym thất bại — tên hàm khác với iOS version này
     }
 
     void *query = query_create();

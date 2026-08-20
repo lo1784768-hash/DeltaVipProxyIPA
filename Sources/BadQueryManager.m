@@ -201,6 +201,36 @@ static int64_t gActiveHandle = -1;  // handle giữ sandbox extension còn sốn
     }
     addLine(@"");
 
+    // Test từng symbol trong libsystem_containermanager
+    addLine(@"── symbols (libsystem_containermanager) ──");
+    void *diagLib = dlopen("/usr/lib/system/libsystem_containermanager.dylib",
+                           RTLD_NOW | RTLD_LOCAL);
+    if (!diagLib) diagLib = dlopen("/usr/lib/libsystem_containermanager.dylib",
+                                   RTLD_NOW | RTLD_LOCAL);
+    if (diagLib) {
+        const char *syms[] = {
+            "container_query_create",
+            "container_query_set_class",
+            "container_query_set_group_identifiers",
+            "container_query_operation_set_flags",
+            "container_query_operation_set_part",
+            "container_query_operation_set_part_domain",
+            "container_query_get_single_result",
+            "container_query_free",
+            "container_copy_sandbox_token",
+            NULL
+        };
+        for (int i = 0; syms[i]; i++) {
+            void *sym = dlsym(diagLib, syms[i]);
+            addLine([NSString stringWithFormat:@"  %s %s",
+                     sym ? "✅" : "❌", syms[i]]);
+        }
+        dlclose(diagLib);
+    } else {
+        addLine(@"  ❌ không mở được lib để test symbols");
+    }
+    addLine(@"");
+
     const char *dataPath = kDataContainerRoot.UTF8String;
     const char *bundlePath = "/var/containers/Bundle/Application";
 
@@ -245,7 +275,8 @@ static int64_t gActiveHandle = -1;  // handle giữ sandbox extension còn sốn
 
 + (NSString *)_describeErrorCode:(int64_t)code {
     switch (code) {
-        case -1:   return @"dlopen/dlsym thất bại (containermanager không tải được)";
+        case -1:   return @"dlopen thất bại (containermanager không tải được)";
+        case -6:   return @"dlsym thất bại (tên hàm khác — xem section symbols phía trên)";
         case -2:   return @"container_query_create thất bại";
         case -3:   return @"containermanager từ chối (iOS version không bị ảnh hưởng)";
         case -4:   return @"kernel từ chối cấp sandbox token (đã patch)";
