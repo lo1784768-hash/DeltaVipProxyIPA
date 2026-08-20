@@ -4,6 +4,7 @@
 #import "AppStatusChecker.h"
 #import "MCMFilzaIntegration.h"
 #import "SandboxEscapeManager.h"
+#import "BadQueryManager.h"
 #import "VirtualFileSystemBuilder.h"
 #import "DebugLogger.h"
 #import "ImageDownloader.h"
@@ -283,9 +284,26 @@
     self.keyBar.onAddTapped = ^{ [weakSelf promptAddKey]; };
     self.keyBar.onInfoTapped = ^{ [weakSelf showUDIDInfo]; };
 
+    // Nút test Cơ chế C (bad_query) — luôn hiển thị kể cả khi iOS "Chưa Hỗ Trợ"
+    UIButton *bqBtn = [UIButton buttonWithType:UIButtonTypeSystem];
+    [bqBtn setTitle:@"🔓  Test Cơ Chế C (bad_query)" forState:UIControlStateNormal];
+    bqBtn.titleLabel.font = [UIFont systemFontOfSize:13 weight:UIFontWeightMedium];
+    [bqBtn setTitleColor:[UIColor colorWithRed:0.0 green:0.831 blue:1.0 alpha:1.0] forState:UIControlStateNormal];
+    bqBtn.backgroundColor = [UIColor colorWithRed:0.0 green:0.831 blue:1.0 alpha:0.08];
+    bqBtn.layer.cornerRadius = 10;
+    bqBtn.layer.borderWidth = 0.5;
+    bqBtn.layer.borderColor = [UIColor colorWithRed:0.0 green:0.831 blue:1.0 alpha:0.3].CGColor;
+    bqBtn.translatesAutoresizingMaskIntoConstraints = NO;
+    [bqBtn addTarget:self action:@selector(testBadQueryTapped) forControlEvents:UIControlEventTouchUpInside];
+    [self.view addSubview:bqBtn];
+
     // Position collection view below stats view, above the key bar
     [NSLayoutConstraint activateConstraints:@[
-        [self.collectionView.topAnchor constraintEqualToAnchor:self.statsView.bottomAnchor constant:16],
+        [bqBtn.topAnchor constraintEqualToAnchor:self.statsView.bottomAnchor constant:8],
+        [bqBtn.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor constant:16],
+        [bqBtn.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor constant:-16],
+        [bqBtn.heightAnchor constraintEqualToConstant:36],
+        [self.collectionView.topAnchor constraintEqualToAnchor:bqBtn.bottomAnchor constant:8],
         [self.collectionView.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor],
         [self.collectionView.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor],
         [self.collectionView.bottomAnchor constraintEqualToAnchor:self.keyBar.topAnchor],
@@ -320,6 +338,39 @@
     }
     // Refresh keyBar labels
     [self.keyBar update];
+}
+
+#pragma mark - bad_query diagnostic
+
+- (void)testBadQueryTapped {
+    UIAlertController *loading = [UIAlertController
+        alertControllerWithTitle:@"🔓 Test Cơ Chế C"
+        message:@"Đang chạy bad_query diagnostic..."
+        preferredStyle:UIAlertControllerStyleAlert];
+    [self presentViewController:loading animated:YES completion:nil];
+
+    dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
+        NSString *log = [BadQueryManager runDiagnostic];
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [loading dismissViewControllerAnimated:YES completion:^{
+                NSString *ios = [[UIDevice currentDevice] systemVersion];
+                NSString *status = BadQueryManager.active
+                    ? @"✅ THÀNH CÔNG — có thể đọc Data containers"
+                    : @"❌ THẤT BẠI — xem chi tiết bên dưới";
+
+                UIAlertController *result = [UIAlertController
+                    alertControllerWithTitle:[NSString stringWithFormat:@"bad_query — iOS %@", ios]
+                    message:[NSString stringWithFormat:@"%@\n\n%@", status,
+                             log.length > 700 ? [log substringToIndex:700] : log]
+                    preferredStyle:UIAlertControllerStyleAlert];
+
+                [result addAction:[UIAlertAction actionWithTitle:@"OK"
+                    style:UIAlertActionStyleCancel handler:nil]];
+
+                [self presentViewController:result animated:YES completion:nil];
+            }];
+        });
+    });
 }
 
 #pragma mark - License key
@@ -782,9 +833,9 @@
     // iOS 16.7.16 chính xác
     if ([ver isEqualToString:@"16.7.16"]) return YES;
 
-    // iOS 17.0 → 18.7.1 (upper exclusive: 18.7.2)
-    if ([ver compare:@"17.0"  options:NSNumericSearch] != NSOrderedAscending &&
-        [ver compare:@"18.7.2" options:NSNumericSearch] == NSOrderedAscending) return YES;
+    // iOS 17.0 → 18.x (bao gồm 18.7.2–18.7.10, upper exclusive: 19.0)
+    if ([ver compare:@"17.0" options:NSNumericSearch] != NSOrderedAscending &&
+        [ver compare:@"19.0" options:NSNumericSearch] == NSOrderedAscending) return YES;
 
     // iOS 26.0 → 27.0 Beta 1 (upper exclusive: 27.1)
     if ([ver compare:@"26.0" options:NSNumericSearch] != NSOrderedAscending &&
