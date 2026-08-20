@@ -12,6 +12,7 @@
 #import "DebugLogger.h"
 #import <UIKit/UIKit.h>
 #include "bad_query.h"
+#include <dlfcn.h>   // dlopen/dlclose/dlerror — cần cho dylib path check trong runDiagnostic
 
 #define BQ_LOG(fmt, ...) \
     do { \
