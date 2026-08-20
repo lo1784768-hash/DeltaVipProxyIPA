@@ -24,26 +24,26 @@
  * completion gọi trên main thread với YES = thành công, NO = thất bại.
  * Gọi lại nhiều lần sau khi đã active là no-op.
  */
-+ (void)activateWithCompletion:(void (^)(BOOL success))completion;
++ (void)activateWithCompletion:(void (^ _Nullable)(BOOL success))completion;
 
 /**
  * Tìm Data container path cho bundleID bằng cách đọc metadata plists.
  * Yêu cầu [BadQueryManager active] == YES.
  * Trả nil nếu không tìm thấy.
  */
-+ (nullable NSString *)containerPathForBundleID:(NSString *)bundleID;
++ (nullable NSString *)containerPathForBundleID:(NSString * _Nonnull)bundleID;
 
 /**
  * Trả về dict bundleID → containerPath cho toàn bộ app.
  * Yêu cầu [BadQueryManager active] == YES.
  */
-+ (NSDictionary<NSString *, NSString *> *)allContainerPaths;
++ (NSDictionary<NSString *, NSString *> * _Nonnull)allContainerPaths;
 
 /**
  * Chạy test nhanh tất cả các route và trả về string log để debug.
  * Không cần active. Dùng để test trực tiếp từ UI.
  */
-+ (NSString *)runDiagnostic;
++ (NSString * _Nonnull)runDiagnostic;
 
 @end
 

@@ -10,6 +10,7 @@
 
 #import "BadQueryManager.h"
 #import "DebugLogger.h"
+#import <UIKit/UIKit.h>
 #include "bad_query.h"
 
 #define BQ_LOG(fmt, ...) \
