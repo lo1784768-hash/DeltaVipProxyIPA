@@ -343,34 +343,134 @@
 #pragma mark - bad_query diagnostic
 
 - (void)testBadQueryTapped {
-    UIAlertController *loading = [UIAlertController
-        alertControllerWithTitle:@"🔓 Test Cơ Chế C"
-        message:@"Đang chạy bad_query diagnostic..."
-        preferredStyle:UIAlertControllerStyleAlert];
-    [self presentViewController:loading animated:YES completion:nil];
+    // Hiện terminal panel ngay — chạy diagnostic trong background
+    [self showBadQueryTerminalWithLog:nil];
+}
 
-    dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
-        NSString *log = [BadQueryManager runDiagnostic];
-        dispatch_async(dispatch_get_main_queue(), ^{
-            [loading dismissViewControllerAnimated:YES completion:^{
-                NSString *ios = [[UIDevice currentDevice] systemVersion];
-                NSString *status = BadQueryManager.active
-                    ? @"✅ THÀNH CÔNG — có thể đọc Data containers"
-                    : @"❌ THẤT BẠI — xem chi tiết bên dưới";
+/** Hiển thị terminal-style debug panel (giống màn debug trong app). */
+- (void)showBadQueryTerminalWithLog:(NSString *)preloadedLog {
+    NSString *ios   = [[UIDevice currentDevice] systemVersion];
+    NSString *model = [[UIDevice currentDevice] model];
 
-                UIAlertController *result = [UIAlertController
-                    alertControllerWithTitle:[NSString stringWithFormat:@"bad_query — iOS %@", ios]
-                    message:[NSString stringWithFormat:@"%@\n\n%@", status,
-                             log.length > 700 ? [log substringToIndex:700] : log]
-                    preferredStyle:UIAlertControllerStyleAlert];
+    // ── Container view controller ─────────────────────────────────────────────
+    UIViewController *vc = [[UIViewController alloc] init];
+    vc.modalPresentationStyle = UIModalPresentationFullScreen;
 
-                [result addAction:[UIAlertAction actionWithTitle:@"OK"
-                    style:UIAlertActionStyleCancel handler:nil]];
+    UIColor *bg      = [UIColor colorWithRed:0.03 green:0.03 blue:0.09 alpha:1.0];
+    UIColor *amber   = [UIColor colorWithRed:1.00 green:0.80 blue:0.00 alpha:1.0];
+    UIColor *green   = [UIColor colorWithRed:0.20 green:1.00 blue:0.50 alpha:1.0];
+    UIColor *cyan    = [UIColor colorWithRed:0.00 green:0.83 blue:1.00 alpha:1.0];
+    UIColor *border  = [UIColor colorWithRed:1.00 green:0.80 blue:0.00 alpha:0.55];
+    UIFont  *mono    = [UIFont fontWithName:@"Menlo" size:12]
+                    ?: [UIFont monospacedSystemFontOfSize:12 weight:UIFontWeightRegular];
+    UIFont  *monoSm  = [UIFont fontWithName:@"Menlo" size:11]
+                    ?: [UIFont monospacedSystemFontOfSize:11 weight:UIFontWeightRegular];
 
-                [self presentViewController:result animated:YES completion:nil];
-            }];
+    vc.view.backgroundColor = bg;
+
+    // ── Panel container ───────────────────────────────────────────────────────
+    UIView *panel = [[UIView alloc] init];
+    panel.backgroundColor = [UIColor colorWithRed:0.05 green:0.05 blue:0.13 alpha:1.0];
+    panel.layer.cornerRadius = 14;
+    panel.layer.borderWidth  = 1.0;
+    panel.layer.borderColor  = border.CGColor;
+    panel.translatesAutoresizingMaskIntoConstraints = NO;
+    [vc.view addSubview:panel];
+
+    // ── Header row ────────────────────────────────────────────────────────────
+    UILabel *headerLbl = [[UILabel alloc] init];
+    headerLbl.text = @"⚠️  CƠ CHẾ C — DEBUG (bad_query)";
+    headerLbl.textColor = amber;
+    headerLbl.font = [UIFont boldSystemFontOfSize:13];
+    headerLbl.numberOfLines = 1;
+    headerLbl.translatesAutoresizingMaskIntoConstraints = NO;
+    [panel addSubview:headerLbl];
+
+    UILabel *subLbl = [[UILabel alloc] init];
+    subLbl.text = [NSString stringWithFormat:@"iOS: %@    Model: %@", ios, model];
+    subLbl.textColor = [amber colorWithAlphaComponent:0.75];
+    subLbl.font = monoSm;
+    subLbl.translatesAutoresizingMaskIntoConstraints = NO;
+    [panel addSubview:subLbl];
+
+    // Separator line
+    UIView *sep = [[UIView alloc] init];
+    sep.backgroundColor = border;
+    sep.translatesAutoresizingMaskIntoConstraints = NO;
+    [panel addSubview:sep];
+
+    // ── Scrollable log text view ──────────────────────────────────────────────
+    UITextView *tv = [[UITextView alloc] init];
+    tv.editable  = NO;
+    tv.selectable = YES;
+    tv.backgroundColor = [UIColor clearColor];
+    tv.textColor = green;
+    tv.font = mono;
+    tv.text = preloadedLog ? preloadedLog : @"Đang chạy diagnostic...";
+    tv.translatesAutoresizingMaskIntoConstraints = NO;
+    [panel addSubview:tv];
+
+    // ── Close button ──────────────────────────────────────────────────────────
+    UIButton *closeBtn = [UIButton buttonWithType:UIButtonTypeSystem];
+    [closeBtn setTitle:@"✕  Đóng" forState:UIControlStateNormal];
+    closeBtn.titleLabel.font = [UIFont systemFontOfSize:15 weight:UIFontWeightMedium];
+    [closeBtn setTitleColor:cyan forState:UIControlStateNormal];
+    closeBtn.backgroundColor = [UIColor colorWithRed:0.0 green:0.83 blue:1.0 alpha:0.10];
+    closeBtn.layer.cornerRadius = 10;
+    closeBtn.layer.borderWidth  = 0.5;
+    closeBtn.layer.borderColor  = [UIColor colorWithRed:0.0 green:0.83 blue:1.0 alpha:0.4].CGColor;
+    closeBtn.translatesAutoresizingMaskIntoConstraints = NO;
+    [panel addSubview:closeBtn];
+
+    // Action: dismiss
+    void (^doDismiss)(void) = ^{ [vc dismissViewControllerAnimated:YES completion:nil]; };
+    UIAction *closeAction = [UIAction actionWithHandler:^(__kindof UIAction *a) { doDismiss(); }];
+    [closeBtn addAction:closeAction forControlEvents:UIControlEventTouchUpInside];
+
+    // ── Layout ────────────────────────────────────────────────────────────────
+    UILayoutGuide *safe = vc.view.safeAreaLayoutGuide;
+    [NSLayoutConstraint activateConstraints:@[
+        [panel.topAnchor constraintEqualToAnchor:safe.topAnchor constant:12],
+        [panel.leadingAnchor constraintEqualToAnchor:vc.view.leadingAnchor constant:14],
+        [panel.trailingAnchor constraintEqualToAnchor:vc.view.trailingAnchor constant:-14],
+        [panel.bottomAnchor constraintEqualToAnchor:safe.bottomAnchor constant:-12],
+
+        [headerLbl.topAnchor constraintEqualToAnchor:panel.topAnchor constant:14],
+        [headerLbl.leadingAnchor constraintEqualToAnchor:panel.leadingAnchor constant:14],
+        [headerLbl.trailingAnchor constraintEqualToAnchor:panel.trailingAnchor constant:-14],
+
+        [subLbl.topAnchor constraintEqualToAnchor:headerLbl.bottomAnchor constant:4],
+        [subLbl.leadingAnchor constraintEqualToAnchor:panel.leadingAnchor constant:14],
+        [subLbl.trailingAnchor constraintEqualToAnchor:panel.trailingAnchor constant:-14],
+
+        [sep.topAnchor constraintEqualToAnchor:subLbl.bottomAnchor constant:10],
+        [sep.leadingAnchor constraintEqualToAnchor:panel.leadingAnchor constant:14],
+        [sep.trailingAnchor constraintEqualToAnchor:panel.trailingAnchor constant:-14],
+        [sep.heightAnchor constraintEqualToConstant:0.5],
+
+        [tv.topAnchor constraintEqualToAnchor:sep.bottomAnchor constant:8],
+        [tv.leadingAnchor constraintEqualToAnchor:panel.leadingAnchor constant:10],
+        [tv.trailingAnchor constraintEqualToAnchor:panel.trailingAnchor constant:-10],
+        [tv.bottomAnchor constraintEqualToAnchor:closeBtn.topAnchor constant:-10],
+
+        [closeBtn.leadingAnchor constraintEqualToAnchor:panel.leadingAnchor constant:14],
+        [closeBtn.trailingAnchor constraintEqualToAnchor:panel.trailingAnchor constant:-14],
+        [closeBtn.bottomAnchor constraintEqualToAnchor:panel.bottomAnchor constant:-14],
+        [closeBtn.heightAnchor constraintEqualToConstant:44],
+    ]];
+
+    // ── Present immediately, run diagnostic async ─────────────────────────────
+    [self presentViewController:vc animated:YES completion:^{
+        if (preloadedLog) return;  // đã có log rồi, không cần chạy lại
+
+        dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
+            NSString *log = [BadQueryManager runDiagnostic];
+            dispatch_async(dispatch_get_main_queue(), ^{
+                tv.text = log;
+                [tv scrollRangeToVisible:NSMakeRange(0, 0)];
+            });
         });
-    });
+    }];
 }
 
 #pragma mark - License key

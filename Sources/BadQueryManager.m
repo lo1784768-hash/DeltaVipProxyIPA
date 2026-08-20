@@ -179,25 +179,43 @@ static int64_t gActiveHandle = -1;  // handle giữ sandbox extension còn sốn
     addLine([NSString stringWithFormat:@"active = %@", gBQActive ? @"YES" : @"NO"]);
     addLine(@"");
 
+    // Kiểm tra thủ công từng path của containermanager dylib
+    addLine(@"── containermanager dylib paths ──");
+    const char * const dylibPaths[] = {
+        "/usr/lib/system/libsystem_containermanager.dylib",
+        "/usr/lib/libsystem_containermanager.dylib",
+        "/System/Library/PrivateFrameworks/MobileContainerManager.framework/MobileContainerManager",
+        NULL
+    };
+    for (int i = 0; dylibPaths[i]; i++) {
+        void *h = dlopen(dylibPaths[i], RTLD_NOW | RTLD_LOCAL | RTLD_NOLOAD);
+        NSString *pathStr = [NSString stringWithUTF8String:dylibPaths[i]];
+        NSString *shortPath = pathStr.lastPathComponent;
+        if (h) {
+            addLine([NSString stringWithFormat:@"  ✅ %@", shortPath]);
+            dlclose(h);
+        } else {
+            addLine([NSString stringWithFormat:@"  ❌ %@ — %s", shortPath, dlerror() ?: "not found"]);
+        }
+    }
+    addLine(@"");
+
     const char *dataPath = kDataContainerRoot.UTF8String;
     const char *bundlePath = "/var/containers/Bundle/Application";
 
-    struct {
-        const char *path;
-        const char *label;
-    } paths[] = {
+    struct { const char *path; const char *label; } targetPaths[] = {
         { dataPath,   "Data   /var/mobile/Containers/Data/Application" },
         { bundlePath, "Bundle /var/containers/Bundle/Application"      },
     };
 
     for (int pi = 0; pi < 2; pi++) {
-        addLine([NSString stringWithFormat:@"── %s ──", paths[pi].label]);
+        addLine([NSString stringWithFormat:@"── %s ──", targetPaths[pi].label]);
 
         for (int ri = 0; ri < kRouteCount; ri++) {
             const char *group = kRoutes[ri].group;
             const char *label = kRoutes[ri].label;
 
-            int64_t handle = bad_query((char*)paths[pi].path, true, (char*)group, false);
+            int64_t handle = bad_query((char*)targetPaths[pi].path, true, (char*)group, false);
             NSString *desc = [BadQueryManager _describeErrorCode:handle];
             NSString *line;
 
@@ -205,7 +223,7 @@ static int64_t gActiveHandle = -1;  // handle giữ sandbox extension còn sốn
                 // Kiểm tra có đọc được không
                 NSFileManager *fm = [NSFileManager defaultManager];
                 NSArray *items = [fm contentsOfDirectoryAtPath:
-                    [NSString stringWithUTF8String:paths[pi].path] error:nil];
+                    [NSString stringWithUTF8String:targetPaths[pi].path] error:nil];
                 line = [NSString stringWithFormat:
                     @"  %s → ✅ handle=%lld, dir=%lu items",
                     label, handle, (unsigned long)items.count];

@@ -44,8 +44,18 @@ int64_t bad_query(char *path, bool create, char *group_identifier, bool is_group
         if (lstat(path, &st) != 0) return -254; // not found
     }
 
-    // Load containermanager
-    void *mgr = dlopen("/usr/lib/system/libsystem_containermanager.dylib", RTLD_NOW | RTLD_LOCAL);
+    // Load containermanager — thử nhiều path vì iOS 18 và iOS 26 khác nhau
+    static const char * const kMgrPaths[] = {
+        "/usr/lib/system/libsystem_containermanager.dylib",   // iOS 26+
+        "/usr/lib/libsystem_containermanager.dylib",          // iOS 18 (flat layout)
+        "/System/Library/PrivateFrameworks/MobileContainerManager.framework/MobileContainerManager",
+        NULL
+    };
+    void *mgr = NULL;
+    for (int i = 0; kMgrPaths[i] != NULL; i++) {
+        mgr = dlopen(kMgrPaths[i], RTLD_NOW | RTLD_LOCAL);
+        if (mgr) break;
+    }
     if (!mgr) return -1;
 
     // Resolve symbols
