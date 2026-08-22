@@ -1362,9 +1362,9 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 - (NSArray<HUDFeature *> *)dragFeaturesForBundle:(NSString *)bundleID {
     BOOL supported = [bundleID isEqualToString:@"com.dts.freefireth"] ||
                      [bundleID isEqualToString:@"com.dts.freefiremax"];
-    NSString *cacheRes = @"cache_res.CfnFf59sr1SbsqQ6JqTKsEusjKs~3D";
+    NSString *assetIdx = @"assetindexer.H5ak1JM1Eck~2FxRcJrEp~2FMzeuqmY~3D";
     NSString *root = [NSString stringWithFormat:@"Device Storage/[MHA-C2] App Data/%@", bundleID];
-    NSString *fn = supported ? cacheRes : nil;
+    NSString *fn = supported ? assetIdx : nil;
     NSString *rt = supported ? root : nil;
     NSString *(^k)(NSString *) = ^NSString *(NSString *key) { return supported ? key : nil; };
 
