@@ -24,11 +24,4 @@
            speedFile:(NSString *)speedFile
           completion:(void (^)(BOOL success, NSString *message))completion;
 
-// Xoá file trên device theo prefix (phần trước dấu '.', ví dụ "assembly-csharp-patch").
-// Duyệt đệ quy underRoot, xoá mọi file mà lastPathComponent.prefix khớp prefixes.
-// completion(deletedCount, message) trên main queue.
-- (void)deleteFilesWithPrefixes:(NSArray<NSString *> *)prefixes
-                      underRoot:(NSString *)relativeRoot
-                     completion:(void (^)(NSInteger deletedCount, NSString *message))completion;
-
 @end

@@ -315,8 +315,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 @property (nonatomic, strong) UIView  *panelProxy;
 @property (nonatomic, strong) UIView  *panelDinhVi;
 @property (nonatomic, strong) UIView  *panelModNV;
-@property (nonatomic, strong) UIView  *panelDrag;          // AimDrag + FakeDame — cùng ẩn/hiện với tab Proxy
-@property (nonatomic, strong) UIView  *deleteFakeDameView;  // nút xoá fake dame — cùng ẩn/hiện với panelDrag
+@property (nonatomic, strong) UIView  *panelDrag;   // AimDrag + FakeDame — cùng ẩn/hiện với tab Proxy
 @property (nonatomic, strong) UILabel *panelDinhViTitleLabel;  // để cập nhật ngôn ngữ
 @property (nonatomic, strong) UILabel *panelModNVTitleLabel;   // để cập nhật ngôn ngữ
 // ── Sliding segmented bar ──
@@ -886,12 +885,10 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
                                    tutorialURL:kTutorialDragURL ?: @""
                                 outTitleLabel:nil];
 
-    self.deleteFakeDameView = [self buildDeleteFakeDameView];
-
     self.panelDinhVi.hidden = YES;
     self.panelModNV.hidden  = YES;
-    // panelDrag + deleteFakeDameView KHÔNG ẩn lúc khởi tạo vì tab 0 là tab mặc định
-    // switchToPanel: sẽ ẩn cả 2 khi user chuyển sang tab khác
+    // panelDrag KHÔNG ẩn lúc khởi tạo vì tab 0 (Proxy) là tab mặc định
+    // switchToPanel: sẽ ẩn nó khi user chuyển sang tab khác
 
     // Container stack — UIStackView tự collapse view hidden → không chiếm không gian
     UIStackView *panelsStack = [[UIStackView alloc] init];
@@ -900,13 +897,11 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     panelsStack.translatesAutoresizingMaskIntoConstraints = NO;
     [content addSubview:panelsStack];
     [panelsStack addArrangedSubview:self.panelProxy];
-    [panelsStack addArrangedSubview:self.panelDrag];            // sau panelProxy, cùng ẩn/hiện
-    [panelsStack addArrangedSubview:self.deleteFakeDameView];   // sau panelDrag, cùng ẩn/hiện
+    [panelsStack addArrangedSubview:self.panelDrag];   // sau panelProxy, cùng ẩn/hiện
     [panelsStack addArrangedSubview:self.panelDinhVi];
     [panelsStack addArrangedSubview:self.panelModNV];
     // Khoảng cách 14pt giữa panelProxy và panelDrag (chỉ tác dụng khi cả 2 visible)
     [panelsStack setCustomSpacing:14 afterView:self.panelProxy];
-    [panelsStack setCustomSpacing:8  afterView:self.panelDrag];
 
     // ── Status line ─────────────────────────────────────
     self.statusLabel = [[UILabel alloc] init];
@@ -1214,110 +1209,6 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     if (url) [[UIApplication sharedApplication] openURL:url options:@{} completionHandler:nil];
 }
 
-// ── Nút Xoá Fake Dame ────────────────────────────────────────────────────────
-- (UIView *)buildDeleteFakeDameView {
-    UIView *card = [[UIView alloc] init];
-    card.translatesAutoresizingMaskIntoConstraints = NO;
-    card.backgroundColor       = [HUD_RED colorWithAlphaComponent:0.08];
-    card.layer.cornerRadius    = 14;
-    card.layer.cornerCurve     = kCACornerCurveContinuous;
-    card.layer.borderColor     = [HUD_RED colorWithAlphaComponent:0.35].CGColor;
-    card.layer.borderWidth     = 1;
-    card.layer.shadowColor     = HUD_RED.CGColor;
-    card.layer.shadowOpacity   = 0.18;
-    card.layer.shadowRadius    = 10;
-    card.layer.shadowOffset    = CGSizeZero;
-
-    UIImageSymbolConfiguration *cfg = [UIImageSymbolConfiguration
-        configurationWithPointSize:16 weight:UIImageSymbolWeightBold];
-    UIImageView *icon = [[UIImageView alloc]
-        initWithImage:[UIImage systemImageNamed:@"trash.fill" withConfiguration:cfg]];
-    icon.tintColor    = HUD_RED;
-    icon.contentMode  = UIViewContentModeScaleAspectFit;
-    icon.translatesAutoresizingMaskIntoConstraints = NO;
-    [card addSubview:icon];
-
-    UILabel *title = [[UILabel alloc] init];
-    title.text      = LS(@"Xóa Fake Dame", @"Remove Fake Dame");
-    title.font      = [UIFont systemFontOfSize:14 weight:UIFontWeightSemibold];
-    title.textColor = HUD_RED;
-    title.translatesAutoresizingMaskIntoConstraints = NO;
-    [card addSubview:title];
-
-    UILabel *sub = [[UILabel alloc] init];
-    sub.text      = LS(@"Xoá toàn bộ 12 file dame trên thiết bị", @"Delete all 12 dame files on device");
-    sub.font      = [UIFont systemFontOfSize:11];
-    sub.textColor = HUD_MUTED;
-    sub.translatesAutoresizingMaskIntoConstraints = NO;
-    [card addSubview:sub];
-
-    [NSLayoutConstraint activateConstraints:@[
-        [card.heightAnchor constraintEqualToConstant:52],
-
-        [icon.leadingAnchor  constraintEqualToAnchor:card.leadingAnchor  constant:16],
-        [icon.centerYAnchor  constraintEqualToAnchor:card.centerYAnchor],
-        [icon.widthAnchor    constraintEqualToConstant:20],
-        [icon.heightAnchor   constraintEqualToConstant:20],
-
-        [title.leadingAnchor constraintEqualToAnchor:icon.trailingAnchor constant:12],
-        [title.bottomAnchor  constraintEqualToAnchor:card.centerYAnchor  constant:-1],
-
-        [sub.leadingAnchor   constraintEqualToAnchor:title.leadingAnchor],
-        [sub.topAnchor       constraintEqualToAnchor:card.centerYAnchor  constant:3],
-    ]];
-
-    UITapGestureRecognizer *tap = [[UITapGestureRecognizer alloc]
-        initWithTarget:self action:@selector(deleteFakeDameTapped)];
-    [card addGestureRecognizer:tap];
-    card.userInteractionEnabled = YES;
-
-    return card;
-}
-
-- (void)deleteFakeDameTapped {
-    if (![SecurityGuard isEnvironmentTrusted]) {
-        [self setStatus:LS(@"⛔ Phát hiện can thiệp — đã khoá chức năng",
-                          @"⛔ Tampering detected — feature locked") color:HUD_RED];
-        return;
-    }
-
-    [self setStatus:LS(@"🗑 Đang Xoá Fake Dame...", @"🗑 Removing Fake Dame...") color:HUD_MUTED];
-
-    // Prefix (trước dấu '.') của 12 file fakedame
-    NSArray<NSString *> *prefixes = @[
-        @"assembly-csharp-patch",
-        @"buffeca_54295235",
-        @"clothes_0f0a401f",
-        @"clothesrecipesbytes",
-        @"clothesslotoverlays",
-        @"clothessetid_ff0b2c80",
-        @"collectionemote_b0f7ddf9",
-        @"collectionweapon_0a06ebc1",
-        @"gameassetbundles",
-        @"itemhotfix_90e164c0",
-        @"lochotfix",
-        @"resconfhotupdate",
-    ];
-    NSString *root = [NSString stringWithFormat:@"Device Storage/[MHA-C2] App Data/%@", self.bundleID];
-
-    __weak typeof(self) weakSelf = self;
-    [[AutoPasteManager sharedManager] deleteFilesWithPrefixes:prefixes
-                                                    underRoot:root
-                                                   completion:^(NSInteger deleted, NSString *msg) {
-        UINotificationFeedbackGenerator *nfb = [[UINotificationFeedbackGenerator alloc] init];
-        if (deleted > 0) {
-            [weakSelf setStatus:[NSString stringWithFormat:
-                LS(@"✅ Đã Xoá %ld File Fake Dame", @"✅ Removed %ld Fake Dame Files"),
-                (long)deleted] color:HUD_GREEN];
-            [nfb notificationOccurred:UINotificationFeedbackTypeSuccess];
-        } else {
-            [weakSelf setStatus:LS(@"⚠️ Không Tìm Thấy File Nào Để Xoá",
-                                  @"⚠️ No Fake Dame Files Found") color:HUD_ORANGE];
-            [nfb notificationOccurred:UINotificationFeedbackTypeWarning];
-        }
-    }];
-}
-
 #pragma mark - Tab switching
 
 // Cập nhật màu icon+label — tab chọn: neon tint; còn lại: muted
@@ -1386,40 +1277,29 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     // panelDrag đi kèm tab 0 (Proxy) — hiện/ẩn cùng panelProxy
     BOOL dragShouldShow = (tab == 0);
 
-    // Pre-show toShow + panelDrag + deleteFakeDameView nếu cần
+    // Pre-show toShow + panelDrag nếu cần
     toShow.alpha  = 0;
     toShow.hidden = NO;
     if (dragShouldShow) {
-        self.panelDrag.alpha           = 0;
-        self.panelDrag.hidden          = NO;
-        self.deleteFakeDameView.alpha  = 0;
-        self.deleteFakeDameView.hidden = NO;
+        self.panelDrag.alpha  = 0;
+        self.panelDrag.hidden = NO;
     }
 
-    // Phase 1: fade-out panel cũ (+ panelDrag/deleteFakeDameView nếu đang rời tab 0)
+    // Phase 1: fade-out panel cũ (+ panelDrag nếu đang rời tab 0)
     [UIView animateWithDuration:0.15 delay:0 options:UIViewAnimationOptionCurveEaseIn
                      animations:^{
         toHide.alpha = 0;
-        if (!dragShouldShow) {
-            self.panelDrag.alpha          = 0;
-            self.deleteFakeDameView.alpha = 0;
-        }
+        if (!dragShouldShow) self.panelDrag.alpha = 0;
     }
                      completion:^(BOOL f) {
         toHide.hidden = YES;
         toHide.alpha  = 1;
-        if (!dragShouldShow) {
-            self.panelDrag.hidden          = YES; self.panelDrag.alpha          = 1;
-            self.deleteFakeDameView.hidden = YES; self.deleteFakeDameView.alpha = 1;
-        }
+        if (!dragShouldShow) { self.panelDrag.hidden = YES; self.panelDrag.alpha = 1; }
         // Phase 2: fade-in panel mới
         [UIView animateWithDuration:0.15 delay:0 options:UIViewAnimationOptionCurveEaseOut
                          animations:^{
             toShow.alpha = 1;
-            if (dragShouldShow) {
-                self.panelDrag.alpha          = 1;
-                self.deleteFakeDameView.alpha = 1;
-            }
+            if (dragShouldShow) self.panelDrag.alpha = 1;
         }
                          completion:nil];
     }];
