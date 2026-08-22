@@ -3,6 +3,7 @@
 #import "Endpoints.h"
 #import "KeyManager.h"
 #import "LanguageManager.h"
+#import "LanguagePickerViewController.h"
 #import <sys/utsname.h>
 
 // ── Chia sẻ — chỉnh lại link tải app thực tế ───────────────────────────────
@@ -388,30 +389,25 @@ static NSString *const kShareURL = @"https://getuid.vip/proxy-delta.html";
 // ── Actions ──────────────────────────────────────────────────────────────────
 
 - (void)pickLanguage {
-    UIAlertController *sheet = [UIAlertController
-        alertControllerWithTitle:LS(@"Chọn Ngôn Ngữ", @"Choose Language")
-        message:nil
-        preferredStyle:UIAlertControllerStyleActionSheet];
-
-    [sheet addAction:[UIAlertAction actionWithTitle:@"🇻🇳  Tiếng Việt"
-        style:UIAlertActionStyleDefault
-        handler:^(UIAlertAction *_) {
-            [LanguageManager shared].language = AppLanguageVietnamese;
-            [[NSUserDefaults standardUserDefaults] setBool:YES forKey:@"delta_lang_chosen"];
-    }]];
-    [sheet addAction:[UIAlertAction actionWithTitle:@"🇺🇸  English"
-        style:UIAlertActionStyleDefault
-        handler:^(UIAlertAction *_) {
-            [LanguageManager shared].language = AppLanguageEnglish;
-            [[NSUserDefaults standardUserDefaults] setBool:YES forKey:@"delta_lang_chosen"];
-    }]];
-    [sheet addAction:[UIAlertAction actionWithTitle:LS(@"Huỷ", @"Cancel")
-        style:UIAlertActionStyleCancel handler:nil]];
-
-    sheet.popoverPresentationController.sourceView = self.view;
-    sheet.popoverPresentationController.sourceRect = CGRectMake(self.view.bounds.size.width / 2, 200, 1, 1);
-
-    [self presentViewController:sheet animated:YES completion:nil];
+    LanguagePickerViewController *lp = [[LanguagePickerViewController alloc] init];
+    lp.modalPresentationStyle = UIModalPresentationPageSheet;
+    if (@available(iOS 15.0, *)) {
+        UISheetPresentationController *sheet = lp.sheetPresentationController;
+        if (@available(iOS 16.0, *)) {
+            UISheetPresentationControllerDetent *custom =
+                [UISheetPresentationControllerDetent
+                    customDetentWithIdentifier:@"langPicker"
+                    resolver:^CGFloat(id<UISheetPresentationControllerDetentResolutionContext> ctx) {
+                        return 380;
+                    }];
+            sheet.detents = @[custom];
+        } else {
+            sheet.detents = @[[UISheetPresentationControllerDetent mediumDetent]];
+        }
+        sheet.prefersGrabberVisible = YES;
+        sheet.preferredCornerRadius = 28;
+    }
+    [self presentViewController:lp animated:YES completion:nil];
 }
 
 - (void)checkForUpdate {

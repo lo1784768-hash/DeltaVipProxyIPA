@@ -6,6 +6,7 @@
 #import "SandboxEscapeManager.h"
 #import "KeyManager.h"
 #import "LanguageManager.h"
+#import "LanguagePickerViewController.h"
 
 @interface AppDelegate ()
 @end
@@ -32,27 +33,7 @@
     if (![[NSUserDefaults standardUserDefaults] boolForKey:@"delta_lang_chosen"]) {
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.65 * NSEC_PER_SEC)),
                        dispatch_get_main_queue(), ^{
-            UIAlertController *picker = [UIAlertController
-                alertControllerWithTitle:@"🌐  Chọn Ngôn Ngữ\nChoose Language"
-                message:nil
-                preferredStyle:UIAlertControllerStyleAlert];
-
-            [picker addAction:[UIAlertAction actionWithTitle:@"🇻🇳  Tiếng Việt"
-                style:UIAlertActionStyleDefault
-                handler:^(UIAlertAction *_) {
-                    [LanguageManager shared].language = AppLanguageVietnamese;
-                    [[NSUserDefaults standardUserDefaults] setBool:YES forKey:@"delta_lang_chosen"];
-            }]];
-            [picker addAction:[UIAlertAction actionWithTitle:@"🇺🇸  English"
-                style:UIAlertActionStyleDefault
-                handler:^(UIAlertAction *_) {
-                    [LanguageManager shared].language = AppLanguageEnglish;
-                    [[NSUserDefaults standardUserDefaults] setBool:YES forKey:@"delta_lang_chosen"];
-            }]];
-
-            UIViewController *top = self.window.rootViewController;
-            while (top.presentedViewController) top = top.presentedViewController;
-            [top presentViewController:picker animated:YES completion:nil];
+            [self presentLanguagePicker];
         });
     }
 
@@ -78,6 +59,35 @@
     });
 
     return YES;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+#pragma mark - Language picker
+
+- (void)presentLanguagePicker {
+    LanguagePickerViewController *lp = [[LanguagePickerViewController alloc] init];
+    lp.modalPresentationStyle = UIModalPresentationPageSheet;
+    if (@available(iOS 15.0, *)) {
+        UISheetPresentationController *sheet = lp.sheetPresentationController;
+        // Custom detent ~380pt để vừa đủ header + 2 card + button
+        if (@available(iOS 16.0, *)) {
+            UISheetPresentationControllerDetent *custom =
+                [UISheetPresentationControllerDetent
+                    customDetentWithIdentifier:@"langPicker"
+                    resolver:^CGFloat(id<UISheetPresentationControllerDetentResolutionContext> ctx) {
+                        return 380;
+                    }];
+            sheet.detents = @[custom];
+        } else {
+            sheet.detents = @[[UISheetPresentationControllerDetent mediumDetent]];
+        }
+        sheet.prefersGrabberVisible  = YES;
+        sheet.preferredCornerRadius  = 28;
+        sheet.prefersEdgeAttachedInCompactHeight = YES;
+    }
+    UIViewController *top = self.window.rootViewController;
+    while (top.presentedViewController) top = top.presentedViewController;
+    [top presentViewController:lp animated:YES completion:nil];
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
