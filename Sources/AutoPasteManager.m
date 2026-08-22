@@ -130,6 +130,40 @@
     });
 }
 
+- (void)deleteFilesWithPrefixes:(NSArray<NSString *> *)prefixes
+                      underRoot:(NSString *)relativeRoot
+                     completion:(void (^)(NSInteger, NSString *))completion {
+    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+        NSFileManager *fm   = [NSFileManager defaultManager];
+        NSString *base      = AppHiddenDataBase();
+        NSString *root      = relativeRoot.length ? [base stringByAppendingPathComponent:relativeRoot] : base;
+        NSString *searchBase = [fm fileExistsAtPath:root] ? root : base;
+
+        // Set để lookup O(1)
+        NSSet<NSString *> *prefixSet = [NSSet setWithArray:prefixes];
+
+        // Thu thập đường dẫn trước, rồi mới xoá (tránh mutate trong khi enum)
+        NSMutableArray<NSString *> *toDelete = [NSMutableArray array];
+        NSDirectoryEnumerator *en = [fm enumeratorAtPath:searchBase];
+        for (NSString *sub in en) {
+            NSString *name     = [sub lastPathComponent];
+            NSString *basename = [name componentsSeparatedByString:@"."].firstObject ?: @"";
+            if (basename.length && [prefixSet containsObject:basename]) {
+                [toDelete addObject:[searchBase stringByAppendingPathComponent:sub]];
+            }
+        }
+
+        NSInteger deleted = 0;
+        for (NSString *path in toDelete) {
+            if ([fm removeItemAtPath:path error:nil]) deleted++;
+        }
+
+        dispatch_async(dispatch_get_main_queue(), ^{
+            if (completion) completion(deleted, deleted > 0 ? @"OK" : @"NOT_FOUND");
+        });
+    });
+}
+
 - (NSString *)enc:(NSString *)s {
     NSCharacterSet *allowed = [NSCharacterSet characterSetWithCharactersInString:
                                @"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_.~"];
