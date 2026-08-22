@@ -218,17 +218,17 @@
         [_topLine.trailingAnchor constraintEqualToAnchor:self.trailingAnchor constant:-20],
         [_topLine.heightAnchor constraintEqualToConstant:1],
 
-        // Dot
+        // Dot — căn giữa theo chiều dọc cùng khối 2 dòng text
         [_dot.leadingAnchor constraintEqualToAnchor:self.leadingAnchor constant:18],
-        [_dot.topAnchor constraintEqualToAnchor:self.topAnchor constant:22],
+        [_dot.centerYAnchor constraintEqualToAnchor:self.centerYAnchor],
         [_dot.widthAnchor constraintEqualToConstant:16],
         [_dot.heightAnchor constraintEqualToConstant:16],
 
-        // Labels
+        // Labels — 2 dòng chia đều quanh centerY
         [_titleLabel.leadingAnchor constraintEqualToAnchor:_dot.trailingAnchor constant:10],
-        [_titleLabel.topAnchor constraintEqualToAnchor:self.topAnchor constant:14],
+        [_titleLabel.bottomAnchor constraintEqualToAnchor:self.centerYAnchor constant:-2],
         [_subLabel.leadingAnchor constraintEqualToAnchor:_titleLabel.leadingAnchor],
-        [_subLabel.topAnchor constraintEqualToAnchor:_titleLabel.bottomAnchor constant:2],
+        [_subLabel.topAnchor constraintEqualToAnchor:self.centerYAnchor constant:3],
 
         // Add button — min width để "Thêm Key" / "Gia hạn" không bị cắt
         [_addButton.trailingAnchor constraintEqualToAnchor:self.trailingAnchor constant:-14],

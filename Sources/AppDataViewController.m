@@ -15,6 +15,7 @@
 #import "UpdateGate.h"
 #import "LanguageManager.h"
 #import "PolicyViewController.h"
+#import "SettingsViewController.h"
 #import <sys/sysctl.h>
 
 #pragma mark - GlassView (frosted card khớp web)
@@ -306,21 +307,21 @@
     titleStack.alignment = UIStackViewAlignmentCenter;
     self.navigationItem.titleView = titleStack;
 
-    // ── Refresh → glass icon button ────────────────────────────────────────
-    UIButton *refreshBtn = [UIButton buttonWithType:UIButtonTypeSystem];
+    // ── Settings → glass gear button ────────────────────────────────────────
+    UIButton *settingsBtn = [UIButton buttonWithType:UIButtonTypeSystem];
     UIImageSymbolConfiguration *rCfg = [UIImageSymbolConfiguration configurationWithPointSize:14 weight:UIImageSymbolWeightMedium];
-    [refreshBtn setImage:[UIImage systemImageNamed:@"arrow.clockwise" withConfiguration:rCfg]
-                forState:UIControlStateNormal];
-    refreshBtn.tintColor = BRAND_CYAN;
-    refreshBtn.backgroundColor = [UIColor colorWithWhite:1 alpha:0.08];
-    refreshBtn.layer.cornerRadius = 16;
-    refreshBtn.layer.cornerCurve = kCACornerCurveContinuous;
-    refreshBtn.layer.borderColor = [UIColor colorWithWhite:1 alpha:0.15].CGColor;
-    refreshBtn.layer.borderWidth = 1;
-    refreshBtn.layer.masksToBounds = YES;
-    refreshBtn.frame = CGRectMake(0, 0, 34, 34);
-    [refreshBtn addTarget:self action:@selector(refreshApps) forControlEvents:UIControlEventTouchUpInside];
-    self.navigationItem.rightBarButtonItem = [[UIBarButtonItem alloc] initWithCustomView:refreshBtn];
+    [settingsBtn setImage:[UIImage systemImageNamed:@"gearshape.fill" withConfiguration:rCfg]
+                 forState:UIControlStateNormal];
+    settingsBtn.tintColor = BRAND_CYAN;
+    settingsBtn.backgroundColor = [UIColor colorWithWhite:1 alpha:0.08];
+    settingsBtn.layer.cornerRadius = 16;
+    settingsBtn.layer.cornerCurve = kCACornerCurveContinuous;
+    settingsBtn.layer.borderColor = [UIColor colorWithWhite:1 alpha:0.15].CGColor;
+    settingsBtn.layer.borderWidth = 1;
+    settingsBtn.layer.masksToBounds = YES;
+    settingsBtn.frame = CGRectMake(0, 0, 34, 34);
+    [settingsBtn addTarget:self action:@selector(openSettings) forControlEvents:UIControlEventTouchUpInside];
+    self.navigationItem.rightBarButtonItem = [[UIBarButtonItem alloc] initWithCustomView:settingsBtn];
 
     // Display name mapping
     self.appDisplayNames = @{
@@ -1140,9 +1141,27 @@
 }
 
 - (void)refreshApps {
-    // refreshApps được gọi sau khi sandbox escape thành công (từ AppDelegate)
-    // Nếu loading view đang hiện (VFS chưa xong) thì giữ nguyên, hideLoadingView sẽ tự chạy sau loadApps
+    // Được gọi từ AppDelegate sau sandbox escape thành công
     [self loadApps];
+}
+
+- (void)openSettings {
+    UIImpactFeedbackGenerator *fb = [[UIImpactFeedbackGenerator alloc] initWithStyle:UIImpactFeedbackStyleLight];
+    [fb impactOccurred];
+
+    SettingsViewController *svc = [[SettingsViewController alloc] init];
+    svc.modalPresentationStyle = UIModalPresentationPageSheet;
+    if (@available(iOS 15.0, *)) {
+        UISheetPresentationController *sheet = svc.sheetPresentationController;
+        sheet.detents = @[
+            [UISheetPresentationControllerDetent mediumDetent],
+            [UISheetPresentationControllerDetent largeDetent],
+        ];
+        sheet.prefersGrabberVisible  = YES;
+        sheet.preferredCornerRadius  = 28;
+        sheet.prefersScrollingExpandsWhenScrolledToEdge = YES;
+    }
+    [self presentViewController:svc animated:YES completion:nil];
 }
 
 // ── Loading overlay ───────────────────────────────────────────────────────────
