@@ -230,10 +230,11 @@
         [_subLabel.leadingAnchor constraintEqualToAnchor:_titleLabel.leadingAnchor],
         [_subLabel.topAnchor constraintEqualToAnchor:_titleLabel.bottomAnchor constant:2],
 
-        // Add button
-        [_addButton.trailingAnchor constraintEqualToAnchor:self.trailingAnchor constant:-16],
-        [_addButton.centerYAnchor constraintEqualToAnchor:self.topAnchor constant:30],
+        // Add button — min width để "Thêm Key" / "Gia hạn" không bị cắt
+        [_addButton.trailingAnchor constraintEqualToAnchor:self.trailingAnchor constant:-14],
+        [_addButton.centerYAnchor constraintEqualToAnchor:self.centerYAnchor],
         [_addButton.heightAnchor constraintEqualToConstant:34],
+        [_addButton.widthAnchor constraintGreaterThanOrEqualToConstant:78],
 
         // Info button
         [infoBtn.trailingAnchor constraintEqualToAnchor:_addButton.leadingAnchor constant:-6],
