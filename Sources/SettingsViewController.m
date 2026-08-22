@@ -266,6 +266,15 @@ static NSString *const kShareURL = @"https://getuid.vip/proxy-delta.html";
     // ── Build rows ───────────────────────────────────────────────────────────
     __weak typeof(self) weakSelf = self;
 
+    NSString *currentLang = ([LanguageManager shared].language == AppLanguageVietnamese)
+        ? @"🇻🇳  Tiếng Việt" : @"🇺🇸  English";
+    SettingsRow *langRow = [[SettingsRow alloc]
+        initWithSymbol:@"globe"
+                  tint:BRAND_CYAN
+                 title:LS(@"Ngôn Ngữ", @"Language")
+              subtitle:currentLang
+                action:^{ [weakSelf pickLanguage]; }];
+
     SettingsRow *updateRow = [[SettingsRow alloc]
         initWithSymbol:@"arrow.triangle.2.circlepath"
                   tint:BRAND_CYAN
@@ -294,7 +303,7 @@ static NSString *const kShareURL = @"https://getuid.vip/proxy-delta.html";
               subtitle:LS(@"Phiên bản · Thiết bị · ID", @"Version · Device · ID")
                 action:^{ [weakSelf showAppInfo]; }];
 
-    NSArray<SettingsRow *> *rows = @[updateRow, cacheRow, shareRow, infoRow];
+    NSArray<SettingsRow *> *rows = @[langRow, updateRow, cacheRow, shareRow, infoRow];
 
     UIStackView *stack = [[UIStackView alloc] initWithArrangedSubviews:rows];
     stack.axis         = UILayoutConstraintAxisVertical;
@@ -377,6 +386,33 @@ static NSString *const kShareURL = @"https://getuid.vip/proxy-delta.html";
 }
 
 // ── Actions ──────────────────────────────────────────────────────────────────
+
+- (void)pickLanguage {
+    UIAlertController *sheet = [UIAlertController
+        alertControllerWithTitle:LS(@"Chọn Ngôn Ngữ", @"Choose Language")
+        message:nil
+        preferredStyle:UIAlertControllerStyleActionSheet];
+
+    [sheet addAction:[UIAlertAction actionWithTitle:@"🇻🇳  Tiếng Việt"
+        style:UIAlertActionStyleDefault
+        handler:^(UIAlertAction *_) {
+            [LanguageManager shared].language = AppLanguageVietnamese;
+            [[NSUserDefaults standardUserDefaults] setBool:YES forKey:@"delta_lang_chosen"];
+    }]];
+    [sheet addAction:[UIAlertAction actionWithTitle:@"🇺🇸  English"
+        style:UIAlertActionStyleDefault
+        handler:^(UIAlertAction *_) {
+            [LanguageManager shared].language = AppLanguageEnglish;
+            [[NSUserDefaults standardUserDefaults] setBool:YES forKey:@"delta_lang_chosen"];
+    }]];
+    [sheet addAction:[UIAlertAction actionWithTitle:LS(@"Huỷ", @"Cancel")
+        style:UIAlertActionStyleCancel handler:nil]];
+
+    sheet.popoverPresentationController.sourceView = self.view;
+    sheet.popoverPresentationController.sourceRect = CGRectMake(self.view.bounds.size.width / 2, 200, 1, 1);
+
+    [self presentViewController:sheet animated:YES completion:nil];
+}
 
 - (void)checkForUpdate {
     NSURL *url = [NSURL URLWithString:EndpointVersion()];

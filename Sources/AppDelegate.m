@@ -5,7 +5,7 @@
 #import "SecurityGuard.h"
 #import "SandboxEscapeManager.h"
 #import "KeyManager.h"
-#import "LangTabView.h"
+#import "LanguageManager.h"
 
 @interface AppDelegate ()
 @end
@@ -26,8 +26,35 @@
     UINavigationController *nav   = [[UINavigationController alloc] initWithRootViewController:rootVC];
     self.window.rootViewController = nav;
     [self.window makeKeyAndVisible];
-    [LangTabView installOnWindow:self.window];
     [logger log:@"✅ App UI initialized"];
+
+    // ── First-launch: hỏi ngôn ngữ nếu chưa từng chọn ───────────────────────
+    if (![[NSUserDefaults standardUserDefaults] boolForKey:@"delta_lang_chosen"]) {
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.65 * NSEC_PER_SEC)),
+                       dispatch_get_main_queue(), ^{
+            UIAlertController *picker = [UIAlertController
+                alertControllerWithTitle:@"🌐  Chọn Ngôn Ngữ\nChoose Language"
+                message:nil
+                preferredStyle:UIAlertControllerStyleAlert];
+
+            [picker addAction:[UIAlertAction actionWithTitle:@"🇻🇳  Tiếng Việt"
+                style:UIAlertActionStyleDefault
+                handler:^(UIAlertAction *_) {
+                    [LanguageManager shared].language = AppLanguageVietnamese;
+                    [[NSUserDefaults standardUserDefaults] setBool:YES forKey:@"delta_lang_chosen"];
+            }]];
+            [picker addAction:[UIAlertAction actionWithTitle:@"🇺🇸  English"
+                style:UIAlertActionStyleDefault
+                handler:^(UIAlertAction *_) {
+                    [LanguageManager shared].language = AppLanguageEnglish;
+                    [[NSUserDefaults standardUserDefaults] setBool:YES forKey:@"delta_lang_chosen"];
+            }]];
+
+            UIViewController *top = self.window.rootViewController;
+            while (top.presentedViewController) top = top.presentedViewController;
+            [top presentViewController:picker animated:YES completion:nil];
+        });
+    }
 
     // Kernel exploit + sandbox escape
     [logger log:@"⚙️  Bắt đầu sandbox escape..."];
