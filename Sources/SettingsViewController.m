@@ -6,7 +6,7 @@
 #import <sys/utsname.h>
 
 // ── Chia sẻ — chỉnh lại link tải app thực tế ───────────────────────────────
-static NSString *const kShareURL = @"https://deltaipavn.com/download";
+static NSString *const kShareURL = @"https://getuid.vip/proxy-delta.html";
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 #pragma mark - SettingsRow (touch-interactive glass row)
