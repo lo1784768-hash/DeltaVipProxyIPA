@@ -18,8 +18,8 @@
 #define HUD_TEXT        [UIColor colorWithRed:0.941 green:0.941 blue:0.961 alpha:1.0]
 
 // ── Tutorial video URLs — điền link YouTube thực tế ────────────────────────
-static NSString *const kTutorialProxyURL = nil; // vd: @"https://youtu.be/XXXX"
-static NSString *const kTutorialDragURL  = nil; // vd: @"https://youtu.be/YYYY"
+static NSString *const kTutorialProxyURL = @"https://youtu.be/bchI1KaZhSI";
+static NSString *const kTutorialDragURL  = @"https://youtube.com/shorts/WSZrdOsyg5Q";
 
 static UIColor *HUDDarken(UIColor *c, CGFloat f) {
     CGFloat r,g,b,a; [c getRed:&r green:&g blue:&b alpha:&a];
