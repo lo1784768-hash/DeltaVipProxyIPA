@@ -857,16 +857,19 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     self.rows = [NSMutableArray array];
 
     self.panelProxy  = [self buildPanelWithTitle:@"PROXY DELTA VIP"
-                                          symbol:@"bolt.fill"              tint:HUD_CYAN   badge:@"AUTO"
+                                          symbol:@"bolt.fill"     tint:HUD_CYAN   badge:@"AUTO"
                                         features:[self proxyFeaturesForBundle:self.bundleID]
+                                     tutorialURL:kTutorialProxyURL ?: @""
                                   outTitleLabel:nil];
     self.panelDinhVi = [self buildPanelWithTitle:LS(@"ĐỊNH VỊ SÚNG", @"AIM BOT")
-                                          symbol:@"location.fill"          tint:HUD_GREEN  badge:@"LIVE"
+                                          symbol:@"location.fill" tint:HUD_GREEN  badge:@"LIVE"
                                         features:[self dinhViFeaturesForBundle:self.bundleID]
+                                     tutorialURL:nil
                                   outTitleLabel:&_panelDinhViTitleLabel];
     self.panelModNV  = [self buildPanelWithTitle:LS(@"MOD NHÂN VẬT", @"CHARACTER MOD")
                                           symbol:@"person.fill.badge.plus" tint:HUD_PURPLE badge:@"SOON"
                                         features:[self modNVFeaturesForBundle:self.bundleID]
+                                     tutorialURL:nil
                                   outTitleLabel:&_panelModNVTitleLabel];
 
     self.panelDinhVi.hidden = YES;
@@ -882,24 +885,15 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     [panelsStack addArrangedSubview:self.panelDinhVi];
     [panelsStack addArrangedSubview:self.panelModNV];
 
-    // ── AimDrag panel (luôn hiển thị bên dưới tab, không ẩn) ────────────────
-    self.panelDrag = [self buildPanelWithTitle:LS(@"AIM DRAG", @"AIM DRAG")
+    // ── PROXY DELTA VIP V2 panel (AimDrag — luôn hiển thị bên dưới tab) ──────
+    self.panelDrag = [self buildPanelWithTitle:@"PROXY DELTA VIP V2"
                                         symbol:@"hand.draw.fill"
                                           tint:HUD_ORANGE
-                                         badge:@"DRAG"
+                                         badge:@"V2"
                                       features:[self dragFeaturesForBundle:self.bundleID]
+                                   tutorialURL:kTutorialDragURL ?: @""
                                 outTitleLabel:nil];
-
-    // ── Tutorial video cards ──────────────────────────────────────────────────
-    UIView *tutProxy = [self buildTutorialCardTitle:LS(@"Hướng Dẫn Proxy", @"Proxy Tutorial")
-                                          urlString:kTutorialProxyURL
-                                             action:@selector(openProxyTutorial)];
-    UIView *tutDrag  = [self buildTutorialCardTitle:LS(@"Hướng Dẫn AimDrag", @"AimDrag Tutorial")
-                                          urlString:kTutorialDragURL
-                                             action:@selector(openDragTutorial)];
-    [content addSubview:tutProxy];
     [content addSubview:self.panelDrag];
-    [content addSubview:tutDrag];
 
     // ── Status line ─────────────────────────────────────
     self.statusLabel = [[UILabel alloc] init];
@@ -955,24 +949,12 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
         [panelsStack.leadingAnchor constraintEqualToAnchor:content.leadingAnchor constant:16],
         [panelsStack.trailingAnchor constraintEqualToAnchor:content.trailingAnchor constant:-16],
 
-        // Tutorial 1 (proxy) — ngay dưới panel tabs
-        [tutProxy.topAnchor constraintEqualToAnchor:panelsStack.bottomAnchor constant:12],
-        [tutProxy.leadingAnchor constraintEqualToAnchor:content.leadingAnchor constant:16],
-        [tutProxy.trailingAnchor constraintEqualToAnchor:content.trailingAnchor constant:-16],
-        [tutProxy.heightAnchor constraintEqualToConstant:52],
-
-        // AimDrag panel
-        [self.panelDrag.topAnchor constraintEqualToAnchor:tutProxy.bottomAnchor constant:14],
+        // PROXY DELTA VIP V2 panel — ngay dưới tab panels
+        [self.panelDrag.topAnchor constraintEqualToAnchor:panelsStack.bottomAnchor constant:14],
         [self.panelDrag.leadingAnchor constraintEqualToAnchor:content.leadingAnchor constant:16],
         [self.panelDrag.trailingAnchor constraintEqualToAnchor:content.trailingAnchor constant:-16],
 
-        // Tutorial 2 (drag)
-        [tutDrag.topAnchor constraintEqualToAnchor:self.panelDrag.bottomAnchor constant:12],
-        [tutDrag.leadingAnchor constraintEqualToAnchor:content.leadingAnchor constant:16],
-        [tutDrag.trailingAnchor constraintEqualToAnchor:content.trailingAnchor constant:-16],
-        [tutDrag.heightAnchor constraintEqualToConstant:52],
-
-        [self.statusLabel.topAnchor constraintEqualToAnchor:tutDrag.bottomAnchor constant:18],
+        [self.statusLabel.topAnchor constraintEqualToAnchor:self.panelDrag.bottomAnchor constant:18],
         [self.statusLabel.leadingAnchor constraintEqualToAnchor:content.leadingAnchor constant:24],
         [self.statusLabel.trailingAnchor constraintEqualToAnchor:content.trailingAnchor constant:-24],
         // Status label closes the scroll content — MỞ GAME is a sticky overlay button
@@ -994,11 +976,13 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 
 // Tạo 1 panel card (neon blur card) với title bar + danh sách feature rows.
 // Các row được append vào self.rows để handleRow: / radio logic vẫn hoạt động.
+// tutorialURL: @"" = hiện "sắp có"; @"https://…" = mở YouTube; nil = ẩn row
 - (UIView *)buildPanelWithTitle:(NSString *)title
                          symbol:(NSString *)symbol
                            tint:(UIColor *)tint
                           badge:(NSString *)badge
                        features:(NSArray<HUDFeature *> *)features
+                    tutorialURL:(NSString * _Nullable)tutorialURL
                  outTitleLabel:(UILabel * __strong *)outTitleLabel {
     UIView *panelWrap = [[UIView alloc] init];
     panelWrap.backgroundColor = [UIColor clearColor];
@@ -1089,6 +1073,96 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
         [stack addArrangedSubview:row];
     }
 
+    // ── Tutorial row bên trong panel (tuỳ chọn) ─────────────────────────────
+    NSLayoutYAxisAnchor *stackBottomAnchor = pc.bottomAnchor;
+    CGFloat stackBottomConst = -4;
+
+    if (tutorialURL != nil) {
+        BOOL hasURL = tutorialURL.length > 0;
+        UIColor *ytRed = [UIColor colorWithRed:1.0 green:0.22 blue:0.18 alpha:1.0];
+        UIColor *tutColor = hasURL ? ytRed : HUD_MUTED;
+
+        // Separator hairline
+        UIView *sep = [[UIView alloc] init];
+        sep.backgroundColor = [UIColor colorWithWhite:1 alpha:0.07];
+        sep.translatesAutoresizingMaskIntoConstraints = NO;
+        [pc addSubview:sep];
+
+        // Tutorial row
+        UIView *tutRow = [[UIView alloc] init];
+        tutRow.translatesAutoresizingMaskIntoConstraints = NO;
+        [pc addSubview:tutRow];
+
+        // Play icon
+        UIImageSymbolConfiguration *playCfg = [UIImageSymbolConfiguration
+            configurationWithPointSize:16 weight:UIImageSymbolWeightBold];
+        UIImageView *playIcon = [[UIImageView alloc]
+            initWithImage:[UIImage systemImageNamed:@"play.circle.fill" withConfiguration:playCfg]];
+        playIcon.tintColor   = tutColor;
+        playIcon.contentMode = UIViewContentModeScaleAspectFit;
+        playIcon.translatesAutoresizingMaskIntoConstraints = NO;
+        [tutRow addSubview:playIcon];
+
+        UILabel *tutTitle = [[UILabel alloc] init];
+        tutTitle.text      = LS(@"Xem Video Hướng Dẫn", @"Watch Tutorial Video");
+        tutTitle.font      = [UIFont systemFontOfSize:13 weight:UIFontWeightSemibold];
+        tutTitle.textColor = hasURL ? HUD_TEXT : HUD_MUTED;
+        tutTitle.translatesAutoresizingMaskIntoConstraints = NO;
+        [tutRow addSubview:tutTitle];
+
+        UILabel *tutSub = [[UILabel alloc] init];
+        tutSub.text = hasURL
+            ? LS(@"Nhấn để mở YouTube ▶", @"Tap to open YouTube ▶")
+            : LS(@"🎬 Video hướng dẫn sắp có...", @"🎬 Tutorial coming soon...");
+        tutSub.font      = [UIFont systemFontOfSize:11];
+        tutSub.textColor = HUD_MUTED;
+        tutSub.translatesAutoresizingMaskIntoConstraints = NO;
+        [tutRow addSubview:tutSub];
+
+        [NSLayoutConstraint activateConstraints:@[
+            [sep.leadingAnchor  constraintEqualToAnchor:pc.leadingAnchor  constant:16],
+            [sep.trailingAnchor constraintEqualToAnchor:pc.trailingAnchor constant:-16],
+            [sep.heightAnchor   constraintEqualToConstant:0.5],
+
+            [tutRow.leadingAnchor  constraintEqualToAnchor:pc.leadingAnchor],
+            [tutRow.trailingAnchor constraintEqualToAnchor:pc.trailingAnchor],
+            [tutRow.heightAnchor   constraintEqualToConstant:50],
+            [tutRow.bottomAnchor   constraintEqualToAnchor:pc.bottomAnchor],
+            [sep.bottomAnchor      constraintEqualToAnchor:tutRow.topAnchor],
+
+            [playIcon.leadingAnchor  constraintEqualToAnchor:tutRow.leadingAnchor constant:16],
+            [playIcon.centerYAnchor  constraintEqualToAnchor:tutRow.centerYAnchor],
+            [playIcon.widthAnchor    constraintEqualToConstant:20],
+            [playIcon.heightAnchor   constraintEqualToConstant:20],
+
+            [tutTitle.leadingAnchor constraintEqualToAnchor:playIcon.trailingAnchor constant:12],
+            [tutTitle.bottomAnchor  constraintEqualToAnchor:tutRow.centerYAnchor constant:-1],
+
+            [tutSub.leadingAnchor constraintEqualToAnchor:tutTitle.leadingAnchor],
+            [tutSub.topAnchor     constraintEqualToAnchor:tutRow.centerYAnchor constant:3],
+        ]];
+
+        if (hasURL) {
+            UIButton *tapBtn = [UIButton buttonWithType:UIButtonTypeCustom];
+            tapBtn.backgroundColor = [UIColor clearColor];
+            tapBtn.translatesAutoresizingMaskIntoConstraints = NO;
+            tapBtn.accessibilityIdentifier = tutorialURL;
+            [tapBtn addTarget:self action:@selector(tutorialButtonTapped:)
+                 forControlEvents:UIControlEventTouchUpInside];
+            [tutRow addSubview:tapBtn];
+            [NSLayoutConstraint activateConstraints:@[
+                [tapBtn.topAnchor    constraintEqualToAnchor:tutRow.topAnchor],
+                [tapBtn.leadingAnchor  constraintEqualToAnchor:tutRow.leadingAnchor],
+                [tapBtn.trailingAnchor constraintEqualToAnchor:tutRow.trailingAnchor],
+                [tapBtn.bottomAnchor constraintEqualToAnchor:tutRow.bottomAnchor],
+            ]];
+        }
+
+        // Stack bottom anchors to sep top
+        stackBottomAnchor = sep.topAnchor;
+        stackBottomConst  = 0;
+    }
+
     [NSLayoutConstraint activateConstraints:@[
         [panel.topAnchor constraintEqualToAnchor:panelWrap.topAnchor],
         [panel.leadingAnchor constraintEqualToAnchor:panelWrap.leadingAnchor],
@@ -1120,129 +1194,15 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
         [stack.topAnchor constraintEqualToAnchor:titleBar.bottomAnchor],
         [stack.leadingAnchor constraintEqualToAnchor:pc.leadingAnchor],
         [stack.trailingAnchor constraintEqualToAnchor:pc.trailingAnchor],
-        [stack.bottomAnchor constraintEqualToAnchor:pc.bottomAnchor constant:-4],
+        [stack.bottomAnchor constraintEqualToAnchor:stackBottomAnchor constant:stackBottomConst],
     ]];
 
     return panelWrap;
 }
 
-// ── Tutorial video card ───────────────────────────────────────────────────────
-- (UIView *)buildTutorialCardTitle:(NSString *)title
-                         urlString:(NSString *)urlString
-                            action:(SEL)action {
 
-    BOOL hasURL = urlString.length > 0;
-    UIColor *accentColor = hasURL
-        ? [UIColor colorWithRed:1.0 green:0.22 blue:0.18 alpha:1.0]  // YouTube red
-        : HUD_MUTED;
-
-    // Wrapper
-    UIView *wrap = [[UIView alloc] init];
-    wrap.translatesAutoresizingMaskIntoConstraints = NO;
-    wrap.layer.shadowColor   = hasURL ? accentColor.CGColor : [UIColor clearColor].CGColor;
-    wrap.layer.shadowOpacity = hasURL ? 0.28f : 0.0f;
-    wrap.layer.shadowRadius  = 8;
-    wrap.layer.shadowOffset  = CGSizeZero;
-
-    // Glass card
-    UIVisualEffectView *card = [[UIVisualEffectView alloc]
-        initWithEffect:[UIBlurEffect effectWithStyle:UIBlurEffectStyleSystemThinMaterialDark]];
-    card.clipsToBounds    = YES;
-    card.layer.cornerRadius = 12;
-    card.layer.cornerCurve  = kCACornerCurveContinuous;
-    card.layer.borderColor  = hasURL
-        ? [accentColor colorWithAlphaComponent:0.35].CGColor
-        : [UIColor colorWithWhite:1 alpha:0.07].CGColor;
-    card.layer.borderWidth  = 1;
-    card.translatesAutoresizingMaskIntoConstraints = NO;
-    [wrap addSubview:card];
-
-    UIView *cc = card.contentView;
-
-    // Left accent stripe (YouTube red nếu có URL)
-    UIView *stripe = [[UIView alloc] init];
-    stripe.backgroundColor = accentColor;
-    stripe.layer.cornerRadius = 2;
-    stripe.translatesAutoresizingMaskIntoConstraints = NO;
-    [cc addSubview:stripe];
-
-    // Play icon
-    UIImageSymbolConfiguration *playCfg = [UIImageSymbolConfiguration
-        configurationWithPointSize:18 weight:UIImageSymbolWeightBold];
-    UIImageView *playIcon = [[UIImageView alloc]
-        initWithImage:[UIImage systemImageNamed:@"play.circle.fill" withConfiguration:playCfg]];
-    playIcon.tintColor   = accentColor;
-    playIcon.contentMode = UIViewContentModeScaleAspectFit;
-    playIcon.translatesAutoresizingMaskIntoConstraints = NO;
-    [cc addSubview:playIcon];
-
-    // Title
-    UILabel *titleLbl = [[UILabel alloc] init];
-    titleLbl.text      = title;
-    titleLbl.font      = [UIFont systemFontOfSize:13 weight:UIFontWeightSemibold];
-    titleLbl.textColor = hasURL ? HUD_TEXT : HUD_MUTED;
-    titleLbl.translatesAutoresizingMaskIntoConstraints = NO;
-    [cc addSubview:titleLbl];
-
-    // Subtitle
-    UILabel *subLbl = [[UILabel alloc] init];
-    subLbl.text = hasURL
-        ? LS(@"Nhấn để xem trên YouTube ▶", @"Tap to watch on YouTube ▶")
-        : LS(@"🎬 Video hướng dẫn sắp có...", @"🎬 Tutorial video coming soon...");
-    subLbl.font      = [UIFont systemFontOfSize:11 weight:UIFontWeightRegular];
-    subLbl.textColor = HUD_MUTED;
-    subLbl.translatesAutoresizingMaskIntoConstraints = NO;
-    [cc addSubview:subLbl];
-
-    [NSLayoutConstraint activateConstraints:@[
-        [card.topAnchor    constraintEqualToAnchor:wrap.topAnchor],
-        [card.leadingAnchor  constraintEqualToAnchor:wrap.leadingAnchor],
-        [card.trailingAnchor constraintEqualToAnchor:wrap.trailingAnchor],
-        [card.bottomAnchor constraintEqualToAnchor:wrap.bottomAnchor],
-
-        [stripe.leadingAnchor  constraintEqualToAnchor:cc.leadingAnchor],
-        [stripe.topAnchor      constraintEqualToAnchor:cc.topAnchor constant:10],
-        [stripe.bottomAnchor   constraintEqualToAnchor:cc.bottomAnchor constant:-10],
-        [stripe.widthAnchor    constraintEqualToConstant:3],
-
-        [playIcon.leadingAnchor  constraintEqualToAnchor:stripe.trailingAnchor constant:14],
-        [playIcon.centerYAnchor  constraintEqualToAnchor:cc.centerYAnchor],
-        [playIcon.widthAnchor    constraintEqualToConstant:22],
-        [playIcon.heightAnchor   constraintEqualToConstant:22],
-
-        [titleLbl.leadingAnchor constraintEqualToAnchor:playIcon.trailingAnchor constant:12],
-        [titleLbl.bottomAnchor  constraintEqualToAnchor:cc.centerYAnchor constant:-1],
-        [titleLbl.trailingAnchor constraintLessThanOrEqualToAnchor:cc.trailingAnchor constant:-14],
-
-        [subLbl.leadingAnchor constraintEqualToAnchor:titleLbl.leadingAnchor],
-        [subLbl.topAnchor     constraintEqualToAnchor:cc.centerYAnchor constant:2],
-        [subLbl.trailingAnchor constraintLessThanOrEqualToAnchor:cc.trailingAnchor constant:-14],
-    ]];
-
-    // Tap action chỉ khi có URL
-    if (hasURL) {
-        UIButton *tapZone = [UIButton buttonWithType:UIButtonTypeCustom];
-        tapZone.backgroundColor = [UIColor clearColor];
-        tapZone.translatesAutoresizingMaskIntoConstraints = NO;
-        [tapZone addTarget:self action:action forControlEvents:UIControlEventTouchUpInside];
-        [wrap addSubview:tapZone];
-        [NSLayoutConstraint activateConstraints:@[
-            [tapZone.topAnchor    constraintEqualToAnchor:wrap.topAnchor],
-            [tapZone.leadingAnchor  constraintEqualToAnchor:wrap.leadingAnchor],
-            [tapZone.trailingAnchor constraintEqualToAnchor:wrap.trailingAnchor],
-            [tapZone.bottomAnchor constraintEqualToAnchor:wrap.bottomAnchor],
-        ]];
-    }
-
-    return wrap;
-}
-
-- (void)openProxyTutorial {
-    NSURL *url = [NSURL URLWithString:kTutorialProxyURL];
-    if (url) [[UIApplication sharedApplication] openURL:url options:@{} completionHandler:nil];
-}
-- (void)openDragTutorial {
-    NSURL *url = [NSURL URLWithString:kTutorialDragURL];
+- (void)tutorialButtonTapped:(UIButton *)sender {
+    NSURL *url = [NSURL URLWithString:sender.accessibilityIdentifier];
     if (url) [[UIApplication sharedApplication] openURL:url options:@{} completionHandler:nil];
 }
 
