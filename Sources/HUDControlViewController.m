@@ -872,20 +872,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
                                      tutorialURL:nil
                                   outTitleLabel:&_panelModNVTitleLabel];
 
-    self.panelDinhVi.hidden = YES;
-    self.panelModNV.hidden  = YES;
-
-    // Container stack — chỉ panel đang chọn visible, UIStackView tự co/giãn chiều cao
-    UIStackView *panelsStack = [[UIStackView alloc] init];
-    panelsStack.axis = UILayoutConstraintAxisVertical;
-    panelsStack.spacing = 0;
-    panelsStack.translatesAutoresizingMaskIntoConstraints = NO;
-    [content addSubview:panelsStack];
-    [panelsStack addArrangedSubview:self.panelProxy];
-    [panelsStack addArrangedSubview:self.panelDinhVi];
-    [panelsStack addArrangedSubview:self.panelModNV];
-
-    // ── PROXY DELTA VIP V2 panel (AimDrag — luôn hiển thị bên dưới tab) ──────
+    // ── PROXY DELTA VIP V2 panel ─────────────────────────────────────────────
     self.panelDrag = [self buildPanelWithTitle:@"PROXY DELTA VIP V2"
                                         symbol:@"hand.draw.fill"
                                           tint:HUD_ORANGE
@@ -893,7 +880,23 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
                                       features:[self dragFeaturesForBundle:self.bundleID]
                                    tutorialURL:kTutorialDragURL ?: @""
                                 outTitleLabel:nil];
-    [content addSubview:self.panelDrag];
+
+    self.panelDinhVi.hidden = YES;
+    self.panelModNV.hidden  = YES;
+    self.panelDrag.hidden   = YES;   // chỉ hiện khi tab 0 (Proxy) được chọn
+
+    // Container stack — UIStackView tự collapse view hidden → không chiếm không gian
+    UIStackView *panelsStack = [[UIStackView alloc] init];
+    panelsStack.axis    = UILayoutConstraintAxisVertical;
+    panelsStack.spacing = 0;
+    panelsStack.translatesAutoresizingMaskIntoConstraints = NO;
+    [content addSubview:panelsStack];
+    [panelsStack addArrangedSubview:self.panelProxy];
+    [panelsStack addArrangedSubview:self.panelDrag];   // sau panelProxy, cùng ẩn/hiện
+    [panelsStack addArrangedSubview:self.panelDinhVi];
+    [panelsStack addArrangedSubview:self.panelModNV];
+    // Khoảng cách 14pt giữa panelProxy và panelDrag (chỉ tác dụng khi cả 2 visible)
+    [panelsStack setCustomSpacing:14 afterView:self.panelProxy];
 
     // ── Status line ─────────────────────────────────────
     self.statusLabel = [[UILabel alloc] init];
@@ -949,12 +952,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
         [panelsStack.leadingAnchor constraintEqualToAnchor:content.leadingAnchor constant:16],
         [panelsStack.trailingAnchor constraintEqualToAnchor:content.trailingAnchor constant:-16],
 
-        // PROXY DELTA VIP V2 panel — ngay dưới tab panels
-        [self.panelDrag.topAnchor constraintEqualToAnchor:panelsStack.bottomAnchor constant:14],
-        [self.panelDrag.leadingAnchor constraintEqualToAnchor:content.leadingAnchor constant:16],
-        [self.panelDrag.trailingAnchor constraintEqualToAnchor:content.trailingAnchor constant:-16],
-
-        [self.statusLabel.topAnchor constraintEqualToAnchor:self.panelDrag.bottomAnchor constant:18],
+        [self.statusLabel.topAnchor constraintEqualToAnchor:panelsStack.bottomAnchor constant:18],
         [self.statusLabel.leadingAnchor constraintEqualToAnchor:content.leadingAnchor constant:24],
         [self.statusLabel.trailingAnchor constraintEqualToAnchor:content.trailingAnchor constant:-24],
         // Status label closes the scroll content — MỞ GAME is a sticky overlay button
@@ -1271,20 +1269,33 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     for (UIView *p in panels) { if (!p.hidden) { toHide = p; break; } }
     if (!toHide || toHide == toShow) return;
 
-    // Pre-show toShow (trong UIStackView nó đã có width, chỉ collapse theo height)
+    // panelDrag đi kèm tab 0 (Proxy) — hiện/ẩn cùng panelProxy
+    BOOL dragShouldShow = (tab == 0);
+
+    // Pre-show toShow + panelDrag nếu cần
     toShow.alpha  = 0;
     toShow.hidden = NO;
+    if (dragShouldShow) {
+        self.panelDrag.alpha  = 0;
+        self.panelDrag.hidden = NO;
+    }
 
-    // Phase 1: fade-out panel cũ
+    // Phase 1: fade-out panel cũ (+ panelDrag nếu đang rời tab 0)
     [UIView animateWithDuration:0.15 delay:0 options:UIViewAnimationOptionCurveEaseIn
-                     animations:^{ toHide.alpha = 0; }
+                     animations:^{
+        toHide.alpha = 0;
+        if (!dragShouldShow) self.panelDrag.alpha = 0;
+    }
                      completion:^(BOOL f) {
-        // Collapse cũ (UIStackView thu chiều cao ngay lập tức — alpha đã 0 nên không thấy)
         toHide.hidden = YES;
-        toHide.alpha  = 1;   // reset để lần sau dùng lại
+        toHide.alpha  = 1;
+        if (!dragShouldShow) { self.panelDrag.hidden = YES; self.panelDrag.alpha = 1; }
         // Phase 2: fade-in panel mới
         [UIView animateWithDuration:0.15 delay:0 options:UIViewAnimationOptionCurveEaseOut
-                         animations:^{ toShow.alpha = 1; }
+                         animations:^{
+            toShow.alpha = 1;
+            if (dragShouldShow) self.panelDrag.alpha = 1;
+        }
                          completion:nil];
     }];
 
