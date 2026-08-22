@@ -17,6 +17,10 @@
 #define HUD_RED         [UIColor colorWithRed:1.000 green:0.231 blue:0.322 alpha:1.0]
 #define HUD_TEXT        [UIColor colorWithRed:0.941 green:0.941 blue:0.961 alpha:1.0]
 
+// ── Tutorial video URLs — điền link YouTube thực tế ────────────────────────
+static NSString *const kTutorialProxyURL = nil; // vd: @"https://youtu.be/XXXX"
+static NSString *const kTutorialDragURL  = nil; // vd: @"https://youtu.be/YYYY"
+
 static UIColor *HUDDarken(UIColor *c, CGFloat f) {
     CGFloat r,g,b,a; [c getRed:&r green:&g blue:&b alpha:&a];
     return [UIColor colorWithRed:r*f green:g*f blue:b*f alpha:a];
@@ -307,6 +311,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 @property (nonatomic, strong) UIView  *panelProxy;
 @property (nonatomic, strong) UIView  *panelDinhVi;
 @property (nonatomic, strong) UIView  *panelModNV;
+@property (nonatomic, strong) UIView  *panelDrag;   // AimDrag — luôn hiển thị bên dưới tab
 @property (nonatomic, strong) UILabel *panelDinhViTitleLabel;  // để cập nhật ngôn ngữ
 @property (nonatomic, strong) UILabel *panelModNVTitleLabel;   // để cập nhật ngôn ngữ
 // ── Sliding segmented bar ──
@@ -877,6 +882,25 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     [panelsStack addArrangedSubview:self.panelDinhVi];
     [panelsStack addArrangedSubview:self.panelModNV];
 
+    // ── AimDrag panel (luôn hiển thị bên dưới tab, không ẩn) ────────────────
+    self.panelDrag = [self buildPanelWithTitle:LS(@"AIM DRAG", @"AIM DRAG")
+                                        symbol:@"hand.draw.fill"
+                                          tint:HUD_ORANGE
+                                         badge:@"DRAG"
+                                      features:[self dragFeaturesForBundle:self.bundleID]
+                                outTitleLabel:nil];
+
+    // ── Tutorial video cards ──────────────────────────────────────────────────
+    UIView *tutProxy = [self buildTutorialCardTitle:LS(@"Hướng Dẫn Proxy", @"Proxy Tutorial")
+                                          urlString:kTutorialProxyURL
+                                             action:@selector(openProxyTutorial)];
+    UIView *tutDrag  = [self buildTutorialCardTitle:LS(@"Hướng Dẫn AimDrag", @"AimDrag Tutorial")
+                                          urlString:kTutorialDragURL
+                                             action:@selector(openDragTutorial)];
+    [content addSubview:tutProxy];
+    [content addSubview:self.panelDrag];
+    [content addSubview:tutDrag];
+
     // ── Status line ─────────────────────────────────────
     self.statusLabel = [[UILabel alloc] init];
     self.statusLabel.text = LS(@"Đã Sẵn Sàng - Bạn Đã Có Thể Bắt Đầu Kích Hoạt Proxy",
@@ -931,7 +955,24 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
         [panelsStack.leadingAnchor constraintEqualToAnchor:content.leadingAnchor constant:16],
         [panelsStack.trailingAnchor constraintEqualToAnchor:content.trailingAnchor constant:-16],
 
-        [self.statusLabel.topAnchor constraintEqualToAnchor:panelsStack.bottomAnchor constant:18],
+        // Tutorial 1 (proxy) — ngay dưới panel tabs
+        [tutProxy.topAnchor constraintEqualToAnchor:panelsStack.bottomAnchor constant:12],
+        [tutProxy.leadingAnchor constraintEqualToAnchor:content.leadingAnchor constant:16],
+        [tutProxy.trailingAnchor constraintEqualToAnchor:content.trailingAnchor constant:-16],
+        [tutProxy.heightAnchor constraintEqualToConstant:52],
+
+        // AimDrag panel
+        [self.panelDrag.topAnchor constraintEqualToAnchor:tutProxy.bottomAnchor constant:14],
+        [self.panelDrag.leadingAnchor constraintEqualToAnchor:content.leadingAnchor constant:16],
+        [self.panelDrag.trailingAnchor constraintEqualToAnchor:content.trailingAnchor constant:-16],
+
+        // Tutorial 2 (drag)
+        [tutDrag.topAnchor constraintEqualToAnchor:self.panelDrag.bottomAnchor constant:12],
+        [tutDrag.leadingAnchor constraintEqualToAnchor:content.leadingAnchor constant:16],
+        [tutDrag.trailingAnchor constraintEqualToAnchor:content.trailingAnchor constant:-16],
+        [tutDrag.heightAnchor constraintEqualToConstant:52],
+
+        [self.statusLabel.topAnchor constraintEqualToAnchor:tutDrag.bottomAnchor constant:18],
         [self.statusLabel.leadingAnchor constraintEqualToAnchor:content.leadingAnchor constant:24],
         [self.statusLabel.trailingAnchor constraintEqualToAnchor:content.trailingAnchor constant:-24],
         // Status label closes the scroll content — MỞ GAME is a sticky overlay button
@@ -1085,6 +1126,126 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     return panelWrap;
 }
 
+// ── Tutorial video card ───────────────────────────────────────────────────────
+- (UIView *)buildTutorialCardTitle:(NSString *)title
+                         urlString:(NSString *)urlString
+                            action:(SEL)action {
+
+    BOOL hasURL = urlString.length > 0;
+    UIColor *accentColor = hasURL
+        ? [UIColor colorWithRed:1.0 green:0.22 blue:0.18 alpha:1.0]  // YouTube red
+        : HUD_MUTED;
+
+    // Wrapper
+    UIView *wrap = [[UIView alloc] init];
+    wrap.translatesAutoresizingMaskIntoConstraints = NO;
+    wrap.layer.shadowColor   = hasURL ? accentColor.CGColor : [UIColor clearColor].CGColor;
+    wrap.layer.shadowOpacity = hasURL ? 0.28f : 0.0f;
+    wrap.layer.shadowRadius  = 8;
+    wrap.layer.shadowOffset  = CGSizeZero;
+
+    // Glass card
+    UIVisualEffectView *card = [[UIVisualEffectView alloc]
+        initWithEffect:[UIBlurEffect effectWithStyle:UIBlurEffectStyleSystemThinMaterialDark]];
+    card.clipsToBounds    = YES;
+    card.layer.cornerRadius = 12;
+    card.layer.cornerCurve  = kCACornerCurveContinuous;
+    card.layer.borderColor  = hasURL
+        ? [accentColor colorWithAlphaComponent:0.35].CGColor
+        : [UIColor colorWithWhite:1 alpha:0.07].CGColor;
+    card.layer.borderWidth  = 1;
+    card.translatesAutoresizingMaskIntoConstraints = NO;
+    [wrap addSubview:card];
+
+    UIView *cc = card.contentView;
+
+    // Left accent stripe (YouTube red nếu có URL)
+    UIView *stripe = [[UIView alloc] init];
+    stripe.backgroundColor = accentColor;
+    stripe.layer.cornerRadius = 2;
+    stripe.translatesAutoresizingMaskIntoConstraints = NO;
+    [cc addSubview:stripe];
+
+    // Play icon
+    UIImageSymbolConfiguration *playCfg = [UIImageSymbolConfiguration
+        configurationWithPointSize:18 weight:UIImageSymbolWeightBold];
+    UIImageView *playIcon = [[UIImageView alloc]
+        initWithImage:[UIImage systemImageNamed:@"play.circle.fill" withConfiguration:playCfg]];
+    playIcon.tintColor   = accentColor;
+    playIcon.contentMode = UIViewContentModeScaleAspectFit;
+    playIcon.translatesAutoresizingMaskIntoConstraints = NO;
+    [cc addSubview:playIcon];
+
+    // Title
+    UILabel *titleLbl = [[UILabel alloc] init];
+    titleLbl.text      = title;
+    titleLbl.font      = [UIFont systemFontOfSize:13 weight:UIFontWeightSemibold];
+    titleLbl.textColor = hasURL ? HUD_TEXT : HUD_MUTED;
+    titleLbl.translatesAutoresizingMaskIntoConstraints = NO;
+    [cc addSubview:titleLbl];
+
+    // Subtitle
+    UILabel *subLbl = [[UILabel alloc] init];
+    subLbl.text = hasURL
+        ? LS(@"Nhấn để xem trên YouTube ▶", @"Tap to watch on YouTube ▶")
+        : LS(@"🎬 Video hướng dẫn sắp có...", @"🎬 Tutorial video coming soon...");
+    subLbl.font      = [UIFont systemFontOfSize:11 weight:UIFontWeightRegular];
+    subLbl.textColor = HUD_MUTED;
+    subLbl.translatesAutoresizingMaskIntoConstraints = NO;
+    [cc addSubview:subLbl];
+
+    [NSLayoutConstraint activateConstraints:@[
+        [card.topAnchor    constraintEqualToAnchor:wrap.topAnchor],
+        [card.leadingAnchor  constraintEqualToAnchor:wrap.leadingAnchor],
+        [card.trailingAnchor constraintEqualToAnchor:wrap.trailingAnchor],
+        [card.bottomAnchor constraintEqualToAnchor:wrap.bottomAnchor],
+
+        [stripe.leadingAnchor  constraintEqualToAnchor:cc.leadingAnchor],
+        [stripe.topAnchor      constraintEqualToAnchor:cc.topAnchor constant:10],
+        [stripe.bottomAnchor   constraintEqualToAnchor:cc.bottomAnchor constant:-10],
+        [stripe.widthAnchor    constraintEqualToConstant:3],
+
+        [playIcon.leadingAnchor  constraintEqualToAnchor:stripe.trailingAnchor constant:14],
+        [playIcon.centerYAnchor  constraintEqualToAnchor:cc.centerYAnchor],
+        [playIcon.widthAnchor    constraintEqualToConstant:22],
+        [playIcon.heightAnchor   constraintEqualToConstant:22],
+
+        [titleLbl.leadingAnchor constraintEqualToAnchor:playIcon.trailingAnchor constant:12],
+        [titleLbl.bottomAnchor  constraintEqualToAnchor:cc.centerYAnchor constant:-1],
+        [titleLbl.trailingAnchor constraintLessThanOrEqualToAnchor:cc.trailingAnchor constant:-14],
+
+        [subLbl.leadingAnchor constraintEqualToAnchor:titleLbl.leadingAnchor],
+        [subLbl.topAnchor     constraintEqualToAnchor:cc.centerYAnchor constant:2],
+        [subLbl.trailingAnchor constraintLessThanOrEqualToAnchor:cc.trailingAnchor constant:-14],
+    ]];
+
+    // Tap action chỉ khi có URL
+    if (hasURL) {
+        UIButton *tapZone = [UIButton buttonWithType:UIButtonTypeCustom];
+        tapZone.backgroundColor = [UIColor clearColor];
+        tapZone.translatesAutoresizingMaskIntoConstraints = NO;
+        [tapZone addTarget:self action:action forControlEvents:UIControlEventTouchUpInside];
+        [wrap addSubview:tapZone];
+        [NSLayoutConstraint activateConstraints:@[
+            [tapZone.topAnchor    constraintEqualToAnchor:wrap.topAnchor],
+            [tapZone.leadingAnchor  constraintEqualToAnchor:wrap.leadingAnchor],
+            [tapZone.trailingAnchor constraintEqualToAnchor:wrap.trailingAnchor],
+            [tapZone.bottomAnchor constraintEqualToAnchor:wrap.bottomAnchor],
+        ]];
+    }
+
+    return wrap;
+}
+
+- (void)openProxyTutorial {
+    NSURL *url = [NSURL URLWithString:kTutorialProxyURL];
+    if (url) [[UIApplication sharedApplication] openURL:url options:@{} completionHandler:nil];
+}
+- (void)openDragTutorial {
+    NSURL *url = [NSURL URLWithString:kTutorialDragURL];
+    if (url) [[UIApplication sharedApplication] openURL:url options:@{} completionHandler:nil];
+}
+
 #pragma mark - Tab switching
 
 // Cập nhật màu icon+label — tab chọn: neon tint; còn lại: muted
@@ -1217,17 +1378,31 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
         featureKey:k(@"neck") fileName:fn searchRoot:rt];
     coV2.enTitle = @"Proxy Neck V2"; coV2.enSubtitle = @"Bigger Red Neck Zone, Stickier";
 
-    HUDFeature *drag = [self featureWithSymbol:@"hand.draw.fill" tint:HUD_CYAN
-        title:@"Proxy Drag" subtitle:@"Hỗ Trợ Kéo Nhẹ Tâm Lên Đỉnh Đầu"
-        featureKey:k(@"drag") fileName:fn searchRoot:rt];
-    drag.enTitle = @"Proxy Drag"; drag.enSubtitle = @"Soft Drag — Aim Pulls to Head";
-
     HUDFeature *magic = [self featureWithSymbol:@"wand.and.stars" tint:HUD_PURPLE
         title:@"Proxy Magic" subtitle:@"Đạn Ma Thuật"
         featureKey:k(@"magic") fileName:fn searchRoot:rt];
     magic.enTitle = @"Proxy Magic"; magic.enSubtitle = @"Magic Bullet";
 
-    return @[body, coV1, coV2, drag, magic];
+    return @[body, coV1, coV2, magic];
+}
+
+// ── AimDrag — panel riêng bên dưới tab ──────────────────────────────────────
+- (NSArray<HUDFeature *> *)dragFeaturesForBundle:(NSString *)bundleID {
+    BOOL supported = [bundleID isEqualToString:@"com.dts.freefireth"] ||
+                     [bundleID isEqualToString:@"com.dts.freefiremax"];
+    NSString *cacheRes = @"cache_res.CfnFf59sr1SbsqQ6JqTKsEusjKs~3D";
+    NSString *root = [NSString stringWithFormat:@"Device Storage/[MHA-C2] App Data/%@", bundleID];
+    NSString *fn = supported ? cacheRes : nil;
+    NSString *rt = supported ? root : nil;
+    NSString *(^k)(NSString *) = ^NSString *(NSString *key) { return supported ? key : nil; };
+
+    HUDFeature *drag = [self featureWithSymbol:@"hand.draw.fill" tint:HUD_ORANGE
+        title:LS(@"Aim Drag", @"Aim Drag")
+        subtitle:LS(@"Kéo Nhẹ Tâm Lên Đỉnh Đầu", @"Soft Pull — Aim Rises to Head")
+        featureKey:k(@"drag") fileName:fn searchRoot:rt];
+    drag.enTitle    = @"Aim Drag";
+    drag.enSubtitle = @"Soft Pull — Aim Rises to Head";
+    return @[drag];
 }
 
 // ── Tab 2: Định Vị Súng ─────────────────────────────────────
