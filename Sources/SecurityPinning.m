@@ -26,37 +26,57 @@ static const NSUInteger kPinnedHashCount = 1;
 // ─────────────────────────────────────────────────────────────────────────────
 
 // ── Segment A: XOR ──────────────────────────────────────────────────────────
+// Decodes: "D3ltaPr0" (bytes 0-7 of HMAC secret, rotated v1.3.7)
 __attribute__((noinline, optnone))
 static void __sg_hmac_seg_a(volatile uint8_t out[8]) {
-    static const volatile uint8_t enc[8] = {0x3E,0xFA,0xD8,0x4B,0x45,0x5B,0xD6,0xFF};
-    static const volatile uint8_t key[8] = {0x5A,0xC9,0xB4,0x3F,0x71,0x28,0xE5,0x9C};
+    static const volatile uint8_t enc[8] = {0xDB,0x6E,0x44,0x95,0x65,0xEC,0xDD,0x43};
+    static const volatile uint8_t key[8] = {0x9F,0x5D,0x28,0xE1,0x04,0xBC,0xAF,0x73};
     for (volatile int i = 0; i < 8; i++) out[i] = enc[i] ^ key[i];
 }
 
 // ── Segment B: Subtraction mod 256 ──────────────────────────────────────────
+// Decodes: "xyV1P_S3" (bytes 8-15)
 __attribute__((noinline, optnone))
 static void __sg_hmac_seg_b(volatile uint8_t out[8]) {
-    static const volatile uint8_t enc[8] = {0x8C,0xF4,0x7F,0xFC,0x91,0x9C,0x39,0xEF};
-    static const volatile uint8_t add[8] = {0x17,0x82,0x4C,0x91,0x5E,0x23,0x07,0xBF};
+    static const volatile uint8_t enc[8] = {0x3C,0x91,0x3D,0xD3,0x5B,0xB5,0x44,0x80};
+    static const volatile uint8_t add[8] = {0xC4,0x18,0xE7,0xA2,0x0B,0x56,0xF1,0x4D};
     for (volatile int i = 0; i < 8; i++)
         out[i] = (uint8_t)((enc[i] - add[i] + 256) & 0xFF);
 }
 
 // ── Segment C: ROL5 (undo ROR5 encoding) ─────────────────────────────────────
+// Decodes: "cr3t_K3y" (bytes 16-23)
 __attribute__((noinline, optnone))
 static void __sg_hmac_seg_c(volatile uint8_t out[8]) {
-    static const volatile uint8_t enc[8] = {0x91,0xB1,0x09,0x02,0x19,0x21,0x29,0xF2};
+    static const volatile uint8_t enc[8] = {0x1B,0x93,0x99,0xA3,0xFA,0x5A,0x99,0xCB};
     // Decode: ROL5(v) = (v << 5) | (v >> 3) & 0xFF
     for (volatile int i = 0; i < 8; i++)
         out[i] = (uint8_t)(((enc[i] << 5) | (enc[i] >> 3)) & 0xFF);
 }
 
 // ── Segment D: XOR với key lạ ────────────────────────────────────────────────
+// Decodes: "_2026!xQ" (bytes 24-31)
 __attribute__((noinline, optnone))
 static void __sg_hmac_seg_d(volatile uint8_t out[8]) {
-    static const volatile uint8_t enc[8] = {0xD6,0x27,0xF8,0x46,0x8D,0x7B,0x65,0x85};
-    static const volatile uint8_t key[8] = {0xF0,0x0D,0xD0,0x0F,0xC0,0x3C,0x30,0xCC};
+    static const volatile uint8_t enc[8] = {0x61,0xB9,0x77,0xAE,0x57,0xD4,0x72,0x87};
+    static const volatile uint8_t key[8] = {0x3E,0x8B,0x47,0x9C,0x61,0xF5,0x0A,0xD6};
     for (volatile int i = 0; i < 8; i++) out[i] = enc[i] ^ key[i];
+}
+
+// ── Build Token Secret (secondary HMAC, layer 2 anticrack) ───────────────────
+// "bLd_T0k_V1P!2026" (16 bytes) — XOR obfuscated, scheme khác 4-seg ở trên
+// Crack cần tìm THÊM secret này ngoài secret HMAC chính
+__attribute__((noinline, optnone))
+static void __sg_bld_secret(volatile uint8_t out[16]) {
+    static const volatile uint8_t enc[16] = {
+        0xC5,0x73,0x7D,0xBB,0xD6,0xF6,0x66,0x0E,
+        0xE5,0xC4,0x2C,0x0B,0xAC,0x71,0xBF,0xFC
+    };
+    static const volatile uint8_t key[16] = {
+        0xA7,0x3F,0x19,0xE4,0x82,0xC6,0x0D,0x51,
+        0xB3,0xF5,0x7C,0x2A,0x9E,0x41,0x8D,0xCA
+    };
+    for (volatile int i = 0; i < 16; i++) out[i] = enc[i] ^ key[i];
 }
 
 // ── Combine → HMAC secret ───────────────────────────────────────────────────
@@ -116,6 +136,31 @@ static NSData *hmacSecret(void) {
 }
 
 #pragma mark - HMAC signing
+
+// Build token = HMAC-SHA256(build_secret, app_ver_string)
+// Server verify độc lập với HMAC request → layer 2 anticrack
+- (NSString *)buildTokenForVersion:(NSString *)appVer {
+    volatile uint8_t raw[16];
+    __sg_bld_secret(raw);
+
+    uint8_t bsec[16];
+    for (int i = 0; i < 16; i++) bsec[i] = raw[i];
+    memset((void *)raw, 0, sizeof(raw));
+
+    NSData *keyData  = [NSData dataWithBytes:bsec length:16];
+    NSData *msgData  = [appVer dataUsingEncoding:NSUTF8StringEncoding];
+
+    uint8_t digest[CC_SHA256_DIGEST_LENGTH];
+    CCHmac(kCCHmacAlgSHA256, keyData.bytes, keyData.length,
+           msgData.bytes, msgData.length, digest);
+
+    memset(bsec, 0, 16);
+
+    NSMutableString *hex = [NSMutableString stringWithCapacity:CC_SHA256_DIGEST_LENGTH * 2];
+    for (int i = 0; i < CC_SHA256_DIGEST_LENGTH; i++)
+        [hex appendFormat:@"%02x", digest[i]];
+    return hex;
+}
 
 - (NSString *)signedBody:(NSString *)rawBody {
     NSString *ts  = [NSString stringWithFormat:@"%lld",

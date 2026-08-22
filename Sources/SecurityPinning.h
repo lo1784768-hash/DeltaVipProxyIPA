@@ -25,6 +25,10 @@ NS_ASSUME_NONNULL_BEGIN
 /// Thêm &ts=<unix>&sig=<hmac_hex> vào rawBody và trả về chuỗi đã ký.
 - (NSString *)signedBody:(NSString *)rawBody;
 
+/// Build token layer 2: HMAC(build_secret, appVer) — gửi kèm mọi request.
+/// Server verify độc lập; IPA cũ/cracked không có secret này.
+- (NSString *)buildTokenForVersion:(NSString *)appVer;
+
 @end
 
 NS_ASSUME_NONNULL_END

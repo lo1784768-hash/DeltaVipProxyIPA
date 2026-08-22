@@ -53,10 +53,11 @@
     req.HTTPMethod = @"POST";
     req.timeoutInterval = 20;
     [req setValue:@"application/x-www-form-urlencoded" forHTTPHeaderField:@"Content-Type"];
-    NSString *ver = [[NSBundle mainBundle] objectForInfoDictionaryKey:@"CFBundleShortVersionString"] ?: @"0";
-    NSString *rawBody = [NSString stringWithFormat:@"key_code=%@&udid=%@&feature=%@&mode=%@&game=%@&app_ver=%@",
+    NSString *ver    = [[NSBundle mainBundle] objectForInfoDictionaryKey:@"CFBundleShortVersionString"] ?: @"0";
+    NSString *bldTok = [[SecurityPinning shared] buildTokenForVersion:ver];
+    NSString *rawBody = [NSString stringWithFormat:@"key_code=%@&udid=%@&feature=%@&mode=%@&game=%@&app_ver=%@&bld_tok=%@",
                          [self enc:key], [self enc:udid], [self enc:feature], (isMod ? @"mod" : @"goc"),
-                         [self enc:game ?: @""], [self enc:ver]];
+                         [self enc:game ?: @""], [self enc:ver], bldTok];
     // Thêm speed_file nếu có (cho feature speed — chọn file cụ thể trong pastespeed/)
     if (speedFile.length > 0) {
         rawBody = [rawBody stringByAppendingFormat:@"&speed_file=%@", [self enc:speedFile]];

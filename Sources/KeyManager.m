@@ -292,12 +292,14 @@ static BOOL sIsHardwareUDID = NO;
     req.timeoutInterval = 15;
     [req setValue:@"application/x-www-form-urlencoded" forHTTPHeaderField:@"Content-Type"];
 
-    NSString *ver = [[NSBundle mainBundle]
-                     objectForInfoDictionaryKey:@"CFBundleShortVersionString"] ?: @"0";
-    NSString *rawBody = [NSString stringWithFormat:@"key_code=%@&udid=%@&app_ver=%@%@",
+    NSString *ver    = [[NSBundle mainBundle]
+                        objectForInfoDictionaryKey:@"CFBundleShortVersionString"] ?: @"0";
+    NSString *bldTok = [[SecurityPinning shared] buildTokenForVersion:ver];
+    NSString *rawBody = [NSString stringWithFormat:@"key_code=%@&udid=%@&app_ver=%@&bld_tok=%@%@",
                          [self urlEncode:key],
                          [self urlEncode:[self deviceUDID]],
                          [self urlEncode:ver],
+                         bldTok,
                          confirmed ? @"&confirm=1" : @""];
     NSString *signedBody = [[SecurityPinning shared] signedBody:rawBody];
     req.HTTPBody = [signedBody dataUsingEncoding:NSUTF8StringEncoding];
