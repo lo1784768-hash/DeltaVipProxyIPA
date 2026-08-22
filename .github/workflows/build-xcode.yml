@@ -93,12 +93,12 @@ jobs:
 
           mkdir -p Payload
           cp -r "$BUILT_APP" Payload/
-          zip -qr IMGUIDELTA-v1.3.5-unsigned.ipa Payload/
+          zip -qr DeltaProxyVN-1.3.7.ipa Payload/
 
-          if [ -f "IMGUIDELTA-v1.3.5-unsigned.ipa" ]; then
-            echo "✓ IPA created: IMGUIDELTA-v1.3.5-unsigned.ipa"
-            unzip -l IMGUIDELTA-v1.3.5-unsigned.ipa | head -20
-            ls -lh IMGUIDELTA-v1.3.5-unsigned.ipa
+          if [ -f "DeltaProxyVN-1.3.7.ipa" ]; then
+            echo "✓ IPA created: DeltaProxyVN-1.3.7.ipa"
+            unzip -l DeltaProxyVN-1.3.7.ipa | head -20
+            ls -lh DeltaProxyVN-1.3.7.ipa
           else
             echo "Error: IPA creation failed"
             exit 1
@@ -109,14 +109,14 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: IMGUIDELTA-IPA
-          path: IMGUIDELTA-v1.3.5-unsigned.ipa
+          path: DeltaProxyVN-1.3.7.ipa
           retention-days: 30
 
       # Create auto-tag
       - name: Create Release Tag
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
-          TAG="v1.3.5-xcode"
+          TAG="v1.3.7"
           echo "Creating tag: $TAG"
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
@@ -130,7 +130,7 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ env.TAG }}
-          files: IMGUIDELTA-v1.3.5-unsigned.ipa
+          files: DeltaProxyVN-1.3.7.ipa
           draft: false
           prerelease: false
           body: |
@@ -147,7 +147,7 @@ jobs:
             1. Download IPA below
             2. Sign with esign or codesign:
                ```bash
-               esign -s cert.p12:password -p provision.mobileprovision IMGUIDELTA-v1.3.5-unsigned.ipa
+               esign -s cert.p12:password -p provision.mobileprovision DeltaProxyVN-1.3.7.ipa
                ```
             3. Install via Sideloadly/AltStore/TrollStore
 
