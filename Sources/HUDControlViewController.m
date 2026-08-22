@@ -302,13 +302,19 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 @property (nonatomic, strong) CAGradientLayer *openGameGradient;
 @property (nonatomic, strong) NSMutableArray<HUDFeatureRow *> *rows;
 // ── Tab UI ──
-@property (nonatomic, strong) NSArray<UIButton *> *tabButtons;   // 3 tab pills
+@property (nonatomic, strong) NSArray<UIButton *> *tabButtons;   // 3 segment buttons
 @property (nonatomic, strong) NSArray<UIColor *>  *tabTints;     // per-tab neon color
 @property (nonatomic, strong) UIView  *panelProxy;
 @property (nonatomic, strong) UIView  *panelDinhVi;
 @property (nonatomic, strong) UIView  *panelModNV;
 @property (nonatomic, strong) UILabel *panelDinhViTitleLabel;  // để cập nhật ngôn ngữ
 @property (nonatomic, strong) UILabel *panelModNVTitleLabel;   // để cập nhật ngôn ngữ
+// ── Sliding segmented bar ──
+@property (nonatomic, strong) UIView  *segmentBar;              // outer wrapper (has shadow)
+@property (nonatomic, strong) UIView  *segThumb;                // floating pill indicator
+@property (nonatomic, strong) NSLayoutConstraint *thumbLeft;    // animated leading
+@property (nonatomic, assign) NSInteger pendingThumbTab;        // -1 = nothing pending
+@property (nonatomic, strong) NSMutableArray<UILabel *> *segLabels; // for language refresh
 @end
 
 // Private API để mở app game theo bundle id
@@ -331,6 +337,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 
 - (void)viewDidLoad {
     [super viewDidLoad];
+    self.pendingThumbTab = -1;
     self.title = self.appName;
 
     self.bgGradient = [CAGradientLayer layer];
@@ -480,6 +487,13 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     CGFloat top = self.view.safeAreaInsets.top;
     self.radialGlow.frame = CGRectMake(self.view.bounds.size.width/2 - 240, top - 60, 480, 480);
     self.openGameGradient.frame = self.openGameButton.bounds;
+
+    // Once the segmented bar has real size, place the thumb at the correct slot
+    if (self.pendingThumbTab >= 0 && self.segmentBar.bounds.size.width > 1) {
+        NSInteger t = self.pendingThumbTab;
+        self.pendingThumbTab = -1;
+        [self updateThumbForTab:t animated:NO];
+    }
 }
 
 - (void)launchGame {
@@ -626,6 +640,45 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     self.navigationController.navigationBar.tintColor = nil;
 }
 
+- (void)viewDidAppear:(BOOL)animated {
+    [super viewDidAppear:animated];
+    [self startButtonShimmer];
+}
+
+// Sweeping shimmer effect on the MỞ GAME sticky button
+- (void)startButtonShimmer {
+    // Remove any pre-existing shimmer layer
+    for (CALayer *layer in [self.openGameButton.layer.sublayers copy]) {
+        if ([layer.name isEqualToString:@"shimmer"]) [layer removeFromSuperlayer];
+    }
+    CGFloat w = self.openGameButton.bounds.size.width;
+    CGFloat h = self.openGameButton.bounds.size.height;
+    if (w < 1) return;
+
+    CAGradientLayer *shimmer = [CAGradientLayer layer];
+    shimmer.name = @"shimmer";
+    shimmer.colors = @[
+        (id)[UIColor colorWithWhite:1 alpha:0.0].CGColor,
+        (id)[UIColor colorWithWhite:1 alpha:0.30].CGColor,
+        (id)[UIColor colorWithWhite:1 alpha:0.0].CGColor,
+    ];
+    shimmer.locations  = @[@0.3, @0.5, @0.7];
+    shimmer.startPoint = CGPointMake(0, 0.5);
+    shimmer.endPoint   = CGPointMake(1, 0.5);
+    shimmer.frame = CGRectMake(0, 0, w, h);
+    [self.openGameButton.layer addSublayer:shimmer];
+
+    // Slide from -w to +w; clipped by button's clipsToBounds=YES
+    CABasicAnimation *anim = [CABasicAnimation animationWithKeyPath:@"transform.translation.x"];
+    anim.fromValue    = @(-w);
+    anim.toValue      = @(w);
+    anim.duration     = 2.2;
+    anim.repeatCount  = INFINITY;
+    anim.timingFunction = [CAMediaTimingFunction functionWithName:kCAMediaTimingFunctionEaseInEaseOut];
+    anim.beginTime    = CACurrentMediaTime() + 0.8;
+    [shimmer addAnimation:anim forKey:@"shimmerAnim"];
+}
+
 - (void)buildUI {
     // ── Scroll container ────────────────────────────────
     UIScrollView *scroll = [[UIScrollView alloc] init];
@@ -683,16 +736,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     bundleLabel.translatesAutoresizingMaskIntoConstraints = NO;
     [content addSubview:bundleLabel];
 
-    // ── Custom tab bar (3 pill buttons) ─────────────────
-    UIView *tabBar = [[UIView alloc] init];
-    tabBar.backgroundColor = [UIColor colorWithWhite:1 alpha:0.05];
-    tabBar.layer.cornerRadius = 14;
-    tabBar.layer.masksToBounds = YES;
-    tabBar.layer.borderColor  = [UIColor colorWithWhite:1 alpha:0.08].CGColor;
-    tabBar.layer.borderWidth  = 0.5;
-    tabBar.translatesAutoresizingMaskIntoConstraints = NO;
-    [content addSubview:tabBar];
-
+    // ── Sliding Segmented Bar ────────────────────────────
     NSArray<NSString *> *tabSyms   = @[@"bolt.fill", @"location.fill", @"person.fill.badge.plus"];
     NSArray<NSString *> *tabLabels = @[
         LS(@"Proxy",   @"Proxy"),
@@ -701,50 +745,108 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     ];
     self.tabTints = @[HUD_CYAN, HUD_GREEN, HUD_PURPLE];
 
-    UIStackView *tabStack = [[UIStackView alloc] init];
-    tabStack.axis         = UILayoutConstraintAxisHorizontal;
-    tabStack.distribution = UIStackViewDistributionFillEqually;
-    tabStack.spacing      = 3;
-    tabStack.translatesAutoresizingMaskIntoConstraints = NO;
-    [tabBar addSubview:tabStack];
+    // Outer shadow wrapper (not clipping, so glow shows)
+    UIView *segWrap = [[UIView alloc] init];
+    segWrap.backgroundColor = [UIColor clearColor];
+    segWrap.layer.shadowColor   = HUD_PURPLE.CGColor;
+    segWrap.layer.shadowOpacity = 0.30;
+    segWrap.layer.shadowRadius  = 14;
+    segWrap.layer.shadowOffset  = CGSizeMake(0, 4);
+    segWrap.translatesAutoresizingMaskIntoConstraints = NO;
+    [content addSubview:segWrap];
+    self.segmentBar = segWrap;
+
+    // Glass blur container (clips sublayers)
+    UIVisualEffectView *segBlur = [[UIVisualEffectView alloc]
+        initWithEffect:[UIBlurEffect effectWithStyle:UIBlurEffectStyleSystemThinMaterialDark]];
+    segBlur.clipsToBounds = YES;
+    segBlur.layer.cornerRadius = 16;
+    segBlur.layer.cornerCurve  = kCACornerCurveContinuous;
+    segBlur.layer.borderColor  = [UIColor colorWithWhite:1 alpha:0.09].CGColor;
+    segBlur.layer.borderWidth  = 0.5;
+    segBlur.translatesAutoresizingMaskIntoConstraints = NO;
+    [segWrap addSubview:segBlur];
+    [NSLayoutConstraint activateConstraints:@[
+        [segBlur.topAnchor    constraintEqualToAnchor:segWrap.topAnchor],
+        [segBlur.leadingAnchor  constraintEqualToAnchor:segWrap.leadingAnchor],
+        [segBlur.trailingAnchor constraintEqualToAnchor:segWrap.trailingAnchor],
+        [segBlur.bottomAnchor constraintEqualToAnchor:segWrap.bottomAnchor],
+    ]];
+
+    UIView *cv = segBlur.contentView;
+
+    // Sliding thumb pill (lives beneath the buttons in Z-order)
+    UIView *thumb = [[UIView alloc] init];
+    thumb.layer.cornerRadius = 13;
+    thumb.layer.cornerCurve  = kCACornerCurveContinuous;
+    thumb.layer.borderWidth  = 1;
+    thumb.translatesAutoresizingMaskIntoConstraints = NO;
+    [cv addSubview:thumb];
+    self.segThumb = thumb;
+
+    // Equal-width button slots stacked on top of the thumb
+    UIStackView *segStack = [[UIStackView alloc] init];
+    segStack.axis         = UILayoutConstraintAxisHorizontal;
+    segStack.distribution = UIStackViewDistributionFillEqually;
+    segStack.translatesAutoresizingMaskIntoConstraints = NO;
+    [cv addSubview:segStack];
 
     NSMutableArray<UIButton *> *btns = [NSMutableArray array];
+    NSMutableArray<UILabel *>  *lbls = [NSMutableArray array];
     for (NSInteger i = 0; i < 3; i++) {
         UIButton *btn = [UIButton buttonWithType:UIButtonTypeCustom];
         btn.tag = i;
-        btn.layer.cornerRadius = 11;
-        btn.layer.masksToBounds = YES;
-        btn.layer.borderWidth   = 1;
-        btn.layer.borderColor   = [UIColor clearColor].CGColor;
-
-        UIButtonConfiguration *conf = [UIButtonConfiguration plainButtonConfiguration];
-        conf.imagePlacement   = NSDirectionalRectEdgeLeading;
-        conf.imagePadding     = 5;
-        conf.contentInsets    = NSDirectionalEdgeInsetsMake(0, 10, 0, 10);
-        UIImageSymbolConfiguration *symCfg = [UIImageSymbolConfiguration configurationWithPointSize:12 weight:UIImageSymbolWeightBold];
-        conf.image = [UIImage systemImageNamed:tabSyms[i] withConfiguration:symCfg];
-        conf.attributedTitle  = [[NSAttributedString alloc] initWithString:tabLabels[i] attributes:@{
-            NSFontAttributeName: [UIFont systemFontOfSize:13 weight:UIFontWeightSemibold]
-        }];
-        conf.baseForegroundColor = HUD_MUTED;
-        UIBackgroundConfiguration *bgConf = [UIBackgroundConfiguration clearConfiguration];
-        bgConf.cornerRadius = 11;
-        conf.background = bgConf;
-        btn.configuration = conf;
-
+        btn.translatesAutoresizingMaskIntoConstraints = NO;
         [btn addTarget:self action:@selector(tabButtonTapped:) forControlEvents:UIControlEventTouchUpInside];
-        [tabStack addArrangedSubview:btn];
+
+        UIImageSymbolConfiguration *symCfg = [UIImageSymbolConfiguration configurationWithPointSize:12 weight:UIImageSymbolWeightBold];
+        UIImageView *iconIV = [[UIImageView alloc] initWithImage:[UIImage systemImageNamed:tabSyms[(NSUInteger)i] withConfiguration:symCfg]];
+        iconIV.contentMode = UIViewContentModeScaleAspectFit;
+        iconIV.translatesAutoresizingMaskIntoConstraints = NO;
+        iconIV.userInteractionEnabled = NO;
+        iconIV.tag = 10 + i;
+        [btn addSubview:iconIV];
+
+        UILabel *lbl = [[UILabel alloc] init];
+        lbl.text          = tabLabels[(NSUInteger)i];
+        lbl.font          = [UIFont systemFontOfSize:11 weight:UIFontWeightSemibold];
+        lbl.textAlignment = NSTextAlignmentCenter;
+        lbl.translatesAutoresizingMaskIntoConstraints = NO;
+        lbl.userInteractionEnabled = NO;
+        lbl.tag = 20 + i;
+        [btn addSubview:lbl];
+        [lbls addObject:lbl];
+
+        [NSLayoutConstraint activateConstraints:@[
+            [iconIV.centerXAnchor constraintEqualToAnchor:btn.centerXAnchor],
+            [iconIV.bottomAnchor  constraintEqualToAnchor:btn.centerYAnchor constant:0],
+            [iconIV.widthAnchor   constraintEqualToConstant:14],
+            [iconIV.heightAnchor  constraintEqualToConstant:14],
+            [lbl.centerXAnchor    constraintEqualToAnchor:btn.centerXAnchor],
+            [lbl.topAnchor        constraintEqualToAnchor:iconIV.bottomAnchor constant:3],
+        ]];
+
+        [segStack addArrangedSubview:btn];
         [btns addObject:btn];
     }
     self.tabButtons = [btns copy];
-    [self selectTab:0];   // highlight tab 0 on load
+    self.segLabels  = lbls;
 
+    // Thumb: 1/3 bar width, inset 4pt top/bottom; leading drives the slide
+    self.thumbLeft = [thumb.leadingAnchor constraintEqualToAnchor:cv.leadingAnchor constant:0];
     [NSLayoutConstraint activateConstraints:@[
-        [tabStack.topAnchor    constraintEqualToAnchor:tabBar.topAnchor    constant:3],
-        [tabStack.bottomAnchor constraintEqualToAnchor:tabBar.bottomAnchor constant:-3],
-        [tabStack.leadingAnchor  constraintEqualToAnchor:tabBar.leadingAnchor  constant:3],
-        [tabStack.trailingAnchor constraintEqualToAnchor:tabBar.trailingAnchor constant:-3],
+        self.thumbLeft,
+        [thumb.widthAnchor  constraintEqualToAnchor:cv.widthAnchor multiplier:1.0/3.0],
+        [thumb.topAnchor    constraintEqualToAnchor:cv.topAnchor    constant:4],
+        [thumb.bottomAnchor constraintEqualToAnchor:cv.bottomAnchor constant:-4],
+
+        [segStack.topAnchor    constraintEqualToAnchor:cv.topAnchor],
+        [segStack.bottomAnchor constraintEqualToAnchor:cv.bottomAnchor],
+        [segStack.leadingAnchor  constraintEqualToAnchor:cv.leadingAnchor],
+        [segStack.trailingAnchor constraintEqualToAnchor:cv.trailingAnchor],
     ]];
+
+    [self selectTab:0];
 
     // ── 3 Panels ─────────────────────────────────────────
     self.rows = [NSMutableArray array];
@@ -796,7 +898,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     self.openGameButton.clipsToBounds = YES;
     self.openGameButton.translatesAutoresizingMaskIntoConstraints = NO;
     [self.openGameButton addTarget:self action:@selector(launchGame) forControlEvents:UIControlEventTouchUpInside];
-    [content addSubview:self.openGameButton];
+    // Note: added to self.view (sticky) below — NOT to content
 
     self.openGameGradient = [CAGradientLayer layer];
     self.openGameGradient.colors = @[(id)HUD_PURPLE.CGColor, (id)HUD_CYAN.CGColor];
@@ -820,25 +922,33 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
         [bundleLabel.leadingAnchor constraintEqualToAnchor:content.leadingAnchor constant:24],
         [bundleLabel.trailingAnchor constraintEqualToAnchor:content.trailingAnchor constant:-24],
 
-        [tabBar.topAnchor constraintEqualToAnchor:bundleLabel.bottomAnchor constant:20],
-        [tabBar.leadingAnchor constraintEqualToAnchor:content.leadingAnchor constant:16],
-        [tabBar.trailingAnchor constraintEqualToAnchor:content.trailingAnchor constant:-16],
-        [tabBar.heightAnchor constraintEqualToConstant:46],
+        [segWrap.topAnchor constraintEqualToAnchor:bundleLabel.bottomAnchor constant:20],
+        [segWrap.leadingAnchor constraintEqualToAnchor:content.leadingAnchor constant:16],
+        [segWrap.trailingAnchor constraintEqualToAnchor:content.trailingAnchor constant:-16],
+        [segWrap.heightAnchor constraintEqualToConstant:52],
 
-        [panelsStack.topAnchor constraintEqualToAnchor:tabBar.bottomAnchor constant:16],
+        [panelsStack.topAnchor constraintEqualToAnchor:segWrap.bottomAnchor constant:16],
         [panelsStack.leadingAnchor constraintEqualToAnchor:content.leadingAnchor constant:16],
         [panelsStack.trailingAnchor constraintEqualToAnchor:content.trailingAnchor constant:-16],
 
         [self.statusLabel.topAnchor constraintEqualToAnchor:panelsStack.bottomAnchor constant:18],
         [self.statusLabel.leadingAnchor constraintEqualToAnchor:content.leadingAnchor constant:24],
         [self.statusLabel.trailingAnchor constraintEqualToAnchor:content.trailingAnchor constant:-24],
-
-        [self.openGameButton.topAnchor constraintEqualToAnchor:self.statusLabel.bottomAnchor constant:20],
-        [self.openGameButton.leadingAnchor constraintEqualToAnchor:content.leadingAnchor constant:20],
-        [self.openGameButton.trailingAnchor constraintEqualToAnchor:content.trailingAnchor constant:-20],
-        [self.openGameButton.heightAnchor constraintEqualToConstant:54],
-        [self.openGameButton.bottomAnchor constraintEqualToAnchor:content.bottomAnchor constant:-32],
+        // Status label closes the scroll content — MỞ GAME is a sticky overlay button
+        [self.statusLabel.bottomAnchor constraintEqualToAnchor:content.bottomAnchor constant:-24],
     ]];
+
+    // ── Sticky MỞ GAME button (fixed above safe area, outside scroll) ─────
+    [self.view addSubview:self.openGameButton];
+    [NSLayoutConstraint activateConstraints:@[
+        [self.openGameButton.leadingAnchor  constraintEqualToAnchor:self.view.leadingAnchor  constant:20],
+        [self.openGameButton.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor constant:-20],
+        [self.openGameButton.bottomAnchor   constraintEqualToAnchor:self.view.safeAreaLayoutGuide.bottomAnchor constant:-16],
+        [self.openGameButton.heightAnchor   constraintEqualToConstant:56],
+    ]];
+    // Extra bottom inset so status label isn't hidden behind the sticky button
+    scroll.contentInset = UIEdgeInsetsMake(0, 0, 88, 0);
+    scroll.scrollIndicatorInsets = UIEdgeInsetsMake(0, 0, 88, 0);
 }
 
 // Tạo 1 panel card (neon blur card) với title bar + danh sách feature rows.
@@ -977,23 +1087,50 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 
 #pragma mark - Tab switching
 
-// Cập nhật màu sắc 3 pill buttons — tab chọn: neon fill + border; còn lại: muted
+// Cập nhật màu icon+label — tab chọn: neon tint; còn lại: muted
 - (void)selectTab:(NSInteger)tab {
     for (NSInteger i = 0; i < (NSInteger)self.tabButtons.count; i++) {
-        UIButton *btn   = self.tabButtons[i];
-        UIColor  *tint  = self.tabTints[i];
-        BOOL active     = (i == tab);
+        UIColor *tint  = self.tabTints[(NSUInteger)i];
+        BOOL    active = (i == tab);
 
-        UIButtonConfiguration *conf = btn.configuration;
-        conf.baseForegroundColor = active ? tint : HUD_MUTED;
+        // Icon color via tag 10+i
+        UIView *iconV = [self.tabButtons[(NSUInteger)i] viewWithTag:10 + i];
+        if ([iconV isKindOfClass:[UIImageView class]]) {
+            ((UIImageView *)iconV).tintColor = active ? tint : HUD_MUTED;
+        }
+        // Label color via tag 20+i
+        UIView *lblV = [self.tabButtons[(NSUInteger)i] viewWithTag:20 + i];
+        if ([lblV isKindOfClass:[UILabel class]]) {
+            ((UILabel *)lblV).textColor = active ? tint : HUD_MUTED;
+        }
+    }
+    [self updateThumbForTab:tab animated:YES];
+}
 
-        UIBackgroundConfiguration *bg = [UIBackgroundConfiguration clearConfiguration];
-        bg.backgroundColor = active ? [tint colorWithAlphaComponent:0.16] : [UIColor clearColor];
-        bg.cornerRadius    = 11;
-        conf.background    = bg;
-        btn.configuration  = conf;
-        btn.layer.borderColor = active ? [tint colorWithAlphaComponent:0.45].CGColor
-                                       : [UIColor clearColor].CGColor;
+// Spring-animate the thumb pill to the selected slot
+- (void)updateThumbForTab:(NSInteger)tab animated:(BOOL)animated {
+    CGFloat segWidth = self.segmentBar.bounds.size.width;
+    if (segWidth < 1) {
+        // Layout not done yet — defer until viewDidLayoutSubviews
+        self.pendingThumbTab = tab;
+        return;
+    }
+    UIColor *tint = self.tabTints[(NSUInteger)tab];
+    self.thumbLeft.constant          = tab * (segWidth / 3.0);
+    self.segThumb.backgroundColor    = [tint colorWithAlphaComponent:0.20];
+    self.segThumb.layer.borderColor  = [tint colorWithAlphaComponent:0.45].CGColor;
+
+    if (animated) {
+        [UIView animateWithDuration:0.44 delay:0
+             usingSpringWithDamping:0.72 initialSpringVelocity:0.6
+                            options:UIViewAnimationOptionBeginFromCurrentState
+                         animations:^{ [self.segmentBar layoutIfNeeded]; }
+                         completion:nil];
+    } else {
+        [CATransaction begin];
+        [CATransaction setDisableActions:YES];
+        [self.segmentBar layoutIfNeeded];
+        [CATransaction commit];
     }
 }
 
@@ -1374,19 +1511,14 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 
 // Cập nhật toàn bộ chuỗi khi người dùng đổi ngôn ngữ
 - (void)refreshLocalizedStrings {
-    // Tab pills
+    // Segmented bar labels
     NSArray *tabLabels = @[
         LS(@"Proxy",   @"Proxy"),
         LS(@"Định Vị", @"Aim Bot"),
         LS(@"Mod NV",  @"Mod Skin"),
     ];
-    for (NSInteger i = 0; i < 3 && i < (NSInteger)self.tabButtons.count; i++) {
-        UIButton *btn = self.tabButtons[i];
-        UIButtonConfiguration *conf = btn.configuration;
-        conf.attributedTitle = [[NSAttributedString alloc] initWithString:tabLabels[i] attributes:@{
-            NSFontAttributeName: [UIFont systemFontOfSize:13 weight:UIFontWeightSemibold]
-        }];
-        btn.configuration = conf;
+    for (NSInteger i = 0; i < 3 && i < (NSInteger)self.segLabels.count; i++) {
+        self.segLabels[(NSUInteger)i].text = tabLabels[(NSUInteger)i];
     }
 
     // Panel header titles (DinhVi + ModNV)

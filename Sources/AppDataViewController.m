@@ -17,6 +17,7 @@
 #import "AppPaths.h"
 #import "UpdateGate.h"
 #import "LanguageManager.h"
+#import "PolicyViewController.h"
 #import <sys/sysctl.h>
 
 #pragma mark - GlassView (frosted card khớp web)
@@ -55,6 +56,9 @@
 @property (nonatomic, strong) UIImageView *iconView;
 @property (nonatomic, strong) UILabel *nameLabel;
 @property (nonatomic, strong) UILabel *bundleLabel;
+// Neon glow border shown when selected
+@property (nonatomic, strong) CAGradientLayer *glowBorder;
+@property (nonatomic, strong) CALayer *glowShadow;
 @end
 
 @implementation AppDataCell
@@ -155,6 +159,73 @@
         [self.bundleLabel.trailingAnchor constraintEqualToAnchor:self.cardView.trailingAnchor constant:-12],
         [self.bundleLabel.bottomAnchor constraintGreaterThanOrEqualToAnchor:self.cardView.bottomAnchor constant:-16]
     ]];
+
+    // ── Neon glow border (shown when selected) ────────────────────────────
+    // Shadow layer for card ambient glow
+    self.glowShadow = [CALayer layer];
+    self.glowShadow.shadowColor  = BRAND_CYAN.CGColor;
+    self.glowShadow.shadowOpacity = 0;
+    self.glowShadow.shadowRadius  = 20;
+    self.glowShadow.shadowOffset  = CGSizeZero;
+    self.glowShadow.backgroundColor = [UIColor clearColor].CGColor;
+    [self.layer insertSublayer:self.glowShadow atIndex:0];
+
+    // Gradient border stroke (purple → cyan → purple)
+    self.glowBorder = [CAGradientLayer layer];
+    self.glowBorder.colors = @[
+        (id)BRAND_PURPLE.CGColor,
+        (id)BRAND_CYAN.CGColor,
+        (id)BRAND_PURPLE.CGColor,
+    ];
+    self.glowBorder.startPoint = CGPointMake(0, 0);
+    self.glowBorder.endPoint   = CGPointMake(1, 1);
+    self.glowBorder.opacity    = 0;
+
+    CAShapeLayer *mask = [CAShapeLayer layer];
+    mask.fillColor   = [UIColor clearColor].CGColor;
+    mask.strokeColor = [UIColor whiteColor].CGColor;
+    mask.lineWidth   = 2.0;
+    self.glowBorder.mask = mask;
+    [self.cardView.layer addSublayer:self.glowBorder];
+}
+
+- (void)layoutSubviews {
+    [super layoutSubviews];
+    CGRect r = self.cardView.bounds;
+    self.glowBorder.frame = r;
+    self.glowShadow.frame = self.bounds;
+    UIBezierPath *path = [UIBezierPath bezierPathWithRoundedRect:
+        CGRectInset(r, 1, 1) cornerRadius:self.cardView.layer.cornerRadius - 1];
+    ((CAShapeLayer *)self.glowBorder.mask).path = path.CGPath;
+}
+
+- (void)setSelected:(BOOL)selected {
+    [super setSelected:selected];
+    [self applyGlow:selected animated:YES];
+}
+
+- (void)applyGlow:(BOOL)on animated:(BOOL)animated {
+    void (^change)(void) = ^{
+        self.glowBorder.opacity   = on ? 1.0f : 0.0f;
+        self.glowShadow.shadowOpacity = on ? 0.55f : 0.0f;
+        // Intensify card purple shadow while selected
+        self.cardView.layer.shadowColor   = on ? BRAND_CYAN.CGColor : BRAND_PURPLE.CGColor;
+        self.cardView.layer.shadowOpacity = on ? 0.50f : 0.30f;
+        self.cardView.layer.shadowRadius  = on ? 24.0f : 18.0f;
+    };
+    if (animated) {
+        [CATransaction begin];
+        [CATransaction setAnimationDuration:0.25];
+        [CATransaction setAnimationTimingFunction:
+            [CAMediaTimingFunction functionWithName:kCAMediaTimingFunctionEaseOut]];
+        change();
+        [CATransaction commit];
+    } else {
+        [CATransaction begin];
+        [CATransaction setDisableActions:YES];
+        change();
+        [CATransaction commit];
+    }
 }
 
 // Smooth touch animation
@@ -203,25 +274,71 @@
 - (void)viewDidLoad {
     [super viewDidLoad];
 
-    self.title = @"DELTA PROXY VN";
-    self.navigationItem.titleView = nil;
+    // ── Gradient title "DELTA IPA VN" ─────────────────────────────────────
+    UILabel *titleLabel = [[UILabel alloc] init];
+    titleLabel.text = @"DELTA IPA VN";
+    titleLabel.font = [UIFont systemFontOfSize:17 weight:UIFontWeightHeavy];
+    titleLabel.textColor = [UIColor whiteColor];
+    [titleLabel sizeToFit];
+    // Gradient mask: purple → cyan
+    CAGradientLayer *tg = [CAGradientLayer layer];
+    tg.colors = @[(id)BRAND_PURPLE.CGColor, (id)BRAND_CYAN.CGColor];
+    tg.startPoint = CGPointMake(0, 0.5);
+    tg.endPoint   = CGPointMake(1, 0.5);
+    tg.frame = titleLabel.bounds;
+    UIGraphicsBeginImageContextWithOptions(titleLabel.bounds.size, NO, 0);
+    [tg renderInContext:UIGraphicsGetCurrentContext()];
+    UIImage *gradImg = UIGraphicsGetImageFromCurrentImageContext();
+    UIGraphicsEndImageContext();
+    titleLabel.textColor = [UIColor colorWithPatternImage:gradImg];
+
+    // Version badge
+    UILabel *badge = [[UILabel alloc] init];
+    badge.text = [NSString stringWithFormat:@"  v1.3.6  "];
+    badge.font = [UIFont systemFontOfSize:10 weight:UIFontWeightBold];
+    badge.textColor = BRAND_CYAN;
+    badge.backgroundColor = [BRAND_CYAN colorWithAlphaComponent:0.12];
+    badge.layer.cornerRadius = 7;
+    badge.layer.masksToBounds = YES;
+    badge.layer.borderColor = [BRAND_CYAN colorWithAlphaComponent:0.35].CGColor;
+    badge.layer.borderWidth = 1;
+
+    UIStackView *titleStack = [[UIStackView alloc] initWithArrangedSubviews:@[titleLabel, badge]];
+    titleStack.axis = UILayoutConstraintAxisHorizontal;
+    titleStack.spacing = 7;
+    titleStack.alignment = UIStackViewAlignmentCenter;
+    self.navigationItem.titleView = titleStack;
+
+    // ── Refresh → glass icon button ────────────────────────────────────────
+    UIButton *refreshBtn = [UIButton buttonWithType:UIButtonTypeSystem];
+    UIImageSymbolConfiguration *rCfg = [UIImageSymbolConfiguration configurationWithPointSize:14 weight:UIImageSymbolWeightMedium];
+    [refreshBtn setImage:[UIImage systemImageNamed:@"arrow.clockwise" withConfiguration:rCfg]
+                forState:UIControlStateNormal];
+    refreshBtn.tintColor = BRAND_CYAN;
+    refreshBtn.backgroundColor = [UIColor colorWithWhite:1 alpha:0.08];
+    refreshBtn.layer.cornerRadius = 16;
+    refreshBtn.layer.cornerCurve = kCACornerCurveContinuous;
+    refreshBtn.layer.borderColor = [UIColor colorWithWhite:1 alpha:0.15].CGColor;
+    refreshBtn.layer.borderWidth = 1;
+    refreshBtn.layer.masksToBounds = YES;
+    refreshBtn.frame = CGRectMake(0, 0, 34, 34);
+    [refreshBtn addTarget:self action:@selector(refreshApps) forControlEvents:UIControlEventTouchUpInside];
+    self.navigationItem.rightBarButtonItem = [[UIBarButtonItem alloc] initWithCustomView:refreshBtn];
 
     // Display name mapping
     self.appDisplayNames = @{
         @"com.dts.freefiremax": @"Free Fire Max",
         @"com.dts.freefireth": @"Free Fire"
     };
-
-    // Custom image mapping - specific filenames
     self.customAppImages = @{
         @"com.dts.freefiremax": @"FreeFireMax",
         @"com.dts.freefireth": @"FreeFireTH"
     };
     self.view.backgroundColor = BRAND_BG;
 
-    // Nền đen + gradient rất nhẹ
+    // Gradient nền
     CAGradientLayer *bg = [CAGradientLayer layer];
-    bg.colors = @[(id)BRAND_BG.CGColor,
+    bg.colors = @[(id)[UIColor colorWithRed:0.032 green:0.036 blue:0.063 alpha:1.0].CGColor,
                   (id)[UIColor colorWithRed:0.035 green:0.043 blue:0.078 alpha:1.0].CGColor];
     bg.startPoint = CGPointMake(0.5, 0.0);
     bg.endPoint   = CGPointMake(0.5, 1.0);
@@ -229,62 +346,58 @@
     [self.view.layer insertSublayer:bg atIndex:0];
     self.bgGradient = bg;
 
-    // Quầng sáng tím (trên-trái) + cyan (dưới-phải) — như web
+    // Glow layers
     self.purpleGlow = BrandRadialGlow([BRAND_PURPLE colorWithAlphaComponent:0.30]);
     self.cyanGlow   = BrandRadialGlow([BRAND_CYAN   colorWithAlphaComponent:0.20]);
     [self.view.layer insertSublayer:self.purpleGlow above:bg];
     [self.view.layer insertSublayer:self.cyanGlow above:self.purpleGlow];
 
-    // Lưới mờ
     UIView *grid = [[UIView alloc] initWithFrame:self.view.bounds];
     grid.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
     grid.backgroundColor = BrandGridPattern();
     grid.userInteractionEnabled = NO;
     [self.view addSubview:grid];
 
-    // Dark nav bar with white title + cyan Refresh
+    // Nav bar transparent
     UINavigationBarAppearance *ap = [[UINavigationBarAppearance alloc] init];
     [ap configureWithTransparentBackground];
-    ap.titleTextAttributes = @{NSForegroundColorAttributeName: [UIColor colorWithRed:0.941 green:0.941 blue:0.961 alpha:1.0],
-                               NSFontAttributeName: [UIFont systemFontOfSize:17 weight:UIFontWeightBold]};
     self.navigationItem.standardAppearance = ap;
     self.navigationItem.scrollEdgeAppearance = ap;
-    self.navigationController.navigationBar.tintColor = [UIColor colorWithRed:0 green:0.831 blue:1 alpha:1.0];
+    self.navigationController.navigationBar.tintColor = BRAND_CYAN;
 
-    // Refresh button
-    self.navigationItem.rightBarButtonItem = [[UIBarButtonItem alloc]
-        initWithTitle:@"Refresh"
-        style:UIBarButtonItemStylePlain
-        target:self
-        action:@selector(refreshApps)];
-
-    // Create stats view
+    // Stats (device info card)
     [self createStatsView];
 
-    // Setup collection view with flow layout
+    // Collection view
     UICollectionViewFlowLayout *layout = [[UICollectionViewFlowLayout alloc] init];
-    layout.itemSize = CGSizeMake((self.view.bounds.size.width - 32) / 2, 200);
-    layout.minimumLineSpacing = 16;
+    layout.itemSize = CGSizeMake((self.view.bounds.size.width - 48) / 2, 210);
+    layout.minimumLineSpacing      = 16;
     layout.minimumInteritemSpacing = 16;
-    layout.sectionInset = UIEdgeInsetsMake(16, 16, 16, 16);
+    layout.sectionInset = UIEdgeInsetsMake(12, 16, 16, 16);
 
     self.collectionView = [[UICollectionView alloc] initWithFrame:self.view.bounds
                                               collectionViewLayout:layout];
     self.collectionView.backgroundColor = [UIColor clearColor];
     self.collectionView.dataSource = self;
     self.collectionView.delegate = self;
+    self.collectionView.contentInset = UIEdgeInsetsMake(0, 0, 110, 0); // room for floating pill
     [self.collectionView registerClass:[AppDataCell class] forCellWithReuseIdentifier:@"AppCell"];
     self.collectionView.translatesAutoresizingMaskIntoConstraints = NO;
     [self.view addSubview:self.collectionView];
 
-    // License key bottom bar
+    // ── Floating Pill KeyBar ───────────────────────────────────────────────
     self.keyBar = [[KeyBarView alloc] init];
     self.keyBar.translatesAutoresizingMaskIntoConstraints = NO;
+    self.keyBar.layer.shadowColor  = BRAND_PURPLE.CGColor;
+    self.keyBar.layer.shadowOpacity = 0.40;
+    self.keyBar.layer.shadowRadius  = 18;
+    self.keyBar.layer.shadowOffset  = CGSizeZero;
     [self.view addSubview:self.keyBar];
 
     __weak typeof(self) weakSelf = self;
-    self.keyBar.onAddTapped = ^{ [weakSelf promptAddKey]; };
-    self.keyBar.onInfoTapped = ^{ [weakSelf showUDIDInfo]; };
+    self.keyBar.onAddTapped    = ^{ [weakSelf promptAddKey]; };
+    self.keyBar.onInfoTapped   = ^{ [weakSelf showUDIDInfo]; };
+    self.keyBar.onPolicyTapped = ^{ [weakSelf showPolicy]; };
 
     // Nút test Cơ chế C (bad_query) — luôn hiển thị kể cả khi iOS "Chưa Hỗ Trợ"
     UIButton *bqBtn = [UIButton buttonWithType:UIButtonTypeSystem];
@@ -338,7 +451,7 @@
     [heapBtn addTarget:self action:@selector(heapGroomDetectTapped) forControlEvents:UIControlEventTouchUpInside];
     [self.view addSubview:heapBtn];
 
-    // Position collection view below stats view, above the key bar
+    // Layout: full-width collection view (anchored below debug buttons), floating pill overlays bottom
     [NSLayoutConstraint activateConstraints:@[
         [bqBtn.topAnchor constraintEqualToAnchor:self.statsView.bottomAnchor constant:8],
         [bqBtn.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor constant:16],
@@ -359,13 +472,13 @@
         [self.collectionView.topAnchor constraintEqualToAnchor:heapBtn.bottomAnchor constant:8],
         [self.collectionView.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor],
         [self.collectionView.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor],
-        [self.collectionView.bottomAnchor constraintEqualToAnchor:self.keyBar.topAnchor],
+        [self.collectionView.bottomAnchor constraintEqualToAnchor:self.view.bottomAnchor],
 
-        // Bar starts 64pt above the safe-area bottom and fills to the screen edge
-        [self.keyBar.topAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.bottomAnchor constant:-64],
-        [self.keyBar.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor],
-        [self.keyBar.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor],
-        [self.keyBar.bottomAnchor constraintEqualToAnchor:self.view.bottomAnchor],
+        // Floating pill: 16pt inset each side, 16pt above safe-area bottom, 68pt tall
+        [self.keyBar.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor constant:16],
+        [self.keyBar.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor constant:-16],
+        [self.keyBar.bottomAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.bottomAnchor constant:-12],
+        [self.keyBar.heightAnchor constraintEqualToConstant:68],
     ]];
 
     // Load apps immediately without waiting
@@ -843,45 +956,134 @@
 }
 
 - (void)createStatsView {
-    // Frosted glass stats card
-    self.statsView = [[GlassView alloc] init];
-    self.statsView.layer.cornerRadius = 20;
+    // ── Glassmorphic Device Info Card ─────────────────────────────────────
+    UIVisualEffectView *glassCard = [[UIVisualEffectView alloc]
+        initWithEffect:[UIBlurEffect effectWithStyle:UIBlurEffectStyleSystemThinMaterialDark]];
+    glassCard.clipsToBounds = YES;
+    glassCard.layer.cornerRadius = 20;
+    glassCard.layer.cornerCurve  = kCACornerCurveContinuous;
+    glassCard.layer.borderColor  = [UIColor colorWithWhite:1 alpha:0.11].CGColor;
+    glassCard.layer.borderWidth  = 1;
+    glassCard.layer.shadowColor  = BRAND_PURPLE.CGColor;
+    glassCard.layer.shadowOpacity = 0.28;
+    glassCard.layer.shadowRadius  = 16;
+    glassCard.layer.shadowOffset  = CGSizeMake(0, 4);
+    glassCard.translatesAutoresizingMaskIntoConstraints = NO;
+
+    // Wrap in non-clipping container so shadow shows
+    self.statsView = [[UIView alloc] init];
+    self.statsView.backgroundColor = [UIColor clearColor];
     self.statsView.translatesAutoresizingMaskIntoConstraints = NO;
     [self.view addSubview:self.statsView];
+    [self.statsView addSubview:glassCard];
 
     [NSLayoutConstraint activateConstraints:@[
         [self.statsView.topAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.topAnchor constant:8],
         [self.statsView.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor constant:16],
         [self.statsView.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor constant:-16],
-        [self.statsView.heightAnchor constraintEqualToConstant:110]
+        [self.statsView.heightAnchor constraintEqualToConstant:106],
+
+        [glassCard.topAnchor constraintEqualToAnchor:self.statsView.topAnchor],
+        [glassCard.leadingAnchor constraintEqualToAnchor:self.statsView.leadingAnchor],
+        [glassCard.trailingAnchor constraintEqualToAnchor:self.statsView.trailingAnchor],
+        [glassCard.bottomAnchor constraintEqualToAnchor:self.statsView.bottomAnchor],
     ]];
 
-    UIView *iosRow  = [self statRowText:[NSString stringWithFormat:@"iOS  %@", [[UIDevice currentDevice] systemVersion]]
-                                 symbol:@"applelogo" tint:BRAND_PURPLE valueColor:BRAND_MUTED labelTag:0];
-    UIView *devRow  = [self statRowText:[NSString stringWithFormat:@"Device  %@", [self deviceModelName]]
-                                 symbol:@"iphone" tint:BRAND_CYAN valueColor:BRAND_MUTED labelTag:0];
+    UIView *cc = glassCard.contentView;
 
+    // iOS row
+    UIView *iosRow = [self statRowText:[NSString stringWithFormat:@"iOS  %@", [[UIDevice currentDevice] systemVersion]]
+                                symbol:@"applelogo" tint:BRAND_PURPLE valueColor:BRAND_MUTED labelTag:0];
+    // Device row
+    UIView *devRow = [self statRowText:[NSString stringWithFormat:@"Device  %@", [self deviceModelName]]
+                                symbol:@"iphone" tint:BRAND_CYAN valueColor:BRAND_MUTED labelTag:0];
+
+    // Support row — pulsing dot variant
     BOOL supported = [self isIOSSupported];
-    NSString *supportText   = supported ? LS(@"Có Hỗ Trợ", @"Supported") : LS(@"Chưa Hỗ Trợ", @"Not Supported");
-    NSString *supportSymbol = supported ? @"checkmark.shield.fill" : @"xmark.shield.fill";
-    UIColor  *supportTint   = supported
-        ? [UIColor colorWithRed:0.2 green:0.85 blue:0.4 alpha:1.0]   // xanh lá
-        : [UIColor colorWithRed:1.0 green:0.55 blue:0.0 alpha:1.0];  // cam
-    UIView *supportRow = [self statRowText:supportText symbol:supportSymbol tint:supportTint valueColor:supportTint labelTag:998];
+    UIColor *supportTint = supported
+        ? [UIColor colorWithRed:0.2 green:0.85 blue:0.4 alpha:1.0]
+        : [UIColor colorWithRed:1.0 green:0.55 blue:0.0 alpha:1.0];
+
+    UIView *supportRow = [[UIView alloc] init];
+    supportRow.translatesAutoresizingMaskIntoConstraints = NO;
+
+    // Pulsing dot indicator
+    UIView *pulseWrap = [[UIView alloc] init];
+    pulseWrap.translatesAutoresizingMaskIntoConstraints = NO;
+    [supportRow addSubview:pulseWrap];
+
+    UIView *dotInner = [[UIView alloc] init];
+    dotInner.backgroundColor = supportTint;
+    dotInner.layer.cornerRadius  = 4;
+    dotInner.layer.shadowColor   = supportTint.CGColor;
+    dotInner.layer.shadowOpacity = 0.9;
+    dotInner.layer.shadowRadius  = 5;
+    dotInner.layer.shadowOffset  = CGSizeZero;
+    dotInner.translatesAutoresizingMaskIntoConstraints = NO;
+    [pulseWrap addSubview:dotInner];
+
+    if (supported) {
+        // Pulse ring animation
+        UIView *dotRing = [[UIView alloc] init];
+        dotRing.backgroundColor = [supportTint colorWithAlphaComponent:0.25];
+        dotRing.layer.cornerRadius = 8;
+        dotRing.layer.borderColor = [supportTint colorWithAlphaComponent:0.5].CGColor;
+        dotRing.layer.borderWidth = 1;
+        dotRing.translatesAutoresizingMaskIntoConstraints = NO;
+        [pulseWrap insertSubview:dotRing belowSubview:dotInner];
+        [NSLayoutConstraint activateConstraints:@[
+            [dotRing.centerXAnchor constraintEqualToAnchor:pulseWrap.centerXAnchor],
+            [dotRing.centerYAnchor constraintEqualToAnchor:pulseWrap.centerYAnchor],
+            [dotRing.widthAnchor constraintEqualToConstant:16],
+            [dotRing.heightAnchor constraintEqualToConstant:16],
+        ]];
+        // Infinite pulse
+        [UIView animateWithDuration:1.4 delay:0.3
+                              options:UIViewAnimationOptionRepeat|UIViewAnimationOptionCurveEaseOut
+                         animations:^{
+            dotRing.transform = CGAffineTransformMakeScale(2.2, 2.2);
+            dotRing.alpha = 0;
+        } completion:nil];
+    }
+
+    [NSLayoutConstraint activateConstraints:@[
+        [pulseWrap.widthAnchor constraintEqualToConstant:18],
+        [pulseWrap.heightAnchor constraintEqualToConstant:18],
+        [dotInner.centerXAnchor constraintEqualToAnchor:pulseWrap.centerXAnchor],
+        [dotInner.centerYAnchor constraintEqualToAnchor:pulseWrap.centerYAnchor],
+        [dotInner.widthAnchor constraintEqualToConstant:8],
+        [dotInner.heightAnchor constraintEqualToConstant:8],
+    ]];
+
+    UILabel *supportLabel = [[UILabel alloc] init];
+    supportLabel.tag = 998;
+    supportLabel.text = supported ? LS(@"Có Hỗ Trợ", @"Supported") : LS(@"Chưa Hỗ Trợ", @"Not Supported");
+    supportLabel.font = [UIFont systemFontOfSize:13 weight:UIFontWeightSemibold];
+    supportLabel.textColor = supportTint;
+    supportLabel.translatesAutoresizingMaskIntoConstraints = NO;
+    [supportRow addSubview:supportLabel];
+
+    [NSLayoutConstraint activateConstraints:@[
+        [supportRow.heightAnchor constraintEqualToConstant:18],
+        [pulseWrap.leadingAnchor constraintEqualToAnchor:supportRow.leadingAnchor],
+        [pulseWrap.centerYAnchor constraintEqualToAnchor:supportRow.centerYAnchor],
+        [supportLabel.leadingAnchor constraintEqualToAnchor:pulseWrap.trailingAnchor constant:10],
+        [supportLabel.centerYAnchor constraintEqualToAnchor:supportRow.centerYAnchor],
+        [supportLabel.trailingAnchor constraintLessThanOrEqualToAnchor:supportRow.trailingAnchor],
+    ]];
 
     UIStackView *stack = [[UIStackView alloc] initWithArrangedSubviews:@[iosRow, devRow, supportRow]];
     stack.axis = UILayoutConstraintAxisVertical;
     stack.spacing = 10;
     stack.translatesAutoresizingMaskIntoConstraints = NO;
-    [self.statsView addSubview:stack];
+    [cc addSubview:stack];
 
     [NSLayoutConstraint activateConstraints:@[
-        [stack.leadingAnchor constraintEqualToAnchor:self.statsView.leadingAnchor constant:18],
-        [stack.trailingAnchor constraintEqualToAnchor:self.statsView.trailingAnchor constant:-18],
-        [stack.centerYAnchor constraintEqualToAnchor:self.statsView.centerYAnchor],
+        [stack.leadingAnchor constraintEqualToAnchor:cc.leadingAnchor constant:18],
+        [stack.trailingAnchor constraintEqualToAnchor:cc.trailingAnchor constant:-18],
+        [stack.centerYAnchor constraintEqualToAnchor:cc.centerYAnchor],
     ]];
 
-    // Nhấn giữ thẻ thông tin ~1.2s để mở bảng Admin (reset khoá thiết bị)
     UILongPressGestureRecognizer *lp = [[UILongPressGestureRecognizer alloc]
         initWithTarget:self action:@selector(handleAdminLongPress:)];
     lp.minimumPressDuration = 1.2;
@@ -928,9 +1130,24 @@
     return row;
 }
 
+// ── Chính Sách ─────────────────────────────────────────────────────────────
+- (void)showPolicy {
+    UIImpactFeedbackGenerator *fb = [[UIImpactFeedbackGenerator alloc] initWithStyle:UIImpactFeedbackStyleLight];
+    [fb impactOccurred];
+    PolicyViewController *pvc = [[PolicyViewController alloc] init];
+    pvc.modalPresentationStyle = UIModalPresentationPageSheet;
+    if (@available(iOS 15.0, *)) {
+        UISheetPresentationController *sheet = pvc.sheetPresentationController;
+        sheet.detents = @[UISheetPresentationControllerDetent.largeDetent];
+        sheet.prefersGrabberVisible = YES;
+        sheet.preferredCornerRadius = 28;
+    }
+    [self presentViewController:pvc animated:YES completion:nil];
+}
+
 - (void)viewWillAppear:(BOOL)animated {
     [super viewWillAppear:animated];
-    self.navigationController.navigationBar.tintColor = [UIColor colorWithRed:0 green:0.831 blue:1 alpha:1.0];
+    self.navigationController.navigationBar.tintColor = BRAND_CYAN;
 
     // Refresh license key state + start countdown ticker
     [self.keyBar update];
