@@ -3,7 +3,7 @@
 #import "Endpoints.h"
 #import "KeyManager.h"
 #import "LanguageManager.h"
-#import <sys/sysctl.h>
+#import <sys/utsname.h>
 
 // ── Liên hệ — chỉnh lại URL thực tế ────────────────────────────────────────
 static NSString *const kContactZalo     = @"https://zalo.me/deltaipavn";
