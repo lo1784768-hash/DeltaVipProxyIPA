@@ -5,10 +5,8 @@
 #import "LanguageManager.h"
 #import <sys/utsname.h>
 
-// ── Liên hệ — chỉnh lại URL thực tế ────────────────────────────────────────
-static NSString *const kContactZalo     = @"https://zalo.me/deltaipavn";
-static NSString *const kContactTelegram = @"https://t.me/deltaipavn";
-static NSString *const kContactFacebook = @"https://fb.me/deltaipavn";
+// ── Chia sẻ — chỉnh lại link tải app thực tế ───────────────────────────────
+static NSString *const kShareURL = @"https://deltaipavn.com/download";
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 #pragma mark - SettingsRow (touch-interactive glass row)
@@ -282,12 +280,12 @@ static NSString *const kContactFacebook = @"https://fb.me/deltaipavn";
               subtitle:LS(@"File tạm + ảnh đã tải", @"Temp files + downloaded images")
                 action:^{ [weakSelf clearCache]; }];
 
-    SettingsRow *contactRow = [[SettingsRow alloc]
-        initWithSymbol:@"message.fill"
+    SettingsRow *shareRow = [[SettingsRow alloc]
+        initWithSymbol:@"square.and.arrow.up"
                   tint:[UIColor colorWithRed:0.2 green:0.85 blue:0.4 alpha:1.0]
-                 title:LS(@"Liên Hệ Hỗ Trợ", @"Contact Support")
-              subtitle:LS(@"Zalo · Telegram · Facebook", @"Zalo · Telegram · Facebook")
-                action:^{ [weakSelf openContact]; }];
+                 title:LS(@"Chia Sẻ Ứng Dụng", @"Share App")
+              subtitle:LS(@"Gửi link tải cho bạn bè", @"Send download link to friends")
+                action:^{ [weakSelf shareApp]; }];
 
     SettingsRow *infoRow = [[SettingsRow alloc]
         initWithSymbol:@"info.circle.fill"
@@ -296,7 +294,7 @@ static NSString *const kContactFacebook = @"https://fb.me/deltaipavn";
               subtitle:LS(@"Phiên bản · Thiết bị · ID", @"Version · Device · ID")
                 action:^{ [weakSelf showAppInfo]; }];
 
-    NSArray<SettingsRow *> *rows = @[updateRow, cacheRow, contactRow, infoRow];
+    NSArray<SettingsRow *> *rows = @[updateRow, cacheRow, shareRow, infoRow];
 
     UIStackView *stack = [[UIStackView alloc] initWithArrangedSubviews:rows];
     stack.axis         = UILayoutConstraintAxisVertical;
@@ -443,38 +441,25 @@ static NSString *const kContactFacebook = @"https://fb.me/deltaipavn";
                 (long)deleted]];
 }
 
-- (void)openContact {
-    UIAlertController *sheet = [UIAlertController
-        alertControllerWithTitle:LS(@"Liên Hệ Hỗ Trợ", @"Contact Support")
-        message:LS(@"Chọn kênh hỗ trợ bạn muốn liên hệ", @"Choose a support channel")
-        preferredStyle:UIAlertControllerStyleActionSheet];
+- (void)shareApp {
+    NSString *appName = LS(@"DELTA IPA VN", @"DELTA IPA VN");
+    NSString *shareText = [NSString stringWithFormat:
+        LS(@"🎮 %@ — Mod skin miễn phí cho Free Fire!\n👉 Tải tại: %@",
+           @"🎮 %@ — Free skin mod for Free Fire!\n👉 Download: %@"),
+        appName, kShareURL];
+    NSURL *shareURL = [NSURL URLWithString:kShareURL];
 
-    [sheet addAction:[UIAlertAction actionWithTitle:@"💬  Zalo"
-        style:UIAlertActionStyleDefault
-        handler:^(UIAlertAction *a) {
-            [[UIApplication sharedApplication] openURL:[NSURL URLWithString:kContactZalo]
-                options:@{} completionHandler:nil];
-    }]];
-    [sheet addAction:[UIAlertAction actionWithTitle:@"✈️  Telegram"
-        style:UIAlertActionStyleDefault
-        handler:^(UIAlertAction *a) {
-            [[UIApplication sharedApplication] openURL:[NSURL URLWithString:kContactTelegram]
-                options:@{} completionHandler:nil];
-    }]];
-    [sheet addAction:[UIAlertAction actionWithTitle:@"📘  Facebook"
-        style:UIAlertActionStyleDefault
-        handler:^(UIAlertAction *a) {
-            [[UIApplication sharedApplication] openURL:[NSURL URLWithString:kContactFacebook]
-                options:@{} completionHandler:nil];
-    }]];
-    [sheet addAction:[UIAlertAction actionWithTitle:LS(@"Huỷ", @"Cancel")
-        style:UIAlertActionStyleCancel handler:nil]];
+    NSMutableArray *items = [NSMutableArray arrayWithObject:shareText];
+    if (shareURL) [items addObject:shareURL];
+
+    UIActivityViewController *ac = [[UIActivityViewController alloc]
+        initWithActivityItems:items applicationActivities:nil];
 
     // iPad popover anchor
-    sheet.popoverPresentationController.sourceView = self.view;
-    sheet.popoverPresentationController.sourceRect = CGRectMake(self.view.bounds.size.width/2, 200, 1, 1);
+    ac.popoverPresentationController.sourceView = self.view;
+    ac.popoverPresentationController.sourceRect = CGRectMake(self.view.bounds.size.width / 2, 200, 1, 1);
 
-    [self presentViewController:sheet animated:YES completion:nil];
+    [self presentViewController:ac animated:YES completion:nil];
 }
 
 - (void)showAppInfo {

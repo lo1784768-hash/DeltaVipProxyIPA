@@ -316,8 +316,6 @@
     settingsBtn.backgroundColor = [UIColor colorWithWhite:1 alpha:0.08];
     settingsBtn.layer.cornerRadius = 16;
     settingsBtn.layer.cornerCurve = kCACornerCurveContinuous;
-    settingsBtn.layer.borderColor = [UIColor colorWithWhite:1 alpha:0.15].CGColor;
-    settingsBtn.layer.borderWidth = 1;
     settingsBtn.layer.masksToBounds = YES;
     settingsBtn.frame = CGRectMake(0, 0, 34, 34);
     [settingsBtn addTarget:self action:@selector(openSettings) forControlEvents:UIControlEventTouchUpInside];
