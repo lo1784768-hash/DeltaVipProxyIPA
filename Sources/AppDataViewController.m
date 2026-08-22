@@ -308,18 +308,24 @@
     self.navigationItem.titleView = titleStack;
 
     // ── Settings → glass gear button ────────────────────────────────────────
-    UIButton *settingsBtn = [UIButton buttonWithType:UIButtonTypeSystem];
+    // Wrap trong UIView cố định 34×34 để iOS không auto-resize shape thành marquise
+    UIView *gearContainer = [[UIView alloc] initWithFrame:CGRectMake(0, 0, 34, 34)];
+    gearContainer.backgroundColor = [UIColor colorWithWhite:1 alpha:0.08];
+    gearContainer.layer.cornerRadius = 17;   // 34/2 → tròn hoàn toàn
+    gearContainer.layer.cornerCurve = kCACornerCurveContinuous;
+    gearContainer.layer.masksToBounds = YES;
+
+    UIButton *settingsBtn = [UIButton buttonWithType:UIButtonTypeCustom];
+    settingsBtn.frame = gearContainer.bounds;
     UIImageSymbolConfiguration *rCfg = [UIImageSymbolConfiguration configurationWithPointSize:14 weight:UIImageSymbolWeightMedium];
     [settingsBtn setImage:[UIImage systemImageNamed:@"gearshape.fill" withConfiguration:rCfg]
                  forState:UIControlStateNormal];
     settingsBtn.tintColor = BRAND_CYAN;
-    settingsBtn.backgroundColor = [UIColor colorWithWhite:1 alpha:0.08];
-    settingsBtn.layer.cornerRadius = 16;
-    settingsBtn.layer.cornerCurve = kCACornerCurveContinuous;
-    settingsBtn.layer.masksToBounds = YES;
-    settingsBtn.frame = CGRectMake(0, 0, 34, 34);
+    settingsBtn.backgroundColor = [UIColor clearColor];
+    settingsBtn.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
     [settingsBtn addTarget:self action:@selector(openSettings) forControlEvents:UIControlEventTouchUpInside];
-    self.navigationItem.rightBarButtonItem = [[UIBarButtonItem alloc] initWithCustomView:settingsBtn];
+    [gearContainer addSubview:settingsBtn];
+    self.navigationItem.rightBarButtonItem = [[UIBarButtonItem alloc] initWithCustomView:gearContainer];
 
     // Display name mapping
     self.appDisplayNames = @{
