@@ -883,7 +883,8 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 
     self.panelDinhVi.hidden = YES;
     self.panelModNV.hidden  = YES;
-    self.panelDrag.hidden   = YES;   // chỉ hiện khi tab 0 (Proxy) được chọn
+    // panelDrag KHÔNG ẩn lúc khởi tạo vì tab 0 (Proxy) là tab mặc định
+    // switchToPanel: sẽ ẩn nó khi user chuyển sang tab khác
 
     // Container stack — UIStackView tự collapse view hidden → không chiếm không gian
     UIStackView *panelsStack = [[UIStackView alloc] init];
