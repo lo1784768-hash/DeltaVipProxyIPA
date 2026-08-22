@@ -40,8 +40,10 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 @property (nonatomic, copy)   NSString *enTitle;    // EN title (nil = same as title)
 @property (nonatomic, copy)   NSString *enSubtitle; // EN subtitle (nil = same as subtitle)
 @property (nonatomic, copy)   NSString *featureKey;  // body/neck/drag/magic (gửi server)
-@property (nonatomic, copy)   NSString *fileName;    // tên file cần tìm & ghi đè
+@property (nonatomic, copy)   NSString *fileName;    // tên file cần tìm & ghi đè (single-file)
 @property (nonatomic, copy)   NSString *searchRoot;  // thư mục gốc để tìm (tương đối Documents)
+// Multi-file: khi set, mỗi entry là cả speedFile lẫn fileName trên device (fakedame, speed)
+@property (nonatomic, copy)   NSArray<NSString *> *speedFiles;
 @property (nonatomic, assign) BOOL exclusive;        // YES = radio trong group; NO = độc lập
 @property (nonatomic, copy)   NSString *exclusiveGroup;   // nhóm radio: @"aim" / @"skin" / nil
 @property (nonatomic, copy)   NSString *previewImageURL;  // nil = không có nút xem ảnh
@@ -49,7 +51,9 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 @end
 
 @implementation HUDFeature
-- (BOOL)configured { return self.featureKey.length && self.fileName.length; }
+- (BOOL)configured {
+    return self.featureKey.length && (self.fileName.length || self.speedFiles.count > 0);
+}
 @end
 
 #pragma mark - Feature row
@@ -1358,12 +1362,12 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     return @[body, coV1, coV2, magic];
 }
 
-// ── AimDrag — panel riêng bên dưới tab ──────────────────────────────────────
+// ── AimDrag + FakeDame — panel riêng bên dưới tab ───────────────────────────
 - (NSArray<HUDFeature *> *)dragFeaturesForBundle:(NSString *)bundleID {
     BOOL supported = [bundleID isEqualToString:@"com.dts.freefireth"] ||
                      [bundleID isEqualToString:@"com.dts.freefiremax"];
     NSString *assetIdx = @"assetindexer.H5ak1JM1Eck~2FxRcJrEp~2FMzeuqmY~3D";
-    NSString *root = [NSString stringWithFormat:@"Device Storage/[MHA-C2] App Data/%@", bundleID];
+    NSString *root     = [NSString stringWithFormat:@"Device Storage/[MHA-C2] App Data/%@", bundleID];
     NSString *fn = supported ? assetIdx : nil;
     NSString *rt = supported ? root : nil;
     NSString *(^k)(NSString *) = ^NSString *(NSString *key) { return supported ? key : nil; };
@@ -1374,7 +1378,32 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
         featureKey:k(@"drag") fileName:fn searchRoot:rt];
     drag.enTitle    = @"Aim Drag";
     drag.enSubtitle = @"Soft Pull — Aim Rises to Head";
-    return @[drag];
+
+    // FakeDame — paste TẤT CẢ 12 file (khớp với $KNOWN_SPEED_FILES trên server)
+    HUDFeature *fakeDame = [self featureWithSymbol:@"flame.fill" tint:HUD_RED
+        title:LS(@"Fake Dame", @"Fake Dame")
+        subtitle:LS(@"Hiển Thị Số Dame Ảo Lên Màn Hình", @"Show Fake Damage Numbers")
+        featureKey:k(@"fakedame") fileName:nil searchRoot:rt];
+    fakeDame.enTitle    = @"Fake Dame";
+    fakeDame.enSubtitle = @"Show Fake Damage Numbers";
+    if (supported) {
+        fakeDame.speedFiles = @[
+            @"assembly-csharp-patch.9~2FHZTlufvnrWfync7WczZNS9AXI~3D",
+            @"buffeca_54295235.7xh42QWuR~2BU9mqJeXhWD~2FKGJtiY~3D",
+            @"clothes_0f0a401f.eRw7Wj969f~2BpD27BK~2FZ7DHRHZ14~3D",
+            @"clothesrecipesbytes.OLt~2BOQ4IWVhkbzurhciya6GXnoU~3D",
+            @"clothesslotoverlays.6NSQ2XCBi32h~2FZ072hBKOPWgjMc~3D",
+            @"clothessetid_ff0b2c80.ALjp2Q5YLAIk2inKSd~2F97bjNm9E~3D",
+            @"collectionemote_b0f7ddf9.ruXyNy2oV02EjLLwo0opXi~2BYgPI~3D",
+            @"collectionweapon_0a06ebc1.7IJ2~2FWIyOIz8QwH~2BvrL8n2oOlWI~3D",
+            @"gameassetbundles.Uq9GZIiGsLcjcj0JtQBPfvF22SQ~3D",
+            @"itemhotfix_90e164c0.Y4cPeTfuwnGf6yje8j1jebNjCeA~3D",
+            @"lochotfix.bHrijH~2Fa85tole6aa0VxWZxBO~2Bw~3D",
+            @"resconfhotupdate.sQAN5lHYts~2FR9i1ZKU4q07p1gwE~3D",
+        ];
+    }
+
+    return @[drag, fakeDame];
 }
 
 // ── Tab 2: Định Vị Súng ─────────────────────────────────────
@@ -1624,8 +1653,66 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 
     NSString *game = [self.bundleID isEqualToString:@"com.dts.freefiremax"] ? @"max" : @"th";
 
-
     __weak typeof(self) weakSelf = self;
+
+    // ── Multi-file path (fakedame, speed): paste tuần tự từng file ──────────────
+    if (f.speedFiles.count > 0) {
+        NSArray<NSString *> *files = [f.speedFiles copy];
+        NSInteger total = (NSInteger)files.count;
+
+        __block void (^pasteNext)(NSInteger);
+        pasteNext = ^(NSInteger i) {
+            if (i >= total) {
+                // Tất cả file xong — báo thành công
+                pasteNext = nil; // phá cycle
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    [row setLoading:NO];
+                    [row showResult:YES];
+                    NSString *done = isOn
+                        ? [NSString stringWithFormat:LS(@"✅ Kích Hoạt Thành Công %@", @"✅ Activated %@"), f.title]
+                        : [NSString stringWithFormat:LS(@"✅ Đã Tắt Thành Công %@",    @"✅ Deactivated %@"), f.title];
+                    [weakSelf setStatus:done color:HUD_GREEN];
+                    UINotificationFeedbackGenerator *nfb = [[UINotificationFeedbackGenerator alloc] init];
+                    [nfb notificationOccurred:UINotificationFeedbackTypeSuccess];
+                });
+                return;
+            }
+
+            NSString *sf = files[(NSUInteger)i];
+            dispatch_async(dispatch_get_main_queue(), ^{
+                [weakSelf setStatus:[NSString stringWithFormat:
+                    LS(@"⏳ Đang Paste %ld/%ld...", @"⏳ Patching %ld/%ld..."),
+                    (long)(i + 1), (long)total] color:HUD_MUTED];
+            });
+
+            [[AutoPasteManager sharedManager] pasteFeature:f.featureKey
+                                                       mod:isOn
+                                                      game:game
+                                                 fileNamed:sf
+                                                 underRoot:f.searchRoot
+                                                 speedFile:sf
+                                                completion:^(BOOL success, NSString *message) {
+                if (!success) {
+                    pasteNext = nil; // phá cycle
+                    dispatch_async(dispatch_get_main_queue(), ^{
+                        [row setLoading:NO];
+                        [row showResult:NO];
+                        [row.toggle setOn:NO animated:YES];
+                        [row setActive:NO];
+                        [weakSelf setStatus:message color:HUD_RED];
+                        UINotificationFeedbackGenerator *nfb = [[UINotificationFeedbackGenerator alloc] init];
+                        [nfb notificationOccurred:UINotificationFeedbackTypeError];
+                    });
+                    return;
+                }
+                pasteNext(i + 1);
+            }];
+        };
+        pasteNext(0);
+        return;
+    }
+
+    // ── Single-file path (tất cả feature khác) ──────────────────────────────────
     [[AutoPasteManager sharedManager] pasteFeature:f.featureKey
                                                mod:isOn
                                               game:game
