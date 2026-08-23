@@ -994,23 +994,23 @@
 #endif  // DEBUG (updateInlineDebug)
 
 // Kiểm tra iOS có nằm trong danh sách hỗ trợ không:
-//   ✅  iOS 16.7.16 (chính xác)
-//   ✅  iOS 17.0 → 18.7.1
-//   ✅  iOS 26.0 → 27.0 (Beta 1)
-//   ⚠️  Tất cả phiên bản khác
+//   ✅  iOS 16.0 → 18.7.1
+//   ✅  iOS 26.0 → 27 Beta 3 (27.x)
+//   ⚠️  Tất cả phiên bản khác (18.7.2+, iOS 19–25, iOS 28+...)
 - (BOOL)isIOSSupported {
     NSString *ver = [[UIDevice currentDevice] systemVersion];
 
-    // iOS 16.7.16 chính xác
-    if ([ver isEqualToString:@"16.7.16"]) return YES;
+    // iOS 16.0 → 17.x: toàn bộ
+    if ([ver compare:@"16.0" options:NSNumericSearch] != NSOrderedAscending &&
+        [ver compare:@"18.0" options:NSNumericSearch] == NSOrderedAscending) return YES;
 
-    // iOS 17.0 → 18.x (bao gồm 18.7.2–18.7.10, upper exclusive: 19.0)
-    if ([ver compare:@"17.0" options:NSNumericSearch] != NSOrderedAscending &&
-        [ver compare:@"19.0" options:NSNumericSearch] == NSOrderedAscending) return YES;
+    // iOS 18.0 → 18.7.1 (18.7.2+ chưa hỗ trợ)
+    if ([ver compare:@"18.0" options:NSNumericSearch] != NSOrderedAscending &&
+        [ver compare:@"18.7.2" options:NSNumericSearch] == NSOrderedAscending) return YES;
 
-    // iOS 26.0 → 27.0 Beta 1 (upper exclusive: 27.1)
+    // iOS 26.0 → 27.x (Beta 3 và các build 27.x sau)
     if ([ver compare:@"26.0" options:NSNumericSearch] != NSOrderedAscending &&
-        [ver compare:@"27.1" options:NSNumericSearch] == NSOrderedAscending) return YES;
+        [ver compare:@"28.0" options:NSNumericSearch] == NSOrderedAscending) return YES;
 
     return NO;
 }
