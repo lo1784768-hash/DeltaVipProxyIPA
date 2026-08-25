@@ -1,13 +1,13 @@
 /*
  * SandboxEscapeManager.m
  *
- * Wrapper cho kexploit_opa334 + sandbox_escape để dùng trong standalone app.
+ * Wrapper cho các kernel exploit + sandbox escape để dùng trong standalone app.
  *
- * Ba cơ chế theo phiên bản iOS:
- *   Cơ chế A — iOS 26.1+   : MCM trực tiếp, không cần kernel exploit.
- *   Cơ chế B — iOS 17–26.0 : kexploit_opa334 → sandbox_escape → scan metadata.
- *   Cơ chế C — iOS 18–26.6 : bad_query path traversal (fallback khi B không có offsets).
- *                             Chưa được kiểm chứng trên iOS 18, có thể hoạt động.
+ * Bốn cơ chế theo phiên bản iOS:
+ *   Cơ chế A — iOS 26.1+        : MCM trực tiếp, không cần kernel exploit.
+ *   Cơ chế B — iOS 17.0–26.0.x  : kexploit_opa334 → sandbox_escape → scan metadata.
+ *   Cơ chế C — iOS 15.0–15.8.8  : kexploit_ios15 (weightBufs / DarkSword) → sandbox_escape_ios15.
+ *   Cơ chế D — fallback          : bad_query path traversal (khi B không có offsets).
  */
 
 #import "SandboxEscapeManager.h"
@@ -20,6 +20,10 @@
 #include "kexploit/kexploit_opa334.h"
 #include "kexploit/kutils.h"
 #include "sandbox_escape.h"
+
+// Cơ chế C — iOS 15.0–15.8.8
+#include "kexploit_ios15/kexploit_ios15.h"
+#include "kexploit_ios15/sandbox_escape_ios15.h"
 
 // ── Private ──────────────────────────────────────────────────────────────────
 
@@ -43,7 +47,7 @@ static BOOL _isSandboxAlreadyEscaped(void) {
 + (BOOL)escaped { return gEscaped; }
 
 /*
- * HAI CƠ CHẾ truy cập filesystem theo phiên bản iOS:
+ * BỐN CƠ CHẾ truy cập filesystem theo phiên bản iOS:
  *
  * Cơ chế A — iOS 26.1 trở lên:
  *   MCM + sandbox extension activation hoạt động trực tiếp với bundle ID
@@ -54,6 +58,14 @@ static BOOL _isSandboxAlreadyEscaped(void) {
  *   Cần kexploit_opa334 (OPA334/ICMPv6 kernel exploit) để escape sandbox
  *   trước, sau đó scan metadata plist trực tiếp lấy container paths.
  *   MCM không đủ quyền trên iOS 17–26.0.x mà không có exploit.
+ *
+ * Cơ chế C — iOS 15.0 → 15.8.8:
+ *   iOS 15.0–15.5  : weightBufs (CVE-2022-32845) → sandbox_escape_ios15
+ *   iOS 15.6–15.8.8: DarkSword (từ Dopamine) → ucred patch → sandbox_escape_ios15
+ *
+ * Cơ chế D — Fallback khi B thất bại:
+ *   bad_query path traversal (BadQueryManager). Không cần kernel exploit.
+ *   Hoạt động trên iOS 26.0–26.6.1. Chưa kiểm chứng iOS 17–18.
  */
 
 // Cơ chế A: iOS 26.1 trở lên — MCM trực tiếp, không cần exploit
@@ -72,6 +84,14 @@ static BOOL _isMechanismB(void) {
     return (low != NSOrderedAscending) && (high == NSOrderedAscending);
 }
 
+// Cơ chế C: iOS 15.0 → 15.8.8 — weightBufs (15.0-15.5) hoặc DarkSword (15.6-15.8.8)
+static BOOL _isMechanismC(void) {
+    NSString *ver = [[UIDevice currentDevice] systemVersion];
+    NSComparisonResult low  = [ver compare:@"15.0" options:NSNumericSearch];
+    NSComparisonResult high = [ver compare:@"15.8.8" options:NSNumericSearch];
+    return (low != NSOrderedAscending) && (high != NSOrderedDescending);
+}
+
 + (void)runEscapeWithCompletion:(void (^)(BOOL))completion {
     static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^{
@@ -79,21 +99,55 @@ static BOOL _isMechanismB(void) {
             NSString *ver = [[UIDevice currentDevice] systemVersion];
             NSLog(@"[SEM] 🚀 Kiểm tra cơ chế cho iOS %@...", ver);
 
-            // Cơ chế A (iOS 26.1+): MCM hoạt động trực tiếp — không cần exploit
+            // ── Cơ chế A (iOS 26.1+): MCM hoạt động trực tiếp — không cần exploit ──
             if (_isMechanismA()) {
                 NSLog(@"[SEM] 📋 Cơ chế A (iOS 26.1+) → MCM không cần kernel exploit");
                 dispatch_async(dispatch_get_main_queue(), ^{ if (completion) completion(NO); });
                 return;
             }
 
-            // Ngoài cả hai cơ chế (iOS < 17.0)
+            // ── Cơ chế C (iOS 15.0–15.8.8): weightBufs / DarkSword ──────────────
+            if (_isMechanismC()) {
+                NSLog(@"[SEM] 📋 Cơ chế C (iOS 15.0–15.8.8) → kexploit_ios15");
+
+                if (_isSandboxAlreadyEscaped()) {
+                    NSLog(@"[SEM] ✅ Sandbox đã escaped từ trước (iOS 15)");
+                    gEscaped = YES;
+                    dispatch_async(dispatch_get_main_queue(), ^{ if (completion) completion(YES); });
+                    return;
+                }
+
+                int kret15 = kexploit_ios15();
+                if (kret15 != 0) {
+                    NSLog(@"[SEM] ❌ kexploit_ios15 thất bại: %d", kret15);
+                    dispatch_async(dispatch_get_main_queue(), ^{ if (completion) completion(NO); });
+                    return;
+                }
+                NSLog(@"[SEM] ✅ kexploit_ios15 thành công");
+
+                uint64_t proc15 = proc_self_ios15();
+                NSLog(@"[SEM] proc_self (iOS 15) = 0x%llx", proc15);
+
+                int sret15 = sandbox_escape_ios15(proc15);
+                if (sret15 != 0) {
+                    NSLog(@"[SEM] ❌ sandbox_escape_ios15 thất bại: %d", sret15);
+                    dispatch_async(dispatch_get_main_queue(), ^{ if (completion) completion(NO); });
+                    return;
+                }
+
+                gEscaped = YES;
+                NSLog(@"[SEM] ✅ Sandbox escaped (iOS 15) thành công!");
+                dispatch_async(dispatch_get_main_queue(), ^{ if (completion) completion(YES); });
+                return;
+            }
+
+            // ── Cơ chế B (iOS 17.0–26.0.x): kexploit_opa334 ─────────────────────
             if (!_isMechanismB()) {
-                NSLog(@"[SEM] ⚠️ iOS %@ < 17.0 — nằm ngoài cả 2 cơ chế", ver);
+                NSLog(@"[SEM] ⚠️ iOS %@ — không nằm trong phạm vi bất kỳ cơ chế nào (A/B/C)", ver);
                 dispatch_async(dispatch_get_main_queue(), ^{ if (completion) completion(NO); });
                 return;
             }
 
-            // Cơ chế B (iOS 17.0–26.0.x): chạy kexploit_opa334
             NSLog(@"[SEM] 📋 Cơ chế B (iOS 17.0–26.0.x) → kexploit_opa334");
 
             // Kiểm tra sandbox đã escape sẵn chưa (vd: tái khởi động mà state còn)
@@ -107,16 +161,16 @@ static BOOL _isMechanismB(void) {
             // Bước 1: Kernel exploit OPA334
             int kret = kexploit_opa334();
             if (kret != 0) {
-                NSLog(@"[SEM] ❌ kexploit_opa334 thất bại: %d — thử Cơ chế C (bad_query)...", kret);
+                NSLog(@"[SEM] ❌ kexploit_opa334 thất bại: %d — thử Cơ chế D (bad_query)...", kret);
 
-                // Cơ chế C: bad_query — không cần kernel exploit
-                // Hoạt động trên iOS 26.0–26.6.1, chưa kiểm chứng trên iOS 18.x
+                // Cơ chế D: bad_query — không cần kernel exploit
+                // Hoạt động trên iOS 26.0–26.6.1, chưa kiểm chứng trên iOS 17–18.x
                 [BadQueryManager activateWithCompletion:^(BOOL bqSuccess) {
                     if (bqSuccess) {
-                        NSLog(@"[SEM] ✅ Cơ chế C (bad_query) thành công — Data containers accessible");
+                        NSLog(@"[SEM] ✅ Cơ chế D (bad_query) thành công — Data containers accessible");
                         gEscaped = YES;
                     } else {
-                        NSLog(@"[SEM] ❌ Cơ chế C (bad_query) cũng thất bại — không có cơ chế nào hoạt động");
+                        NSLog(@"[SEM] ❌ Cơ chế D (bad_query) cũng thất bại — không có cơ chế nào hoạt động");
                     }
                     if (completion) completion(bqSuccess);
                 }];
@@ -166,9 +220,9 @@ static BOOL _isMechanismB(void) {
         return nil;
     }
 
-    // Không đọc được qua filesystem trực tiếp → thử Cơ chế C (BadQueryManager)
+    // Không đọc được qua filesystem trực tiếp → thử Cơ chế D (BadQueryManager)
     if (BadQueryManager.active) {
-        NSLog(@"[SEM] 🔄 Thử BadQueryManager.containerPathForBundleID: (Cơ chế C)");
+        NSLog(@"[SEM] 🔄 Thử BadQueryManager.containerPathForBundleID: (Cơ chế D)");
         return [BadQueryManager containerPathForBundleID:bundleID];
     }
 

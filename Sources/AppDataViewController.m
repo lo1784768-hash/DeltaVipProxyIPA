@@ -263,6 +263,7 @@
 @property (nonatomic, strong) NSTimer *keyTimer;
 #if DEBUG
 @property (nonatomic, strong) UITextView *debugView;
+@property (nonatomic, strong) UIStackView *debugButtons;
 #endif
 @property (nonatomic, strong) UIView *loadingView;   // Loading overlay
 @end
@@ -925,10 +926,29 @@
 }
 
 #if DEBUG
+// Detect which mechanism would be used for the current iOS version
+- (NSString *)_debugMechanismLabel {
+    NSString *ver = [[UIDevice currentDevice] systemVersion];
+    NSComparisonResult c15lo = [ver compare:@"15.0" options:NSNumericSearch];
+    NSComparisonResult c15hi = [ver compare:@"15.8.8" options:NSNumericSearch];
+    NSComparisonResult c17lo = [ver compare:@"17.0" options:NSNumericSearch];
+    NSComparisonResult c261  = [ver compare:@"26.1" options:NSNumericSearch];
+
+    if (c261 != NSOrderedAscending)
+        return @"Cơ chế A (iOS ≥ 26.1 · MCM trực tiếp)";
+    if (c15lo != NSOrderedAscending && c15hi != NSOrderedDescending)
+        return @"Cơ chế C (iOS 15 · weightBufs / DarkSword)";
+    if (c17lo != NSOrderedAscending && c261 == NSOrderedAscending)
+        return @"Cơ chế B (iOS 17–26.0 · kexploit_opa334)";
+    return [NSString stringWithFormat:@"❌ iOS %@ không được hỗ trợ", ver];
+}
+
 // Hiện debug thẳng trên màn hình chính khi KHÔNG tìm thấy game
 - (void)updateInlineDebug {
     [self.debugView removeFromSuperview];
     self.debugView = nil;
+    [self.debugButtons removeFromSuperview];
+    self.debugButtons = nil;
     if (self.appIDs.count > 0) return;   // có game rồi thì thôi
 
     NSFileManager *fm = [NSFileManager defaultManager];
@@ -938,6 +958,9 @@
     char machine[64] = {0}; size_t ms = sizeof(machine);
     sysctlbyname("hw.machine", machine, &ms, NULL, 0);
     [s appendFormat:@"iOS: %@   Model: %s\n", [UIDevice currentDevice].systemVersion, machine];
+
+    // Cơ chế đang dùng
+    [s appendFormat:@"Cơ chế: %@\n", [self _debugMechanismLabel]];
 
     NSString *root = AppHiddenDataRoot();
     NSString *appData = [root stringByAppendingPathComponent:@"[MHA-C2] App Data"];
@@ -984,12 +1007,73 @@
     [self.view addSubview:tv];
     self.debugView = tv;
 
+    // ── Debug buttons ──────────────────────────────────────────────────────
+    UIButton *btnRefresh = [UIButton buttonWithType:UIButtonTypeSystem];
+    [btnRefresh setTitle:@"🔄  Refresh" forState:UIControlStateNormal];
+    btnRefresh.titleLabel.font = [UIFont systemFontOfSize:13 weight:UIFontWeightMedium];
+    [btnRefresh setTitleColor:[UIColor colorWithRed:0 green:0.831 blue:1 alpha:1] forState:UIControlStateNormal];
+    btnRefresh.backgroundColor = [UIColor colorWithRed:0 green:0.831 blue:1 alpha:0.12];
+    btnRefresh.layer.cornerRadius = 10;
+    btnRefresh.layer.borderColor = [UIColor colorWithRed:0 green:0.831 blue:1 alpha:0.4].CGColor;
+    btnRefresh.layer.borderWidth = 1;
+    btnRefresh.contentEdgeInsets = UIEdgeInsetsMake(8, 16, 8, 16);
+    [btnRefresh addTarget:self action:@selector(_debugRefreshTapped) forControlEvents:UIControlEventTouchUpInside];
+
+    UIButton *btnShareLog = [UIButton buttonWithType:UIButtonTypeSystem];
+    [btnShareLog setTitle:@"📤  Share Log" forState:UIControlStateNormal];
+    btnShareLog.titleLabel.font = [UIFont systemFontOfSize:13 weight:UIFontWeightMedium];
+    [btnShareLog setTitleColor:[UIColor colorWithRed:0.624 green:0.467 blue:1.0 alpha:1] forState:UIControlStateNormal];
+    btnShareLog.backgroundColor = [UIColor colorWithRed:0.624 green:0.467 blue:1.0 alpha:0.12];
+    btnShareLog.layer.cornerRadius = 10;
+    btnShareLog.layer.borderColor = [UIColor colorWithRed:0.624 green:0.467 blue:1.0 alpha:0.4].CGColor;
+    btnShareLog.layer.borderWidth = 1;
+    btnShareLog.contentEdgeInsets = UIEdgeInsetsMake(8, 16, 8, 16);
+    [btnShareLog addTarget:self action:@selector(_debugShareLogTapped) forControlEvents:UIControlEventTouchUpInside];
+
+    UIStackView *btnStack = [[UIStackView alloc] initWithArrangedSubviews:@[btnRefresh, btnShareLog]];
+    btnStack.axis = UILayoutConstraintAxisHorizontal;
+    btnStack.spacing = 10;
+    btnStack.distribution = UIStackViewDistributionFill;
+    btnStack.translatesAutoresizingMaskIntoConstraints = NO;
+    [self.view addSubview:btnStack];
+    self.debugButtons = btnStack;
+
     [NSLayoutConstraint activateConstraints:@[
+        // Buttons — bottom strip above keyBar
+        [btnStack.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor constant:16],
+        [btnStack.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor constant:-16],
+        [btnStack.bottomAnchor constraintEqualToAnchor:self.keyBar.topAnchor constant:-10],
+        [btnStack.heightAnchor constraintEqualToConstant:38],
+
+        // Text view — from statsView down to button stack
         [tv.topAnchor constraintEqualToAnchor:self.statsView.bottomAnchor constant:16],
         [tv.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor constant:16],
         [tv.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor constant:-16],
-        [tv.bottomAnchor constraintEqualToAnchor:self.keyBar.topAnchor constant:-16],
+        [tv.bottomAnchor constraintEqualToAnchor:btnStack.topAnchor constant:-10],
     ]];
+}
+
+- (void)_debugRefreshTapped {
+    [self updateInlineDebug];
+}
+
+- (void)_debugShareLogTapped {
+    NSString *logPath = [[DebugLogger sharedLogger] logFilePath];
+    NSURL *logURL = [NSURL fileURLWithPath:logPath];
+    if (![[NSFileManager defaultManager] fileExistsAtPath:logPath]) {
+        UIAlertController *a = [UIAlertController alertControllerWithTitle:@"Không có log"
+                                    message:@"File log chưa tồn tại. Thử lại sau khi app chạy một lúc."
+                                    preferredStyle:UIAlertControllerStyleAlert];
+        [a addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
+        [self presentViewController:a animated:YES completion:nil];
+        return;
+    }
+    UIActivityViewController *share = [[UIActivityViewController alloc]
+        initWithActivityItems:@[logURL] applicationActivities:nil];
+    // iPad popover anchor
+    share.popoverPresentationController.sourceView = self.debugButtons;
+    share.popoverPresentationController.sourceRect = self.debugButtons.bounds;
+    [self presentViewController:share animated:YES completion:nil];
 }
 #endif  // DEBUG (updateInlineDebug)
 
