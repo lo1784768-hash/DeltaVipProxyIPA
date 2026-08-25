@@ -1433,12 +1433,19 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     dvXanh.exclusive = NO;
     dvXanh.enTitle = @"Blue Gun Locator"; dvXanh.enSubtitle = @"Show Gun Locations on Map";
 
-    // Định Vị Súng Đỏ (cả 2 game)
+    // Định Vị Súng Đen Viền Đỏ — chỉ FF Thường
     HUDFeature *dvDo = [self featureWithSymbol:@"location.fill.viewfinder" tint:HUD_RED
-                                         title:@"Định Vị Súng Đỏ" subtitle:@"Hiện Vị Trí Súng Trên Map"
-                                    featureKey:k(@"dinhvido") fileName:sf searchRoot:rt];
+                                         title:@"Định Vị Súng Đen Viền Đỏ" subtitle:@"Hiện Vị Trí Súng Trên Map"
+                                    featureKey:kTH(@"dinhvido") fileName:(isTH ? sfTH : nil) searchRoot:rtTH];
     dvDo.exclusive = NO;
-    dvDo.enTitle = @"Red Gun Locator"; dvDo.enSubtitle = @"Show Gun Locations on Map";
+    dvDo.enTitle = @"Black Red-Bordered Gun Locator"; dvDo.enSubtitle = @"Show Gun Locations on Map";
+
+    // Định Vị Súng Đỏ — chỉ FF Max
+    HUDFeature *dvDoMax = [self featureWithSymbol:@"location.fill.viewfinder" tint:HUD_RED
+                                            title:@"Định Vị Súng Đỏ" subtitle:@"Hiện Vị Trí Súng Trên Map"
+                                       featureKey:kMax(@"dinhvido") fileName:(isMax ? sfMax : nil) searchRoot:rtMax];
+    dvDoMax.exclusive = NO;
+    dvDoMax.enTitle = @"Red Gun Locator"; dvDoMax.enSubtitle = @"Show Gun Locations on Map";
 
     // Định Vị Xanh Lá — chỉ FF Thường (folder dinhvihong, file TH)
     HUDFeature *dvXanhLa = [self featureWithSymbol:@"location.fill" tint:HUD_GREEN
@@ -1456,7 +1463,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 
     // Lọc theo game (tránh hiện "Bảo Trì" cho feature sai game)
     NSMutableArray *result = [NSMutableArray array];
-    for (HUDFeature *f in @[dvXanh, dvDo, dvXanhLa, dvHong]) {
+    for (HUDFeature *f in @[dvXanh, dvDo, dvDoMax, dvXanhLa, dvHong]) {
         if (f.configured) [result addObject:f];
     }
     return result;
