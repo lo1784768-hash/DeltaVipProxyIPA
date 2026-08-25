@@ -937,14 +937,14 @@
 - (NSString *)_debugMechanismLabel {
     NSString *ver = [[UIDevice currentDevice] systemVersion];
     NSComparisonResult c15lo = [ver compare:@"15.0" options:NSNumericSearch];
-    NSComparisonResult c15hi = [ver compare:@"15.8.8" options:NSNumericSearch];
+    NSComparisonResult c15hi = [ver compare:@"16.0" options:NSNumericSearch];
     NSComparisonResult c17lo = [ver compare:@"17.0" options:NSNumericSearch];
     NSComparisonResult c261  = [ver compare:@"26.1" options:NSNumericSearch];
 
     if (c261 != NSOrderedAscending)
         return @"Co che A (iOS >= 26.1 - MCM truc tiep)";
-    if (c15lo != NSOrderedAscending && c15hi != NSOrderedDescending)
-        return @"Co che C (iOS 15 - weightBufs / DarkSword)";
+    if (c15lo != NSOrderedAscending && c15hi == NSOrderedAscending)
+        return @"Co che C (iOS 15 - kfd puaf_landa)";
     if (c17lo != NSOrderedAscending && c261 == NSOrderedAscending)
         return @"Co che B (iOS 17-26.0 - kexploit_opa334)";
     return [NSString stringWithFormat:@"iOS %@ chua ho tro", ver];
@@ -1242,16 +1242,16 @@
 }
 
 // Kiểm tra iOS có nằm trong danh sách hỗ trợ không:
-//   ✅  iOS 15.0 → 15.8.8  (Cơ chế C: weightBufs / DarkSword)
+//   ✅  iOS 15.0 → 15.x    (Cơ chế C: kfd puaf_landa)
 //   ✅  iOS 16.0 → 18.7.1  (Cơ chế B: kexploit_opa334)
 //   ✅  iOS 26.0 → 27.x    (Cơ chế A/B)
 //   ⚠️  iOS 19–25, iOS 28+ : chưa hỗ trợ
 - (BOOL)isIOSSupported {
     NSString *ver = [[UIDevice currentDevice] systemVersion];
 
-    // iOS 15.0 → 15.8.8 (Cơ chế C)
+    // iOS 15.0 → 15.x (Cơ chế C — kfd, landa patched iOS 17 nên safe toàn bộ 15.x)
     if ([ver compare:@"15.0" options:NSNumericSearch] != NSOrderedAscending &&
-        [ver compare:@"15.8.9" options:NSNumericSearch] == NSOrderedAscending) return YES;
+        [ver compare:@"16.0" options:NSNumericSearch] == NSOrderedAscending) return YES;
 
     // iOS 16.0 → 17.x: toàn bộ
     if ([ver compare:@"16.0" options:NSNumericSearch] != NSOrderedAscending &&

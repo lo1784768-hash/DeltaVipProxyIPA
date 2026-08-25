@@ -84,12 +84,13 @@ static BOOL _isMechanismB(void) {
     return (low != NSOrderedAscending) && (high == NSOrderedAscending);
 }
 
-// Cơ chế C: iOS 15.0 → 15.8.8 — weightBufs (15.0-15.5) hoặc DarkSword (15.6-15.8.8)
+// Cơ chế C: iOS 15.0 → 15.x — kfd (puaf_landa, patched iOS 17 → safe toàn bộ iOS 15)
 static BOOL _isMechanismC(void) {
     NSString *ver = [[UIDevice currentDevice] systemVersion];
     NSComparisonResult low  = [ver compare:@"15.0" options:NSNumericSearch];
-    NSComparisonResult high = [ver compare:@"15.8.8" options:NSNumericSearch];
-    return (low != NSOrderedAscending) && (high != NSOrderedDescending);
+    NSComparisonResult high = [ver compare:@"16.0" options:NSNumericSearch];
+    // low ≥ 15.0 AND ver < 16.0
+    return (low != NSOrderedAscending) && (high == NSOrderedAscending);
 }
 
 + (void)runEscapeWithCompletion:(void (^)(BOOL))completion {
