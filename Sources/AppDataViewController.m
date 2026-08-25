@@ -17,9 +17,6 @@
 #import "PolicyViewController.h"
 #import "SettingsViewController.h"
 #import <sys/sysctl.h>
-#include "kexploit_ios15/kexploit_ios15.h"
-#include "kexploit_ios15/sandbox_escape_ios15.h"
-
 #pragma mark - GlassView (frosted card khớp web)
 
 @interface GlassView : UIView
@@ -263,10 +260,6 @@
 @property (nonatomic, strong) CAGradientLayer *cyanGlow;
 @property (nonatomic, strong) KeyBarView *keyBar;
 @property (nonatomic, strong) NSTimer *keyTimer;
-#if DEBUG
-@property (nonatomic, strong) UITextView *debugView;
-@property (nonatomic, strong) UIStackView *debugButtons;
-#endif
 @property (nonatomic, strong) UIView *loadingView;   // Loading overlay
 @end
 
@@ -329,13 +322,6 @@
     [settingsBtn addTarget:self action:@selector(openSettings) forControlEvents:UIControlEventTouchUpInside];
     [gearContainer addSubview:settingsBtn];
     self.navigationItem.rightBarButtonItem = [[UIBarButtonItem alloc] initWithCustomView:gearContainer];
-
-    // ── Tap 5 lần vào badge version → mở debug panel (hoạt động cả Release) ──
-    UITapGestureRecognizer *debugTap = [[UITapGestureRecognizer alloc]
-        initWithTarget:self action:@selector(_debugPanelTapped)];
-    debugTap.numberOfTapsRequired = 5;
-    [titleStack addGestureRecognizer:debugTap];
-    titleStack.userInteractionEnabled = YES;
 
     // Display name mapping
     self.appDisplayNames = @{
@@ -603,9 +589,6 @@
         [logger log:@"[AppData] ✅ Found %lu apps immediately", (unsigned long)self.appIDs.count];
         [self updateStatsKeysCount];
         [self.collectionView reloadData];
-#if DEBUG
-        [self updateInlineDebug];
-#endif
     } else {
         [logger log:@"[AppData] ⚠️  No apps in VFS yet, loading in background..."];
         // Hiện loading screen trong khi build VFS (lần đầu mở app)
@@ -707,9 +690,6 @@
 
         dispatch_async(dispatch_get_main_queue(), ^{
             [self.collectionView reloadData];
-#if DEBUG
-            [self updateInlineDebug];
-#endif
             [self hideLoadingView];  // Fade out loading screen
             isLoading = NO;
         });
@@ -934,380 +914,14 @@
     [self.keyBar update];
 }
 
-// Detect which mechanism would be used for the current iOS version
-// (không #if DEBUG vì _debugPanelTapped dùng cả trong Release)
-- (NSString *)_debugMechanismLabel {
-    NSString *ver = [[UIDevice currentDevice] systemVersion];
-    NSComparisonResult c15lo = [ver compare:@"15.0" options:NSNumericSearch];
-    NSComparisonResult c15hi = [ver compare:@"16.0" options:NSNumericSearch];
-    NSComparisonResult c17lo = [ver compare:@"17.0" options:NSNumericSearch];
-    NSComparisonResult c261  = [ver compare:@"26.1" options:NSNumericSearch];
 
-    if (c261 != NSOrderedAscending)
-        return @"Co che A (iOS >= 26.1 - MCM truc tiep)";
-    if (c15lo != NSOrderedAscending && c15hi == NSOrderedAscending)
-        return @"Co che C (iOS 15 - kfd puaf_landa)";
-    if (c17lo != NSOrderedAscending && c261 == NSOrderedAscending)
-        return @"Co che B (iOS 17-26.0 - kexploit_opa334)";
-    return [NSString stringWithFormat:@"iOS %@ chua ho tro", ver];
-}
-
-#if DEBUG
-// Hiện debug thẳng trên màn hình chính khi KHÔNG tìm thấy game
-- (void)updateInlineDebug {
-    [self.debugView removeFromSuperview];
-    self.debugView = nil;
-    [self.debugButtons removeFromSuperview];
-    self.debugButtons = nil;
-    if (self.appIDs.count > 0) return;   // có game rồi thì thôi
-
-    NSFileManager *fm = [NSFileManager defaultManager];
-    NSMutableString *s = [NSMutableString string];
-    [s appendString:@"⚠️ KHÔNG THẤY GAME — DEBUG\n(chụp màn này gửi admin)\n\n"];
-
-    char machine[64] = {0}; size_t ms = sizeof(machine);
-    sysctlbyname("hw.machine", machine, &ms, NULL, 0);
-    [s appendFormat:@"iOS: %@   Model: %s\n", [UIDevice currentDevice].systemVersion, machine];
-
-    // Cơ chế đang dùng
-    [s appendFormat:@"Cơ chế: %@\n", [self _debugMechanismLabel]];
-
-    NSString *root = AppHiddenDataRoot();
-    NSString *appData = [root stringByAppendingPathComponent:@"[MHA-C2] App Data"];
-    BOOL adExists = [fm fileExistsAtPath:appData];
-    [s appendFormat:@"\nVFS root: %@\n[MHA-C2] App Data tồn tại: %@\n", root, adExists ? @"CÓ" : @"KHÔNG"];
-
-    NSError *err = nil;
-    NSArray *items = [fm contentsOfDirectoryAtPath:appData error:&err];
-    [s appendFormat:@"Số mục trong đó: %@\n", items ? @(items.count) : @"(lỗi đọc)"];
-    if (err) [s appendFormat:@"  Lỗi: %@\n", err.localizedDescription];
-    for (NSString *it in items) [s appendFormat:@"   • %@\n", it];
-
-    // Sandbox escape status
-    [s appendFormat:@"\nSandbox Escaped: %@\n", [SandboxEscapeManager escaped] ? @"✅ CÓ" : @"❌ CHƯA"];
-
-    // SandboxEscapeManager.containerPathForBundleID: (trực tiếp đọc metadata plist)
-    [s appendString:@"\n── Escape → metadata plist ──\n"];
-    for (NSString *bid in @[@"com.dts.freefiremax", @"com.dts.freefireth"]) {
-        NSString *cp = [SandboxEscapeManager containerPathForBundleID:bid];
-        [s appendFormat:@"%@:\n  %@\n", bid, cp ?: @"nil"];
-    }
-
-    // MCM container test (có sandbox extension activation)
-    [s appendString:@"\n── MCM + SandboxExt (fallback) ──\n"];
-    NSString *e1 = nil, *e2 = nil;
-    NSString *cp1 = MCMFilzaDataContainerPath(@"com.dts.freefiremax", &e1);
-    NSString *cp2 = MCMFilzaDataContainerPath(@"com.dts.freefireth", &e2);
-    [s appendFormat:@"FF Max: %@\n  (%@)\n", cp1 ?: @"nil", e1 ?: @"ok"];
-    [s appendFormat:@"FF Thường: %@\n  (%@)\n", cp2 ?: @"nil", e2 ?: @"ok"];
-
-    [s appendString:@"\n➡️ Escape=YES + metadata path → ✅ OK\n➡️ Escape=NO → exploit chưa chạy\n➡️ Cả hai nil → iOS này chưa hỗ trợ exploit"];
-
-    UITextView *tv = [[UITextView alloc] init];
-    tv.backgroundColor = [UIColor colorWithRed:0.086 green:0.094 blue:0.169 alpha:0.9];
-    tv.textColor = [UIColor colorWithRed:0.204 green:0.780 blue:0.349 alpha:1.0];
-    tv.font = [UIFont monospacedSystemFontOfSize:11 weight:UIFontWeightRegular];
-    tv.editable = NO;
-    tv.text = s;
-    tv.layer.cornerRadius = 14;
-    tv.layer.borderColor = [UIColor colorWithRed:0 green:0.831 blue:1 alpha:0.4].CGColor;
-    tv.layer.borderWidth = 1;
-    tv.textContainerInset = UIEdgeInsetsMake(14, 14, 14, 14);
-    tv.translatesAutoresizingMaskIntoConstraints = NO;
-    [self.view addSubview:tv];
-    self.debugView = tv;
-
-    // ── Debug buttons ──────────────────────────────────────────────────────
-    UIButton *btnRefresh = [UIButton buttonWithType:UIButtonTypeSystem];
-    [btnRefresh setTitle:@"🔄  Refresh" forState:UIControlStateNormal];
-    btnRefresh.titleLabel.font = [UIFont systemFontOfSize:13 weight:UIFontWeightMedium];
-    [btnRefresh setTitleColor:[UIColor colorWithRed:0 green:0.831 blue:1 alpha:1] forState:UIControlStateNormal];
-    btnRefresh.backgroundColor = [UIColor colorWithRed:0 green:0.831 blue:1 alpha:0.12];
-    btnRefresh.layer.cornerRadius = 10;
-    btnRefresh.layer.borderColor = [UIColor colorWithRed:0 green:0.831 blue:1 alpha:0.4].CGColor;
-    btnRefresh.layer.borderWidth = 1;
-    btnRefresh.contentEdgeInsets = UIEdgeInsetsMake(8, 16, 8, 16);
-    [btnRefresh addTarget:self action:@selector(_debugRefreshTapped) forControlEvents:UIControlEventTouchUpInside];
-
-    UIButton *btnShareLog = [UIButton buttonWithType:UIButtonTypeSystem];
-    [btnShareLog setTitle:@"📤  Share Log" forState:UIControlStateNormal];
-    btnShareLog.titleLabel.font = [UIFont systemFontOfSize:13 weight:UIFontWeightMedium];
-    [btnShareLog setTitleColor:[UIColor colorWithRed:0.624 green:0.467 blue:1.0 alpha:1] forState:UIControlStateNormal];
-    btnShareLog.backgroundColor = [UIColor colorWithRed:0.624 green:0.467 blue:1.0 alpha:0.12];
-    btnShareLog.layer.cornerRadius = 10;
-    btnShareLog.layer.borderColor = [UIColor colorWithRed:0.624 green:0.467 blue:1.0 alpha:0.4].CGColor;
-    btnShareLog.layer.borderWidth = 1;
-    btnShareLog.contentEdgeInsets = UIEdgeInsetsMake(8, 16, 8, 16);
-    [btnShareLog addTarget:self action:@selector(_debugShareLogTapped) forControlEvents:UIControlEventTouchUpInside];
-
-    UIStackView *btnStack = [[UIStackView alloc] initWithArrangedSubviews:@[btnRefresh, btnShareLog]];
-    btnStack.axis = UILayoutConstraintAxisHorizontal;
-    btnStack.spacing = 10;
-    btnStack.distribution = UIStackViewDistributionFill;
-    btnStack.translatesAutoresizingMaskIntoConstraints = NO;
-    [self.view addSubview:btnStack];
-    self.debugButtons = btnStack;
-
-    [NSLayoutConstraint activateConstraints:@[
-        // Buttons — bottom strip above keyBar
-        [btnStack.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor constant:16],
-        [btnStack.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor constant:-16],
-        [btnStack.bottomAnchor constraintEqualToAnchor:self.keyBar.topAnchor constant:-10],
-        [btnStack.heightAnchor constraintEqualToConstant:38],
-
-        // Text view — from statsView down to button stack
-        [tv.topAnchor constraintEqualToAnchor:self.statsView.bottomAnchor constant:16],
-        [tv.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor constant:16],
-        [tv.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor constant:-16],
-        [tv.bottomAnchor constraintEqualToAnchor:btnStack.topAnchor constant:-10],
-    ]];
-}
-#endif  // DEBUG (updateInlineDebug)
-
-// Tap 5x vào title → mở debug panel (hoạt động cả Release)
-// Nút 🐛 trên nav bar → mở debug panel dạng modal sheet (bất kỳ lúc nào)
-- (void)_debugPanelTapped {
-    UIViewController *sheet = [[UIViewController alloc] init];
-    sheet.view.backgroundColor = [UIColor colorWithRed:0.072 green:0.079 blue:0.145 alpha:1.0];
-    if (@available(iOS 15.0, *)) {
-        UISheetPresentationController *sp = sheet.sheetPresentationController;
-        sp.detents = @[UISheetPresentationControllerDetent.largeDetent];
-        sp.prefersGrabberVisible = YES;
-        sp.preferredCornerRadius = 20;
-    }
-
-    // Title bar
-    UILabel *titleLbl = [[UILabel alloc] init];
-    titleLbl.text = @"🐛  Debug Panel";
-    titleLbl.font = [UIFont systemFontOfSize:17 weight:UIFontWeightBold];
-    titleLbl.textColor = [UIColor colorWithRed:1.0 green:0.76 blue:0.20 alpha:1.0];
-    titleLbl.translatesAutoresizingMaskIntoConstraints = NO;
-
-    UIButton *closeBtn = [UIButton buttonWithType:UIButtonTypeSystem];
-    [closeBtn setTitle:@"Đóng" forState:UIControlStateNormal];
-    closeBtn.titleLabel.font = [UIFont systemFontOfSize:15 weight:UIFontWeightMedium];
-    [closeBtn setTitleColor:[UIColor colorWithRed:0 green:0.831 blue:1 alpha:1] forState:UIControlStateNormal];
-    closeBtn.translatesAutoresizingMaskIntoConstraints = NO;
-    [closeBtn addTarget:sheet action:@selector(dismissViewControllerAnimated:completion:) forControlEvents:UIControlEventTouchUpInside];
-    // Wrap dismissal properly
-    __weak UIViewController *weakSheet = sheet;
-    [closeBtn addAction:[UIAction actionWithTitle:@"" image:nil identifier:nil handler:^(UIAction *a) {
-        [weakSheet dismissViewControllerAnimated:YES completion:nil];
-    }] forControlEvents:UIControlEventTouchUpInside];
-
-    // Debug text
-    NSMutableString *s = [NSMutableString string];
-    char machine[64] = {0}; size_t ms = sizeof(machine);
-    sysctlbyname("hw.machine", machine, &ms, NULL, 0);
-    NSString *ver = [[UIDevice currentDevice] systemVersion];
-    [s appendFormat:@"iOS: %@   Model: %s\n", ver, machine];
-    [s appendFormat:@"Co che: %@\n", [self _debugMechanismLabel]];
-    [s appendFormat:@"Sandbox Escaped: %@\n", [SandboxEscapeManager escaped] ? @"YES" : @"NO"];
-    uint64_t _dbgProc = proc_self_ios15();
-    if (_dbgProc) [s appendFormat:@"kfd proc: 0x%llx\n", _dbgProc];
-    else          [s appendString:@"kfd proc: (chua chay)\n"];
-    [s appendFormat:@"Apps found: %lu\n\n", (unsigned long)self.appIDs.count];
-
-    [s appendString:@"── Container paths (SandboxEscapeManager) ──\n"];
-    for (NSString *bid in @[@"com.dts.freefiremax", @"com.dts.freefireth"]) {
-        NSString *cp = [SandboxEscapeManager containerPathForBundleID:bid];
-        [s appendFormat:@"%@:\n  %@\n", bid, cp ?: @"nil"];
-    }
-
-    [s appendString:@"\n── MCM + SandboxExt ──\n"];
-    NSString *e1 = nil, *e2 = nil;
-    NSString *cp1 = MCMFilzaDataContainerPath(@"com.dts.freefiremax", &e1);
-    NSString *cp2 = MCMFilzaDataContainerPath(@"com.dts.freefireth", &e2);
-    [s appendFormat:@"FF Max: %@\n  (%@)\n", cp1 ?: @"nil", e1 ?: @"ok"];
-    [s appendFormat:@"FF Thuong: %@\n  (%@)\n", cp2 ?: @"nil", e2 ?: @"ok"];
-
-    NSString *root = AppHiddenDataRoot();
-    NSString *appData = [root stringByAppendingPathComponent:@"[MHA-C2] App Data"];
-    NSError *err = nil;
-    NSArray *items = [[NSFileManager defaultManager] contentsOfDirectoryAtPath:appData error:&err];
-    [s appendFormat:@"\nVFS App Data (%lu muc):\n", (unsigned long)items.count];
-    if (err) [s appendFormat:@"  Loi: %@\n", err.localizedDescription];
-    for (NSString *it in items) [s appendFormat:@"  • %@\n", it];
-
-    UITextView *tv = [[UITextView alloc] init];
-    tv.backgroundColor = [UIColor colorWithRed:0.048 green:0.055 blue:0.110 alpha:1.0];
-    tv.textColor = [UIColor colorWithRed:0.204 green:0.780 blue:0.349 alpha:1.0];
-    tv.font = [UIFont monospacedSystemFontOfSize:12 weight:UIFontWeightRegular];
-    tv.editable = NO;
-    tv.text = s;
-    tv.layer.cornerRadius = 14;
-    tv.layer.borderColor = [UIColor colorWithRed:0 green:0.831 blue:1 alpha:0.3].CGColor;
-    tv.layer.borderWidth = 1;
-    tv.textContainerInset = UIEdgeInsetsMake(14, 14, 14, 14);
-    tv.translatesAutoresizingMaskIntoConstraints = NO;
-
-    // Refresh + Share buttons
-    UIButton *btnR = [UIButton buttonWithType:UIButtonTypeSystem];
-    [btnR setTitle:@"🔄  Refresh" forState:UIControlStateNormal];
-    btnR.titleLabel.font = [UIFont systemFontOfSize:13 weight:UIFontWeightMedium];
-    [btnR setTitleColor:[UIColor colorWithRed:0 green:0.831 blue:1 alpha:1] forState:UIControlStateNormal];
-    btnR.backgroundColor = [UIColor colorWithRed:0 green:0.831 blue:1 alpha:0.10];
-    btnR.layer.cornerRadius = 10;
-    btnR.layer.borderColor = [UIColor colorWithRed:0 green:0.831 blue:1 alpha:0.4].CGColor;
-    btnR.layer.borderWidth = 1;
-    btnR.contentEdgeInsets = UIEdgeInsetsMake(8, 16, 8, 16);
-
-    UIButton *btnS = [UIButton buttonWithType:UIButtonTypeSystem];
-    [btnS setTitle:@"📤  Share Log" forState:UIControlStateNormal];
-    btnS.titleLabel.font = [UIFont systemFontOfSize:13 weight:UIFontWeightMedium];
-    [btnS setTitleColor:[UIColor colorWithRed:0.624 green:0.467 blue:1.0 alpha:1] forState:UIControlStateNormal];
-    btnS.backgroundColor = [UIColor colorWithRed:0.624 green:0.467 blue:1.0 alpha:0.10];
-    btnS.layer.cornerRadius = 10;
-    btnS.layer.borderColor = [UIColor colorWithRed:0.624 green:0.467 blue:1.0 alpha:0.4].CGColor;
-    btnS.layer.borderWidth = 1;
-    btnS.contentEdgeInsets = UIEdgeInsetsMake(8, 16, 8, 16);
-
-    UIStackView *btnRow = [[UIStackView alloc] initWithArrangedSubviews:@[btnR, btnS]];
-    btnRow.axis = UILayoutConstraintAxisHorizontal;
-    btnRow.spacing = 10;
-    btnRow.distribution = UIStackViewDistributionFillEqually;
-    btnRow.translatesAutoresizingMaskIntoConstraints = NO;
-
-    [sheet.view addSubview:titleLbl];
-    [sheet.view addSubview:closeBtn];
-    [sheet.view addSubview:tv];
-    [sheet.view addSubview:btnRow];
-
-    UIView *v = sheet.view;
-    [NSLayoutConstraint activateConstraints:@[
-        [titleLbl.topAnchor constraintEqualToAnchor:v.safeAreaLayoutGuide.topAnchor constant:20],
-        [titleLbl.leadingAnchor constraintEqualToAnchor:v.leadingAnchor constant:20],
-        [closeBtn.centerYAnchor constraintEqualToAnchor:titleLbl.centerYAnchor],
-        [closeBtn.trailingAnchor constraintEqualToAnchor:v.trailingAnchor constant:-20],
-
-        [tv.topAnchor constraintEqualToAnchor:titleLbl.bottomAnchor constant:14],
-        [tv.leadingAnchor constraintEqualToAnchor:v.leadingAnchor constant:16],
-        [tv.trailingAnchor constraintEqualToAnchor:v.trailingAnchor constant:-16],
-        [tv.bottomAnchor constraintEqualToAnchor:btnRow.topAnchor constant:-12],
-
-        [btnRow.leadingAnchor constraintEqualToAnchor:v.leadingAnchor constant:16],
-        [btnRow.trailingAnchor constraintEqualToAnchor:v.trailingAnchor constant:-16],
-        [btnRow.bottomAnchor constraintEqualToAnchor:v.safeAreaLayoutGuide.bottomAnchor constant:-16],
-        [btnRow.heightAnchor constraintEqualToConstant:40],
-    ]];
-
-    // Refresh — nếu iOS 15 chưa escaped: chạy escape + show kfd diagnostic
-    //           nếu đã escaped: rebuild text bình thường
-    __weak UITextView *weakTV = tv;
-    __weak AppDataViewController *weakSelf = self;
-    [btnR addAction:[UIAction actionWithTitle:@"" image:nil identifier:nil handler:^(UIAction *a) {
-        NSString *v2 = [[UIDevice currentDevice] systemVersion];
-        BOOL isMechC = ([v2 compare:@"15.0" options:NSNumericSearch] != NSOrderedAscending &&
-                        [v2 compare:@"16.0" options:NSNumericSearch] == NSOrderedAscending);
-
-        if (isMechC && ![SandboxEscapeManager escaped]) {
-            // iOS 15 + chưa escaped → chạy escape và show diagnostic chi tiết
-            weakTV.text = @"[kfd] Dang chay escape...\n(co the mat 10-30s)";
-            dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
-                int kr  = kexploit_ios15();
-                uint64_t p = proc_self_ios15();
-
-                // Verify kread: pid tai proc+0x60 phai == getpid()
-                pid_t my_pid = getpid();
-                uint64_t pid_at_60 = (p != 0) ? kread64_ios15(p + 0x60) : 0;
-                uint64_t ucred_d8  = (p != 0) ? kread64_ios15(p + 0xd8) : 0;
-                uint64_t ucred_d0  = (p != 0) ? kread64_ios15(p + 0xd0) : 0;
-                uint64_t ucred_e0  = (p != 0) ? kread64_ios15(p + 0xe0) : 0;
-
-                int sr = (p != 0) ? sandbox_escape_ios15(p) : -99;
-
-                NSMutableString *rs = [NSMutableString string];
-                char m2[64]={0}; size_t ms2=sizeof(m2);
-                sysctlbyname("hw.machine", m2, &ms2, NULL, 0);
-                [rs appendFormat:@"iOS: %@   Model: %s\n", v2, m2];
-                [rs appendFormat:@"Co che: %@\n", [weakSelf _debugMechanismLabel]];
-                [rs appendFormat:@"Sandbox Escaped: %@\n",
-                    [SandboxEscapeManager escaped] ? @"YES ✅" : @"NO ❌"];
-                [rs appendString:@"\n── kfd diagnostic ──\n"];
-                [rs appendFormat:@"kexploit_ios15: %d %@\n", kr,
-                    kr==0 ? @"✅" : @"❌ (exploit fail)"];
-                [rs appendFormat:@"proc:    0x%llx\n", p];
-                [rs appendFormat:@"pid@+60: %llu (getpid=%d) %@\n",
-                    pid_at_60, my_pid,
-                    (pid_at_60 == (uint64_t)my_pid) ? @"✅ kread OK" : @"❌ kread WRONG"];
-                [rs appendFormat:@"ucred@+d0: 0x%llx\n", ucred_d0];
-                [rs appendFormat:@"ucred@+d8: 0x%llx\n", ucred_d8];
-                [rs appendFormat:@"ucred@+e0: 0x%llx\n", ucred_e0];
-                [rs appendFormat:@"sandbox_escape: %d %@\n", sr,
-                    sr==0 ? @"✅" : (sr==-2?@"❌ ucred=0":(sr==-3?@"❌ cr_label=0":
-                    (sr==-4?@"❌ write fail":@"❌")))];
-
-                dispatch_async(dispatch_get_main_queue(), ^{
-                    weakTV.text = rs;
-                });
-            });
-        } else {
-            // Bình thường: rebuild text
-            NSMutableString *rs = [NSMutableString string];
-            char m2[64]={0}; size_t ms2=sizeof(m2);
-            sysctlbyname("hw.machine", m2, &ms2, NULL, 0);
-            [rs appendFormat:@"iOS: %@   Model: %s\n", v2, m2];
-            [rs appendFormat:@"Co che: %@\n", [weakSelf _debugMechanismLabel]];
-            [rs appendFormat:@"Sandbox Escaped: %@\n", [SandboxEscapeManager escaped] ? @"YES" : @"NO"];
-            uint64_t _p = proc_self_ios15();
-            if (_p) [rs appendFormat:@"kfd proc: 0x%llx\n", _p];
-            [rs appendFormat:@"Apps found: %lu\n\n", (unsigned long)weakSelf.appIDs.count];
-            [rs appendString:@"── Container paths ──\n"];
-            for (NSString *bid in @[@"com.dts.freefiremax", @"com.dts.freefireth"]) {
-                NSString *cp = [SandboxEscapeManager containerPathForBundleID:bid];
-                [rs appendFormat:@"%@:\n  %@\n", bid, cp ?: @"nil"];
-            }
-            weakTV.text = rs;
-        }
-    }] forControlEvents:UIControlEventTouchUpInside];
-
-    // Share Log
-    __weak UIViewController *weakSheet2 = sheet;
-    [btnS addAction:[UIAction actionWithTitle:@"" image:nil identifier:nil handler:^(UIAction *a) {
-        [self _debugShareLogFromVC:weakSheet2];
-    }] forControlEvents:UIControlEventTouchUpInside];
-
-    [self presentViewController:sheet animated:YES completion:nil];
-}
-
-- (void)_debugShareLogFromVC:(UIViewController *)presenter {
-    NSString *logPath = [[DebugLogger sharedLogger] logFilePath];
-    NSURL *logURL = [NSURL fileURLWithPath:logPath];
-    if (![[NSFileManager defaultManager] fileExistsAtPath:logPath]) {
-        UIAlertController *a = [UIAlertController alertControllerWithTitle:@"Khong co log"
-                                    message:@"File log chua ton tai."
-                                    preferredStyle:UIAlertControllerStyleAlert];
-        [a addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
-        [presenter presentViewController:a animated:YES completion:nil];
-        return;
-    }
-    UIActivityViewController *share = [[UIActivityViewController alloc]
-        initWithActivityItems:@[logURL] applicationActivities:nil];
-    share.popoverPresentationController.sourceView = presenter.view;
-    [presenter presentViewController:share animated:YES completion:nil];
-}
-
-#if DEBUG
-- (void)_debugRefreshTapped {
-    [self updateInlineDebug];
-}
-#endif  // DEBUG (updateInlineDebug)
-
-- (void)_debugShareLogTapped {
-    [self _debugShareLogFromVC:self];
-}
 
 // Kiểm tra iOS có nằm trong danh sách hỗ trợ không:
-//   ✅  iOS 15.0 → 15.x    (Cơ chế C: kfd puaf_landa)
-//   ✅  iOS 16.0 → 18.7.1  (Cơ chế B: kexploit_opa334)
-//   ✅  iOS 26.0 → 27.x    (Cơ chế A/B)
-//   ⚠️  iOS 19–25, iOS 28+ : chưa hỗ trợ
+//   ✅  iOS 17.0 → 26.0.x  (Cơ chế B: kexploit_opa334)
+//   ✅  iOS 26.1+           (Cơ chế A: MCM trực tiếp)
+//   ⚠️  iOS < 17, iOS 19–25, iOS 28+ : chưa hỗ trợ
 - (BOOL)isIOSSupported {
     NSString *ver = [[UIDevice currentDevice] systemVersion];
-
-    // iOS 15.0 → 15.x (Cơ chế C — kfd, landa patched iOS 17 nên safe toàn bộ 15.x)
-    if ([ver compare:@"15.0" options:NSNumericSearch] != NSOrderedAscending &&
-        [ver compare:@"16.0" options:NSNumericSearch] == NSOrderedAscending) return YES;
 
     // iOS 16.0 → 17.x: toàn bộ
     if ([ver compare:@"16.0" options:NSNumericSearch] != NSOrderedAscending &&

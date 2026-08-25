@@ -3,10 +3,9 @@
  *
  * Wrapper cho các kernel exploit + sandbox escape để dùng trong standalone app.
  *
- * Bốn cơ chế theo phiên bản iOS:
+ * Ba cơ chế theo phiên bản iOS:
  *   Cơ chế A — iOS 26.1+        : MCM trực tiếp, không cần kernel exploit.
  *   Cơ chế B — iOS 17.0–26.0.x  : kexploit_opa334 → sandbox_escape → scan metadata.
- *   Cơ chế C — iOS 15.0–15.8.8  : kexploit_ios15 (weightBufs / DarkSword) → sandbox_escape_ios15.
  *   Cơ chế D — fallback          : bad_query path traversal (khi B không có offsets).
  */
 
@@ -20,10 +19,6 @@
 #include "kexploit/kexploit_opa334.h"
 #include "kexploit/kutils.h"
 #include "sandbox_escape.h"
-
-// Cơ chế C — iOS 15.0–15.8.8
-#include "kexploit_ios15/kexploit_ios15.h"
-#include "kexploit_ios15/sandbox_escape_ios15.h"
 
 // ── Private ──────────────────────────────────────────────────────────────────
 
@@ -47,7 +42,7 @@ static BOOL _isSandboxAlreadyEscaped(void) {
 + (BOOL)escaped { return gEscaped; }
 
 /*
- * BỐN CƠ CHẾ truy cập filesystem theo phiên bản iOS:
+ * BA CƠ CHẾ truy cập filesystem theo phiên bản iOS:
  *
  * Cơ chế A — iOS 26.1 trở lên:
  *   MCM + sandbox extension activation hoạt động trực tiếp với bundle ID
@@ -59,10 +54,6 @@ static BOOL _isSandboxAlreadyEscaped(void) {
  *   trước, sau đó scan metadata plist trực tiếp lấy container paths.
  *   MCM không đủ quyền trên iOS 17–26.0.x mà không có exploit.
  *
- * Cơ chế C — iOS 15.0 → 15.8.8:
- *   iOS 15.0–15.5  : weightBufs (CVE-2022-32845) → sandbox_escape_ios15
- *   iOS 15.6–15.8.8: DarkSword (từ Dopamine) → ucred patch → sandbox_escape_ios15
- *
  * Cơ chế D — Fallback khi B thất bại:
  *   bad_query path traversal (BadQueryManager). Không cần kernel exploit.
  *   Hoạt động trên iOS 26.0–26.6.1. Chưa kiểm chứng iOS 17–18.
@@ -71,7 +62,6 @@ static BOOL _isSandboxAlreadyEscaped(void) {
 // Cơ chế A: iOS 26.1 trở lên — MCM trực tiếp, không cần exploit
 static BOOL _isMechanismA(void) {
     NSString *ver = [[UIDevice currentDevice] systemVersion];
-    // iOS >= 26.1
     return [ver compare:@"26.1" options:NSNumericSearch] != NSOrderedAscending;
 }
 
@@ -81,15 +71,6 @@ static BOOL _isMechanismB(void) {
     NSString *ver = [[UIDevice currentDevice] systemVersion];
     NSComparisonResult low  = [ver compare:@"17.0" options:NSNumericSearch];
     NSComparisonResult high = [ver compare:@"26.1" options:NSNumericSearch];
-    return (low != NSOrderedAscending) && (high == NSOrderedAscending);
-}
-
-// Cơ chế C: iOS 15.0 → 15.x — kfd (puaf_landa, patched iOS 17 → safe toàn bộ iOS 15)
-static BOOL _isMechanismC(void) {
-    NSString *ver = [[UIDevice currentDevice] systemVersion];
-    NSComparisonResult low  = [ver compare:@"15.0" options:NSNumericSearch];
-    NSComparisonResult high = [ver compare:@"16.0" options:NSNumericSearch];
-    // low ≥ 15.0 AND ver < 16.0
     return (low != NSOrderedAscending) && (high == NSOrderedAscending);
 }
 
@@ -107,44 +88,9 @@ static BOOL _isMechanismC(void) {
                 return;
             }
 
-            // ── Cơ chế C (iOS 15.0–15.8.8): weightBufs / DarkSword ──────────────
-            if (_isMechanismC()) {
-                NSLog(@"[SEM] 📋 Cơ chế C (iOS 15.0–15.8.8) → kexploit_ios15");
-
-                if (_isSandboxAlreadyEscaped()) {
-                    NSLog(@"[SEM] ✅ Sandbox đã escaped từ trước (iOS 15)");
-                    gEscaped = YES;
-                    dispatch_async(dispatch_get_main_queue(), ^{ if (completion) completion(YES); });
-                    return;
-                }
-
-                int kret15 = kexploit_ios15();
-                if (kret15 != 0) {
-                    NSLog(@"[SEM] ❌ kexploit_ios15 thất bại: %d", kret15);
-                    dispatch_async(dispatch_get_main_queue(), ^{ if (completion) completion(NO); });
-                    return;
-                }
-                NSLog(@"[SEM] ✅ kexploit_ios15 thành công");
-
-                uint64_t proc15 = proc_self_ios15();
-                NSLog(@"[SEM] proc_self (iOS 15) = 0x%llx", proc15);
-
-                int sret15 = sandbox_escape_ios15(proc15);
-                if (sret15 != 0) {
-                    NSLog(@"[SEM] ❌ sandbox_escape_ios15 thất bại: %d", sret15);
-                    dispatch_async(dispatch_get_main_queue(), ^{ if (completion) completion(NO); });
-                    return;
-                }
-
-                gEscaped = YES;
-                NSLog(@"[SEM] ✅ Sandbox escaped (iOS 15) thành công!");
-                dispatch_async(dispatch_get_main_queue(), ^{ if (completion) completion(YES); });
-                return;
-            }
-
             // ── Cơ chế B (iOS 17.0–26.0.x): kexploit_opa334 ─────────────────────
             if (!_isMechanismB()) {
-                NSLog(@"[SEM] ⚠️ iOS %@ — không nằm trong phạm vi bất kỳ cơ chế nào (A/B/C)", ver);
+                NSLog(@"[SEM] ⚠️ iOS %@ — không nằm trong phạm vi hỗ trợ (A/B)", ver);
                 dispatch_async(dispatch_get_main_queue(), ^{ if (completion) completion(NO); });
                 return;
             }
@@ -205,7 +151,7 @@ static BOOL _isMechanismC(void) {
     NSArray *uuids = [fm contentsOfDirectoryAtPath:dataDir error:nil];
 
     if (uuids.count > 0) {
-        // Cơ chế B hoặc C đã active → scan metadata plists trực tiếp
+        // Cơ chế B đã active → scan metadata plists trực tiếp
         for (NSString *uuid in uuids) {
             NSString *uuidPath = [dataDir stringByAppendingPathComponent:uuid];
             NSString *metaPath = [uuidPath stringByAppendingPathComponent:
