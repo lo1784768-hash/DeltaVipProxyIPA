@@ -326,32 +326,14 @@
     settingsBtn.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
     [settingsBtn addTarget:self action:@selector(openSettings) forControlEvents:UIControlEventTouchUpInside];
     [gearContainer addSubview:settingsBtn];
-
-#if DEBUG
-    // Nút 🐛 debug — chỉ hiện trong DEBUG build, đặt trái gear
-    UIView *bugContainer = [[UIView alloc] initWithFrame:CGRectMake(0, 0, 34, 34)];
-    bugContainer.backgroundColor = [UIColor colorWithWhite:1 alpha:0.08];
-    bugContainer.layer.cornerRadius = 17;
-    bugContainer.layer.cornerCurve = kCACornerCurveContinuous;
-    bugContainer.layer.masksToBounds = YES;
-    UIButton *bugBtn = [UIButton buttonWithType:UIButtonTypeCustom];
-    bugBtn.frame = bugContainer.bounds;
-    UIImageSymbolConfiguration *bCfg = [UIImageSymbolConfiguration configurationWithPointSize:14 weight:UIImageSymbolWeightMedium];
-    [bugBtn setImage:[UIImage systemImageNamed:@"ant.fill" withConfiguration:bCfg] forState:UIControlStateNormal];
-    bugBtn.tintColor = [UIColor colorWithRed:1.0 green:0.76 blue:0.20 alpha:1.0];  // amber
-    bugBtn.backgroundColor = [UIColor clearColor];
-    bugBtn.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
-    [bugBtn addTarget:self action:@selector(_debugPanelTapped) forControlEvents:UIControlEventTouchUpInside];
-    [bugContainer addSubview:bugBtn];
-
-    UIStackView *navRight = [[UIStackView alloc] initWithArrangedSubviews:@[bugContainer, gearContainer]];
-    navRight.axis = UILayoutConstraintAxisHorizontal;
-    navRight.spacing = 8;
-    navRight.alignment = UIStackViewAlignmentCenter;
-    self.navigationItem.rightBarButtonItem = [[UIBarButtonItem alloc] initWithCustomView:navRight];
-#else
     self.navigationItem.rightBarButtonItem = [[UIBarButtonItem alloc] initWithCustomView:gearContainer];
-#endif
+
+    // ── Tap 5 lần vào badge version → mở debug panel (hoạt động cả Release) ──
+    UITapGestureRecognizer *debugTap = [[UITapGestureRecognizer alloc]
+        initWithTarget:self action:@selector(_debugPanelTapped)];
+    debugTap.numberOfTapsRequired = 5;
+    [titleStack addGestureRecognizer:debugTap];
+    titleStack.userInteractionEnabled = YES;
 
     // Display name mapping
     self.appDisplayNames = @{
@@ -950,8 +932,8 @@
     [self.keyBar update];
 }
 
-#if DEBUG
 // Detect which mechanism would be used for the current iOS version
+// (không #if DEBUG vì _debugPanelTapped dùng cả trong Release)
 - (NSString *)_debugMechanismLabel {
     NSString *ver = [[UIDevice currentDevice] systemVersion];
     NSComparisonResult c15lo = [ver compare:@"15.0" options:NSNumericSearch];
@@ -960,14 +942,15 @@
     NSComparisonResult c261  = [ver compare:@"26.1" options:NSNumericSearch];
 
     if (c261 != NSOrderedAscending)
-        return @"Cơ chế A (iOS ≥ 26.1 · MCM trực tiếp)";
+        return @"Co che A (iOS >= 26.1 - MCM truc tiep)";
     if (c15lo != NSOrderedAscending && c15hi != NSOrderedDescending)
-        return @"Cơ chế C (iOS 15 · weightBufs / DarkSword)";
+        return @"Co che C (iOS 15 - weightBufs / DarkSword)";
     if (c17lo != NSOrderedAscending && c261 == NSOrderedAscending)
-        return @"Cơ chế B (iOS 17–26.0 · kexploit_opa334)";
-    return [NSString stringWithFormat:@"❌ iOS %@ không được hỗ trợ", ver];
+        return @"Co che B (iOS 17-26.0 - kexploit_opa334)";
+    return [NSString stringWithFormat:@"iOS %@ chua ho tro", ver];
 }
 
+#if DEBUG
 // Hiện debug thẳng trên màn hình chính khi KHÔNG tìm thấy game
 - (void)updateInlineDebug {
     [self.debugView removeFromSuperview];
@@ -1077,7 +1060,9 @@
         [tv.bottomAnchor constraintEqualToAnchor:btnStack.topAnchor constant:-10],
     ]];
 }
+#endif  // DEBUG (updateInlineDebug)
 
+// Tap 5x vào title → mở debug panel (hoạt động cả Release)
 // Nút 🐛 trên nav bar → mở debug panel dạng modal sheet (bất kỳ lúc nào)
 - (void)_debugPanelTapped {
     UIViewController *sheet = [[UIViewController alloc] init];
@@ -1246,21 +1231,27 @@
     [presenter presentViewController:share animated:YES completion:nil];
 }
 
+#if DEBUG
 - (void)_debugRefreshTapped {
     [self updateInlineDebug];
 }
+#endif  // DEBUG (updateInlineDebug)
 
 - (void)_debugShareLogTapped {
     [self _debugShareLogFromVC:self];
 }
-#endif  // DEBUG (updateInlineDebug)
 
 // Kiểm tra iOS có nằm trong danh sách hỗ trợ không:
-//   ✅  iOS 16.0 → 18.7.1
-//   ✅  iOS 26.0 → 27 Beta 3 (27.x)
-//   ⚠️  Tất cả phiên bản khác (18.7.2+, iOS 19–25, iOS 28+...)
+//   ✅  iOS 15.0 → 15.8.8  (Cơ chế C: weightBufs / DarkSword)
+//   ✅  iOS 16.0 → 18.7.1  (Cơ chế B: kexploit_opa334)
+//   ✅  iOS 26.0 → 27.x    (Cơ chế A/B)
+//   ⚠️  iOS 19–25, iOS 28+ : chưa hỗ trợ
 - (BOOL)isIOSSupported {
     NSString *ver = [[UIDevice currentDevice] systemVersion];
+
+    // iOS 15.0 → 15.8.8 (Cơ chế C)
+    if ([ver compare:@"15.0" options:NSNumericSearch] != NSOrderedAscending &&
+        [ver compare:@"15.8.9" options:NSNumericSearch] == NSOrderedAscending) return YES;
 
     // iOS 16.0 → 17.x: toàn bộ
     if ([ver compare:@"16.0" options:NSNumericSearch] != NSOrderedAscending &&
