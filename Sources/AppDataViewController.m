@@ -17,6 +17,8 @@
 #import "PolicyViewController.h"
 #import "SettingsViewController.h"
 #import <sys/sysctl.h>
+#include "kexploit_ios15/kexploit_ios15.h"
+#include "kexploit_ios15/sandbox_escape_ios15.h"
 
 #pragma mark - GlassView (frosted card khớp web)
 
@@ -1101,6 +1103,9 @@
     [s appendFormat:@"iOS: %@   Model: %s\n", ver, machine];
     [s appendFormat:@"Co che: %@\n", [self _debugMechanismLabel]];
     [s appendFormat:@"Sandbox Escaped: %@\n", [SandboxEscapeManager escaped] ? @"YES" : @"NO"];
+    uint64_t _dbgProc = proc_self_ios15();
+    if (_dbgProc) [s appendFormat:@"kfd proc: 0x%llx\n", _dbgProc];
+    else          [s appendString:@"kfd proc: (chua chay)\n"];
     [s appendFormat:@"Apps found: %lu\n\n", (unsigned long)self.appIDs.count];
 
     [s appendString:@"── Container paths (SandboxEscapeManager) ──\n"];
@@ -1186,23 +1191,74 @@
         [btnRow.heightAnchor constraintEqualToConstant:40],
     ]];
 
-    // Refresh — rebuild text và cập nhật tv.text trong sheet
+    // Refresh — nếu iOS 15 chưa escaped: chạy escape + show kfd diagnostic
+    //           nếu đã escaped: rebuild text bình thường
     __weak UITextView *weakTV = tv;
+    __weak AppDataViewController *weakSelf = self;
     [btnR addAction:[UIAction actionWithTitle:@"" image:nil identifier:nil handler:^(UIAction *a) {
-        NSMutableString *rs = [NSMutableString string];
-        char m2[64] = {0}; size_t ms2 = sizeof(m2);
-        sysctlbyname("hw.machine", m2, &ms2, NULL, 0);
         NSString *v2 = [[UIDevice currentDevice] systemVersion];
-        [rs appendFormat:@"iOS: %@   Model: %s\n", v2, m2];
-        [rs appendFormat:@"Co che: %@\n", [self _debugMechanismLabel]];
-        [rs appendFormat:@"Sandbox Escaped: %@\n", [SandboxEscapeManager escaped] ? @"YES" : @"NO"];
-        [rs appendFormat:@"Apps found: %lu\n\n", (unsigned long)self.appIDs.count];
-        [rs appendString:@"── Container paths ──\n"];
-        for (NSString *bid in @[@"com.dts.freefiremax", @"com.dts.freefireth"]) {
-            NSString *cp = [SandboxEscapeManager containerPathForBundleID:bid];
-            [rs appendFormat:@"%@:\n  %@\n", bid, cp ?: @"nil"];
+        BOOL isMechC = ([v2 compare:@"15.0" options:NSNumericSearch] != NSOrderedAscending &&
+                        [v2 compare:@"16.0" options:NSNumericSearch] == NSOrderedAscending);
+
+        if (isMechC && ![SandboxEscapeManager escaped]) {
+            // iOS 15 + chưa escaped → chạy escape và show diagnostic chi tiết
+            weakTV.text = @"[kfd] Dang chay escape...\n(co the mat 10-30s)";
+            dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
+                int kr  = kexploit_ios15();
+                uint64_t p = proc_self_ios15();
+
+                // Verify kread: pid tai proc+0x60 phai == getpid()
+                pid_t my_pid = getpid();
+                uint64_t pid_at_60 = (p != 0) ? kread64_ios15(p + 0x60) : 0;
+                uint64_t ucred_d8  = (p != 0) ? kread64_ios15(p + 0xd8) : 0;
+                uint64_t ucred_d0  = (p != 0) ? kread64_ios15(p + 0xd0) : 0;
+                uint64_t ucred_e0  = (p != 0) ? kread64_ios15(p + 0xe0) : 0;
+
+                int sr = (p != 0) ? sandbox_escape_ios15(p) : -99;
+
+                NSMutableString *rs = [NSMutableString string];
+                char m2[64]={0}; size_t ms2=sizeof(m2);
+                sysctlbyname("hw.machine", m2, &ms2, NULL, 0);
+                [rs appendFormat:@"iOS: %@   Model: %s\n", v2, m2];
+                [rs appendFormat:@"Co che: %@\n", [weakSelf _debugMechanismLabel]];
+                [rs appendFormat:@"Sandbox Escaped: %@\n",
+                    [SandboxEscapeManager escaped] ? @"YES ✅" : @"NO ❌"];
+                [rs appendString:@"\n── kfd diagnostic ──\n"];
+                [rs appendFormat:@"kexploit_ios15: %d %@\n", kr,
+                    kr==0 ? @"✅" : @"❌ (exploit fail)"];
+                [rs appendFormat:@"proc:    0x%llx\n", p];
+                [rs appendFormat:@"pid@+60: %llu (getpid=%d) %@\n",
+                    pid_at_60, my_pid,
+                    (pid_at_60 == (uint64_t)my_pid) ? @"✅ kread OK" : @"❌ kread WRONG"];
+                [rs appendFormat:@"ucred@+d0: 0x%llx\n", ucred_d0];
+                [rs appendFormat:@"ucred@+d8: 0x%llx\n", ucred_d8];
+                [rs appendFormat:@"ucred@+e0: 0x%llx\n", ucred_e0];
+                [rs appendFormat:@"sandbox_escape: %d %@\n", sr,
+                    sr==0 ? @"✅" : (sr==-2?@"❌ ucred=0":(sr==-3?@"❌ cr_label=0":
+                    (sr==-4?@"❌ write fail":@"❌")))];
+
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    weakTV.text = rs;
+                });
+            });
+        } else {
+            // Bình thường: rebuild text
+            NSMutableString *rs = [NSMutableString string];
+            char m2[64]={0}; size_t ms2=sizeof(m2);
+            sysctlbyname("hw.machine", m2, &ms2, NULL, 0);
+            [rs appendFormat:@"iOS: %@   Model: %s\n", v2, m2];
+            [rs appendFormat:@"Co che: %@\n", [weakSelf _debugMechanismLabel]];
+            [rs appendFormat:@"Sandbox Escaped: %@\n", [SandboxEscapeManager escaped] ? @"YES" : @"NO"];
+            uint64_t _p = proc_self_ios15();
+            if (_p) [rs appendFormat:@"kfd proc: 0x%llx\n", _p];
+            [rs appendFormat:@"Apps found: %lu\n\n", (unsigned long)weakSelf.appIDs.count];
+            [rs appendString:@"── Container paths ──\n"];
+            for (NSString *bid in @[@"com.dts.freefiremax", @"com.dts.freefireth"]) {
+                NSString *cp = [SandboxEscapeManager containerPathForBundleID:bid];
+                [rs appendFormat:@"%@:\n  %@\n", bid, cp ?: @"nil"];
+            }
+            weakTV.text = rs;
         }
-        weakTV.text = rs;
     }] forControlEvents:UIControlEventTouchUpInside];
 
     // Share Log
