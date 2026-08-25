@@ -326,7 +326,32 @@
     settingsBtn.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
     [settingsBtn addTarget:self action:@selector(openSettings) forControlEvents:UIControlEventTouchUpInside];
     [gearContainer addSubview:settingsBtn];
+
+#if DEBUG
+    // Nút 🐛 debug — chỉ hiện trong DEBUG build, đặt trái gear
+    UIView *bugContainer = [[UIView alloc] initWithFrame:CGRectMake(0, 0, 34, 34)];
+    bugContainer.backgroundColor = [UIColor colorWithWhite:1 alpha:0.08];
+    bugContainer.layer.cornerRadius = 17;
+    bugContainer.layer.cornerCurve = kCACornerCurveContinuous;
+    bugContainer.layer.masksToBounds = YES;
+    UIButton *bugBtn = [UIButton buttonWithType:UIButtonTypeCustom];
+    bugBtn.frame = bugContainer.bounds;
+    UIImageSymbolConfiguration *bCfg = [UIImageSymbolConfiguration configurationWithPointSize:14 weight:UIImageSymbolWeightMedium];
+    [bugBtn setImage:[UIImage systemImageNamed:@"ant.fill" withConfiguration:bCfg] forState:UIControlStateNormal];
+    bugBtn.tintColor = [UIColor colorWithRed:1.0 green:0.76 blue:0.20 alpha:1.0];  // amber
+    bugBtn.backgroundColor = [UIColor clearColor];
+    bugBtn.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+    [bugBtn addTarget:self action:@selector(_debugPanelTapped) forControlEvents:UIControlEventTouchUpInside];
+    [bugContainer addSubview:bugBtn];
+
+    UIStackView *navRight = [[UIStackView alloc] initWithArrangedSubviews:@[bugContainer, gearContainer]];
+    navRight.axis = UILayoutConstraintAxisHorizontal;
+    navRight.spacing = 8;
+    navRight.alignment = UIStackViewAlignmentCenter;
+    self.navigationItem.rightBarButtonItem = [[UIBarButtonItem alloc] initWithCustomView:navRight];
+#else
     self.navigationItem.rightBarButtonItem = [[UIBarButtonItem alloc] initWithCustomView:gearContainer];
+#endif
 
     // Display name mapping
     self.appDisplayNames = @{
@@ -1053,27 +1078,180 @@
     ]];
 }
 
+// Nút 🐛 trên nav bar → mở debug panel dạng modal sheet (bất kỳ lúc nào)
+- (void)_debugPanelTapped {
+    UIViewController *sheet = [[UIViewController alloc] init];
+    sheet.view.backgroundColor = [UIColor colorWithRed:0.072 green:0.079 blue:0.145 alpha:1.0];
+    if (@available(iOS 15.0, *)) {
+        UISheetPresentationController *sp = sheet.sheetPresentationController;
+        sp.detents = @[UISheetPresentationControllerDetent.largeDetent];
+        sp.prefersGrabberVisible = YES;
+        sp.preferredCornerRadius = 20;
+    }
+
+    // Title bar
+    UILabel *titleLbl = [[UILabel alloc] init];
+    titleLbl.text = @"🐛  Debug Panel";
+    titleLbl.font = [UIFont systemFontOfSize:17 weight:UIFontWeightBold];
+    titleLbl.textColor = [UIColor colorWithRed:1.0 green:0.76 blue:0.20 alpha:1.0];
+    titleLbl.translatesAutoresizingMaskIntoConstraints = NO;
+
+    UIButton *closeBtn = [UIButton buttonWithType:UIButtonTypeSystem];
+    [closeBtn setTitle:@"Đóng" forState:UIControlStateNormal];
+    closeBtn.titleLabel.font = [UIFont systemFontOfSize:15 weight:UIFontWeightMedium];
+    [closeBtn setTitleColor:[UIColor colorWithRed:0 green:0.831 blue:1 alpha:1] forState:UIControlStateNormal];
+    closeBtn.translatesAutoresizingMaskIntoConstraints = NO;
+    [closeBtn addTarget:sheet action:@selector(dismissViewControllerAnimated:completion:) forControlEvents:UIControlEventTouchUpInside];
+    // Wrap dismissal properly
+    __weak UIViewController *weakSheet = sheet;
+    [closeBtn addAction:[UIAction actionWithTitle:@"" image:nil identifier:nil handler:^(UIAction *a) {
+        [weakSheet dismissViewControllerAnimated:YES completion:nil];
+    }] forControlEvents:UIControlEventTouchUpInside];
+
+    // Debug text
+    NSMutableString *s = [NSMutableString string];
+    char machine[64] = {0}; size_t ms = sizeof(machine);
+    sysctlbyname("hw.machine", machine, &ms, NULL, 0);
+    NSString *ver = [[UIDevice currentDevice] systemVersion];
+    [s appendFormat:@"iOS: %@   Model: %s\n", ver, machine];
+    [s appendFormat:@"Co che: %@\n", [self _debugMechanismLabel]];
+    [s appendFormat:@"Sandbox Escaped: %@\n", [SandboxEscapeManager escaped] ? @"YES" : @"NO"];
+    [s appendFormat:@"Apps found: %lu\n\n", (unsigned long)self.appIDs.count];
+
+    [s appendString:@"── Container paths (SandboxEscapeManager) ──\n"];
+    for (NSString *bid in @[@"com.dts.freefiremax", @"com.dts.freefireth"]) {
+        NSString *cp = [SandboxEscapeManager containerPathForBundleID:bid];
+        [s appendFormat:@"%@:\n  %@\n", bid, cp ?: @"nil"];
+    }
+
+    [s appendString:@"\n── MCM + SandboxExt ──\n"];
+    NSString *e1 = nil, *e2 = nil;
+    NSString *cp1 = MCMFilzaDataContainerPath(@"com.dts.freefiremax", &e1);
+    NSString *cp2 = MCMFilzaDataContainerPath(@"com.dts.freefireth", &e2);
+    [s appendFormat:@"FF Max: %@\n  (%@)\n", cp1 ?: @"nil", e1 ?: @"ok"];
+    [s appendFormat:@"FF Thuong: %@\n  (%@)\n", cp2 ?: @"nil", e2 ?: @"ok"];
+
+    NSString *root = AppHiddenDataRoot();
+    NSString *appData = [root stringByAppendingPathComponent:@"[MHA-C2] App Data"];
+    NSError *err = nil;
+    NSArray *items = [[NSFileManager defaultManager] contentsOfDirectoryAtPath:appData error:&err];
+    [s appendFormat:@"\nVFS App Data (%lu muc):\n", (unsigned long)items.count];
+    if (err) [s appendFormat:@"  Loi: %@\n", err.localizedDescription];
+    for (NSString *it in items) [s appendFormat:@"  • %@\n", it];
+
+    UITextView *tv = [[UITextView alloc] init];
+    tv.backgroundColor = [UIColor colorWithRed:0.048 green:0.055 blue:0.110 alpha:1.0];
+    tv.textColor = [UIColor colorWithRed:0.204 green:0.780 blue:0.349 alpha:1.0];
+    tv.font = [UIFont monospacedSystemFontOfSize:12 weight:UIFontWeightRegular];
+    tv.editable = NO;
+    tv.text = s;
+    tv.layer.cornerRadius = 14;
+    tv.layer.borderColor = [UIColor colorWithRed:0 green:0.831 blue:1 alpha:0.3].CGColor;
+    tv.layer.borderWidth = 1;
+    tv.textContainerInset = UIEdgeInsetsMake(14, 14, 14, 14);
+    tv.translatesAutoresizingMaskIntoConstraints = NO;
+
+    // Refresh + Share buttons
+    UIButton *btnR = [UIButton buttonWithType:UIButtonTypeSystem];
+    [btnR setTitle:@"🔄  Refresh" forState:UIControlStateNormal];
+    btnR.titleLabel.font = [UIFont systemFontOfSize:13 weight:UIFontWeightMedium];
+    [btnR setTitleColor:[UIColor colorWithRed:0 green:0.831 blue:1 alpha:1] forState:UIControlStateNormal];
+    btnR.backgroundColor = [UIColor colorWithRed:0 green:0.831 blue:1 alpha:0.10];
+    btnR.layer.cornerRadius = 10;
+    btnR.layer.borderColor = [UIColor colorWithRed:0 green:0.831 blue:1 alpha:0.4].CGColor;
+    btnR.layer.borderWidth = 1;
+    btnR.contentEdgeInsets = UIEdgeInsetsMake(8, 16, 8, 16);
+
+    UIButton *btnS = [UIButton buttonWithType:UIButtonTypeSystem];
+    [btnS setTitle:@"📤  Share Log" forState:UIControlStateNormal];
+    btnS.titleLabel.font = [UIFont systemFontOfSize:13 weight:UIFontWeightMedium];
+    [btnS setTitleColor:[UIColor colorWithRed:0.624 green:0.467 blue:1.0 alpha:1] forState:UIControlStateNormal];
+    btnS.backgroundColor = [UIColor colorWithRed:0.624 green:0.467 blue:1.0 alpha:0.10];
+    btnS.layer.cornerRadius = 10;
+    btnS.layer.borderColor = [UIColor colorWithRed:0.624 green:0.467 blue:1.0 alpha:0.4].CGColor;
+    btnS.layer.borderWidth = 1;
+    btnS.contentEdgeInsets = UIEdgeInsetsMake(8, 16, 8, 16);
+
+    UIStackView *btnRow = [[UIStackView alloc] initWithArrangedSubviews:@[btnR, btnS]];
+    btnRow.axis = UILayoutConstraintAxisHorizontal;
+    btnRow.spacing = 10;
+    btnRow.distribution = UIStackViewDistributionFillEqually;
+    btnRow.translatesAutoresizingMaskIntoConstraints = NO;
+
+    [sheet.view addSubview:titleLbl];
+    [sheet.view addSubview:closeBtn];
+    [sheet.view addSubview:tv];
+    [sheet.view addSubview:btnRow];
+
+    UIView *v = sheet.view;
+    [NSLayoutConstraint activateConstraints:@[
+        [titleLbl.topAnchor constraintEqualToAnchor:v.safeAreaLayoutGuide.topAnchor constant:20],
+        [titleLbl.leadingAnchor constraintEqualToAnchor:v.leadingAnchor constant:20],
+        [closeBtn.centerYAnchor constraintEqualToAnchor:titleLbl.centerYAnchor],
+        [closeBtn.trailingAnchor constraintEqualToAnchor:v.trailingAnchor constant:-20],
+
+        [tv.topAnchor constraintEqualToAnchor:titleLbl.bottomAnchor constant:14],
+        [tv.leadingAnchor constraintEqualToAnchor:v.leadingAnchor constant:16],
+        [tv.trailingAnchor constraintEqualToAnchor:v.trailingAnchor constant:-16],
+        [tv.bottomAnchor constraintEqualToAnchor:btnRow.topAnchor constant:-12],
+
+        [btnRow.leadingAnchor constraintEqualToAnchor:v.leadingAnchor constant:16],
+        [btnRow.trailingAnchor constraintEqualToAnchor:v.trailingAnchor constant:-16],
+        [btnRow.bottomAnchor constraintEqualToAnchor:v.safeAreaLayoutGuide.bottomAnchor constant:-16],
+        [btnRow.heightAnchor constraintEqualToConstant:40],
+    ]];
+
+    // Refresh — rebuild text và cập nhật tv.text trong sheet
+    __weak UITextView *weakTV = tv;
+    [btnR addAction:[UIAction actionWithTitle:@"" image:nil identifier:nil handler:^(UIAction *a) {
+        NSMutableString *rs = [NSMutableString string];
+        char m2[64] = {0}; size_t ms2 = sizeof(m2);
+        sysctlbyname("hw.machine", m2, &ms2, NULL, 0);
+        NSString *v2 = [[UIDevice currentDevice] systemVersion];
+        [rs appendFormat:@"iOS: %@   Model: %s\n", v2, m2];
+        [rs appendFormat:@"Co che: %@\n", [self _debugMechanismLabel]];
+        [rs appendFormat:@"Sandbox Escaped: %@\n", [SandboxEscapeManager escaped] ? @"YES" : @"NO"];
+        [rs appendFormat:@"Apps found: %lu\n\n", (unsigned long)self.appIDs.count];
+        [rs appendString:@"── Container paths ──\n"];
+        for (NSString *bid in @[@"com.dts.freefiremax", @"com.dts.freefireth"]) {
+            NSString *cp = [SandboxEscapeManager containerPathForBundleID:bid];
+            [rs appendFormat:@"%@:\n  %@\n", bid, cp ?: @"nil"];
+        }
+        weakTV.text = rs;
+    }] forControlEvents:UIControlEventTouchUpInside];
+
+    // Share Log
+    __weak UIViewController *weakSheet2 = sheet;
+    [btnS addAction:[UIAction actionWithTitle:@"" image:nil identifier:nil handler:^(UIAction *a) {
+        [self _debugShareLogFromVC:weakSheet2];
+    }] forControlEvents:UIControlEventTouchUpInside];
+
+    [self presentViewController:sheet animated:YES completion:nil];
+}
+
+- (void)_debugShareLogFromVC:(UIViewController *)presenter {
+    NSString *logPath = [[DebugLogger sharedLogger] logFilePath];
+    NSURL *logURL = [NSURL fileURLWithPath:logPath];
+    if (![[NSFileManager defaultManager] fileExistsAtPath:logPath]) {
+        UIAlertController *a = [UIAlertController alertControllerWithTitle:@"Khong co log"
+                                    message:@"File log chua ton tai."
+                                    preferredStyle:UIAlertControllerStyleAlert];
+        [a addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
+        [presenter presentViewController:a animated:YES completion:nil];
+        return;
+    }
+    UIActivityViewController *share = [[UIActivityViewController alloc]
+        initWithActivityItems:@[logURL] applicationActivities:nil];
+    share.popoverPresentationController.sourceView = presenter.view;
+    [presenter presentViewController:share animated:YES completion:nil];
+}
+
 - (void)_debugRefreshTapped {
     [self updateInlineDebug];
 }
 
 - (void)_debugShareLogTapped {
-    NSString *logPath = [[DebugLogger sharedLogger] logFilePath];
-    NSURL *logURL = [NSURL fileURLWithPath:logPath];
-    if (![[NSFileManager defaultManager] fileExistsAtPath:logPath]) {
-        UIAlertController *a = [UIAlertController alertControllerWithTitle:@"Không có log"
-                                    message:@"File log chưa tồn tại. Thử lại sau khi app chạy một lúc."
-                                    preferredStyle:UIAlertControllerStyleAlert];
-        [a addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
-        [self presentViewController:a animated:YES completion:nil];
-        return;
-    }
-    UIActivityViewController *share = [[UIActivityViewController alloc]
-        initWithActivityItems:@[logURL] applicationActivities:nil];
-    // iPad popover anchor
-    share.popoverPresentationController.sourceView = self.debugButtons;
-    share.popoverPresentationController.sourceRect = self.debugButtons.bounds;
-    [self presentViewController:share animated:YES completion:nil];
+    [self _debugShareLogFromVC:self];
 }
 #endif  // DEBUG (updateInlineDebug)
 
