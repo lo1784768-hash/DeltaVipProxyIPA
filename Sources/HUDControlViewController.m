@@ -1348,7 +1348,6 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
         LS(@"Định Vị", @"Aim Bot"),
         LS(@"Mod NV",  @"Mod Skin"),
     ];
-    NSArray<NSString *> *tabBadges = @[@"AUTO", @"LIVE", @"SOON"];
     self.tabTints = @[HUD_CYAN, HUD_GREEN, HUD_PURPLE];
 
     UIView *chipBar = [[UIView alloc] init];
@@ -1402,21 +1401,9 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
         [chip addSubview:lbl];
         [lbls addObject:lbl];
 
-        // Badge pill
-        UILabel *badge = [[UILabel alloc] init];
-        badge.text          = [NSString stringWithFormat:@" %@ ", tabBadges[(NSUInteger)i]];
-        badge.font          = [UIFont systemFontOfSize:7.5 weight:UIFontWeightBold];
-        badge.textAlignment = NSTextAlignmentCenter;
-        badge.layer.cornerRadius  = 4;
-        badge.layer.masksToBounds = YES;
-        badge.translatesAutoresizingMaskIntoConstraints = NO;
-        badge.tag = 30 + i;
-        [chip addSubview:badge];
-
-        // UIStackView vertical: tự tính intrinsicSize đúng, centerX/Y vào chip
+        // UIStackView vertical: icon + label căn giữa chip
         [iconIV removeFromSuperview];
         [lbl    removeFromSuperview];
-        [badge  removeFromSuperview];
 
         // Wrap icon vào view cố định 14×14 để stackview không stretch nó
         UIView *iconWrap = [[UIView alloc] init];
@@ -1432,10 +1419,10 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
             [iconIV.heightAnchor    constraintEqualToConstant:14],
         ]];
 
-        UIStackView *vStack = [[UIStackView alloc] initWithArrangedSubviews:@[iconWrap, lbl, badge]];
+        UIStackView *vStack = [[UIStackView alloc] initWithArrangedSubviews:@[iconWrap, lbl]];
         vStack.axis               = UILayoutConstraintAxisVertical;
         vStack.alignment          = UIStackViewAlignmentCenter;
-        vStack.spacing            = 3;
+        vStack.spacing            = 4;
         vStack.translatesAutoresizingMaskIntoConstraints = NO;
         vStack.userInteractionEnabled = NO;
         [chip addSubview:vStack];
@@ -1491,22 +1478,22 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 
     // ── Panel cards (solid, no blur) ───────────────────────
     self.panelProxy  = [self buildPanelWithTitle:@"PROXY DELTA VIP"
-                                          symbol:@"bolt.fill"     tint:HUD_CYAN   badge:@"AUTO"
+                                          symbol:@"bolt.fill"     tint:HUD_CYAN
                                         features:proxyFeats
                                      tutorialURL:kTutorialProxyURL ?: @""
                                   outTitleLabel:nil];
     self.panelDinhVi = [self buildPanelWithTitle:LS(@"ĐỊNH VỊ SÚNG", @"AIM BOT")
-                                          symbol:@"location.fill" tint:HUD_GREEN  badge:@"LIVE"
+                                          symbol:@"location.fill" tint:HUD_GREEN
                                         features:dvFeats
                                      tutorialURL:nil
                                   outTitleLabel:&_panelDinhViTitleLabel];
     self.panelModNV  = [self buildPanelWithTitle:LS(@"MOD NHÂN VẬT", @"CHARACTER MOD")
-                                          symbol:@"person.fill.badge.plus" tint:HUD_PURPLE badge:@"SOON"
+                                          symbol:@"person.fill.badge.plus" tint:HUD_PURPLE
                                         features:modFeats
                                      tutorialURL:nil
                                   outTitleLabel:&_panelModNVTitleLabel];
     self.panelDrag   = [self buildPanelWithTitle:@"PROXY DELTA VIP V2"
-                                          symbol:@"hand.draw.fill" tint:HUD_ORANGE badge:@"V2"
+                                          symbol:@"hand.draw.fill" tint:HUD_ORANGE
                                         features:dragFeats
                                      tutorialURL:kTutorialDragURL ?: @""
                                   outTitleLabel:nil];
@@ -1644,7 +1631,6 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 - (UIView *)buildPanelWithTitle:(NSString *)title
                          symbol:(NSString *)symbol
                            tint:(UIColor *)tint
-                          badge:(NSString *)badge
                        features:(NSArray<HUDFeature *> *)features
                     tutorialURL:(NSString * _Nullable)tutorialURL
                  outTitleLabel:(UILabel * __strong *)outTitleLabel {
@@ -1699,17 +1685,6 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     [titleBar addSubview:menuTitle];
     if (outTitleLabel) *outTitleLabel = menuTitle;
 
-    UILabel *hint = [[UILabel alloc] init];
-    hint.text             = [NSString stringWithFormat:@" %@ ", badge];
-    hint.font             = [UIFont systemFontOfSize:9.5 weight:UIFontWeightBold];
-    hint.textColor        = tint;
-    hint.backgroundColor  = [tint colorWithAlphaComponent:0.14];
-    hint.layer.cornerRadius   = 7;
-    hint.layer.masksToBounds  = YES;
-    hint.layer.borderColor    = [tint colorWithAlphaComponent:0.45].CGColor;
-    hint.layer.borderWidth    = 1;
-    hint.translatesAutoresizingMaskIntoConstraints = NO;
-    [titleBar addSubview:hint];
 
     // ── 2-column tile grid ──────────────────────────────────
     // Build rows of 2 tiles each using nested UIStackViews.
@@ -1867,13 +1842,9 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
         [icon.heightAnchor  constraintEqualToConstant:15],
 
         // Title text
-        [menuTitle.leadingAnchor constraintEqualToAnchor:icon.trailingAnchor constant:7],
-        [menuTitle.centerYAnchor constraintEqualToAnchor:titleBar.centerYAnchor],
-
-        // Badge
-        [hint.trailingAnchor constraintEqualToAnchor:titleBar.trailingAnchor constant:-14],
-        [hint.centerYAnchor  constraintEqualToAnchor:titleBar.centerYAnchor],
-        [hint.heightAnchor   constraintEqualToConstant:18],
+        [menuTitle.leadingAnchor  constraintEqualToAnchor:icon.trailingAnchor constant:7],
+        [menuTitle.trailingAnchor constraintLessThanOrEqualToAnchor:titleBar.trailingAnchor constant:-14],
+        [menuTitle.centerYAnchor  constraintEqualToAnchor:titleBar.centerYAnchor],
 
         // Grid
         [gridStack.topAnchor    constraintEqualToAnchor:titleBar.bottomAnchor constant:10],
@@ -2061,31 +2032,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     drag.enTitle    = @"Aim Drag";
     drag.enSubtitle = @"Soft Pull — Aim Rises to Head";
 
-    // FakeDame — paste TẤT CẢ 12 file (khớp với $KNOWN_SPEED_FILES trên server)
-    HUDFeature *fakeDame = [self featureWithSymbol:@"flame.fill" tint:HUD_RED
-        title:LS(@"Fake Dame", @"Fake Dame")
-        subtitle:LS(@"Hiển Thị Số Dame Ảo Lên Màn Hình", @"Show Fake Damage Numbers")
-        featureKey:k(@"fakedame") fileName:nil searchRoot:rt];
-    fakeDame.enTitle    = @"Fake Dame";
-    fakeDame.enSubtitle = @"Show Fake Damage Numbers";
-    if (supported) {
-        fakeDame.speedFiles = @[
-            @"assembly-csharp-patch.9~2FHZTlufvnrWfync7WczZNS9AXI~3D",
-            @"buffeca_54295235.7xh42QWuR~2BU9mqJeXhWD~2FKGJtiY~3D",
-            @"clothes_0f0a401f.eRw7Wj969f~2BpD27BK~2FZ7DHRHZ14~3D",
-            @"clothesrecipesbytes.OLt~2BOQ4IWVhkbzurhciya6GXnoU~3D",
-            @"clothesslotoverlays.6NSQ2XCBi32h~2FZ072hBKOPWgjMc~3D",
-            @"clothessetid_ff0b2c80.ALjp2Q5YLAIk2inKSd~2F97bjNm9E~3D",
-            @"collectionemote_b0f7ddf9.ruXyNy2oV02EjLLwo0opXi~2BYgPI~3D",
-            @"collectionweapon_0a06ebc1.7IJ2~2FWIyOIz8QwH~2BvrL8n2oOlWI~3D",
-            @"gameassetbundles.Uq9GZIiGsLcjcj0JtQBPfvF22SQ~3D",
-            @"itemhotfix_90e164c0.Y4cPeTfuwnGf6yje8j1jebNjCeA~3D",
-            @"lochotfix.bHrijH~2Fa85tole6aa0VxWZxBO~2Bw~3D",
-            @"resconfhotupdate.sQAN5lHYts~2FR9i1ZKU4q07p1gwE~3D",
-        ];
-    }
-
-    return @[drag, fakeDame];
+    return @[drag];
 }
 
 // ── Tab 2: Định Vị Súng ─────────────────────────────────────
