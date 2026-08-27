@@ -125,7 +125,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     self.layer.cornerCurve  = kCACornerCurveContinuous;
     self.layer.borderWidth  = 1;
     self.layer.borderColor  = HUD_BORDER.CGColor;
-    self.clipsToBounds      = NO;  // cho phép shadow ngoài
+    self.clipsToBounds      = YES;  // clip nội dung vào rounded corner
 
     // ── Tinted glow bg (fade-in khi ON) ───────────────────
     _tileGlow = [[UIView alloc] init];
@@ -218,9 +218,12 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     [self refreshLanguage];
 
     // ── Auto-Layout ───────────────────────────────────────
-    // Tile height: 84pt cố định — UICollectionView sẽ dùng estimatedItemSize
+    // Tile height: 96pt priority High (750) — UIStackView FillEqually có thể override
+    // khi cần để 2 cột khớp nhau. UISwitch scale 0.72 → intrinsic ~37×22pt.
+    NSLayoutConstraint *hc = [self.heightAnchor constraintEqualToConstant:96];
+    hc.priority = UILayoutPriorityDefaultHigh;  // 750, không conflict với FillEqually
     [NSLayoutConstraint activateConstraints:@[
-        [self.heightAnchor constraintEqualToConstant:84],
+        hc,
 
         // tileGlow = full tile
         [_tileGlow.topAnchor    constraintEqualToAnchor:self.topAnchor],
@@ -228,49 +231,49 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
         [_tileGlow.trailingAnchor constraintEqualToAnchor:self.trailingAnchor],
         [_tileGlow.bottomAnchor constraintEqualToAnchor:self.bottomAnchor],
 
-        // LED dot: top-left
+        // LED dot: top-left, 10pt inset
         [_ledDot.leadingAnchor constraintEqualToAnchor:self.leadingAnchor constant:10],
-        [_ledDot.topAnchor     constraintEqualToAnchor:self.topAnchor     constant:10],
+        [_ledDot.topAnchor     constraintEqualToAnchor:self.topAnchor     constant:12],
         [_ledDot.widthAnchor   constraintEqualToConstant:7],
         [_ledDot.heightAnchor  constraintEqualToConstant:7],
 
-        // Icon: next to LED dot
-        [iconIV.leadingAnchor constraintEqualToAnchor:_ledDot.trailingAnchor constant:6],
+        // Icon: right of LED dot, same vertical center
+        [iconIV.leadingAnchor constraintEqualToAnchor:_ledDot.trailingAnchor constant:5],
         [iconIV.centerYAnchor constraintEqualToAnchor:_ledDot.centerYAnchor],
-        [iconIV.widthAnchor   constraintEqualToConstant:22],
-        [iconIV.heightAnchor  constraintEqualToConstant:22],
+        [iconIV.widthAnchor   constraintEqualToConstant:20],
+        [iconIV.heightAnchor  constraintEqualToConstant:20],
 
-        // Toggle: top-right
-        [_toggle.trailingAnchor constraintEqualToAnchor:self.trailingAnchor constant:-6],
-        [_toggle.centerYAnchor  constraintEqualToAnchor:_ledDot.centerYAnchor],
+        // Toggle: top-right, trailing -10 so scaled switch stays inside border
+        [_toggle.trailingAnchor constraintEqualToAnchor:self.trailingAnchor constant:-10],
+        [_toggle.topAnchor      constraintEqualToAnchor:self.topAnchor      constant:8],
 
-        // Status dot: left of toggle
-        [_statusDot.trailingAnchor constraintEqualToAnchor:_toggle.leadingAnchor constant:-4],
+        // Status dot: left of toggle, centered
+        [_statusDot.trailingAnchor constraintEqualToAnchor:_toggle.leadingAnchor constant:-2],
         [_statusDot.centerYAnchor  constraintEqualToAnchor:_toggle.centerYAnchor],
         [_statusDot.widthAnchor    constraintEqualToConstant:16],
 
-        // Spinner: overlaps status dot position
+        // Spinner: same position as status dot
         [_spinner.centerXAnchor constraintEqualToAnchor:_statusDot.centerXAnchor],
         [_spinner.centerYAnchor constraintEqualToAnchor:_statusDot.centerYAnchor],
 
-        // Title: below icon row
-        [titleLbl.leadingAnchor   constraintEqualToAnchor:self.leadingAnchor constant:10],
+        // Title: below icon row, full width with insets
+        [titleLbl.leadingAnchor   constraintEqualToAnchor:self.leadingAnchor  constant:10],
         [titleLbl.trailingAnchor  constraintEqualToAnchor:self.trailingAnchor constant:-10],
-        [titleLbl.topAnchor       constraintEqualToAnchor:iconIV.bottomAnchor constant:7],
+        [titleLbl.topAnchor       constraintEqualToAnchor:iconIV.bottomAnchor constant:6],
 
-        // Subtitle: below title
+        // Subtitle: directly below title
         [subLbl.leadingAnchor  constraintEqualToAnchor:titleLbl.leadingAnchor],
         [subLbl.trailingAnchor constraintEqualToAnchor:titleLbl.trailingAnchor],
         [subLbl.topAnchor      constraintEqualToAnchor:titleLbl.bottomAnchor constant:2],
     ]];
 
-    // Preview button: bottom-right nếu có
+    // Preview button: bottom-right nếu có — 26×26, 7pt inset
     if (_previewButton) {
         [NSLayoutConstraint activateConstraints:@[
-            [_previewButton.trailingAnchor constraintEqualToAnchor:self.trailingAnchor constant:-8],
-            [_previewButton.bottomAnchor   constraintEqualToAnchor:self.bottomAnchor  constant:-8],
-            [_previewButton.widthAnchor    constraintEqualToConstant:24],
-            [_previewButton.heightAnchor   constraintEqualToConstant:24],
+            [_previewButton.trailingAnchor constraintEqualToAnchor:self.trailingAnchor constant:-7],
+            [_previewButton.bottomAnchor   constraintEqualToAnchor:self.bottomAnchor  constant:-7],
+            [_previewButton.widthAnchor    constraintEqualToConstant:26],
+            [_previewButton.heightAnchor   constraintEqualToConstant:26],
         ]];
     }
 
@@ -1146,6 +1149,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
         UIStackView *rowStack = [[UIStackView alloc] init];
         rowStack.axis         = UILayoutConstraintAxisHorizontal;
         rowStack.distribution = UIStackViewDistributionFillEqually;
+        rowStack.alignment    = UIStackViewAlignmentFill;  // stretch to same height
         rowStack.spacing      = 8;
         rowStack.translatesAutoresizingMaskIntoConstraints = NO;
 
