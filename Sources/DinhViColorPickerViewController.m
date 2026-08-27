@@ -82,8 +82,6 @@ static NSString * const kSlotTitle[] = {
     UIScrollView *scroll = [UIScrollView new];
     scroll.translatesAutoresizingMaskIntoConstraints = NO;
     [self.view addSubview:scroll];
-    UIView *safe = self.view.safeAreaLayoutGuide.topAnchor.accessibilityElement
-        ? (UIView *)self.view : self.view;  // fallback
     [NSLayoutConstraint activateConstraints:@[
         [scroll.topAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.topAnchor],
         [scroll.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor],
