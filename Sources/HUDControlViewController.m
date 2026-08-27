@@ -33,6 +33,9 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 
 #pragma mark - Feature model
 
+@class HUDFeatureRow;
+@class HUDControlViewController;
+
 @interface HUDFeature : NSObject
 @property (nonatomic, copy)   NSString *symbol;
 @property (nonatomic, strong) UIColor  *tint;
