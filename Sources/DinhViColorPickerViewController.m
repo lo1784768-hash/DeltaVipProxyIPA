@@ -10,19 +10,22 @@
 #import "LanguageManager.h"
 #import "SecurityPinning.h"
 
+// ── Palette ───────────────────────────────────────────────────────────────────
+#define DV_BG       [UIColor colorWithRed:0.07 green:0.07 blue:0.10 alpha:1.0]
+#define DV_CARD     [UIColor colorWithRed:0.12 green:0.12 blue:0.17 alpha:1.0]
+#define DV_ACCENT   [UIColor colorWithRed:0.25 green:0.55 blue:1.00 alpha:1.0]
+#define DV_MUTED    [UIColor colorWithRed:0.55 green:0.58 blue:0.65 alpha:1.0]
+#define DV_INK      [UIColor colorWithRed:0.92 green:0.93 blue:0.95 alpha:1.0]
+#define DV_BORDER   [UIColor colorWithRed:0.25 green:0.27 blue:0.33 alpha:1.0]
+
 // ── Màu mặc định ──────────────────────────────────────────────────────────────
-static UIColor *kDefaultXray = nil;   // #111111
-static UIColor *kDefaultLine = nil;   // #FFFFFF
-static UIColor *kDefaultDim  = nil;   // #111111
+static UIColor *kDefaultXray = nil;
+static UIColor *kDefaultLine = nil;
+static UIColor *kDefaultDim  = nil;
 static const CGFloat kDefaultWidth     = 4.0f;
 static const CGFloat kDefaultXrayAlpha = 1.0f;
 
 typedef NS_ENUM(NSInteger, DVSlot) { DVSlotXray = 0, DVSlotLine, DVSlotDim, DVSlotCount };
-static NSString * const kSlotTitle[] = {
-    [DVSlotXray] = @"Màu súng (_XRayColor)",
-    [DVSlotLine] = @"Màu viền súng (_OutLineColor)",
-    [DVSlotDim]  = @"Màu keo (_DimColor)",
-};
 
 // ─────────────────────────────────────────────────────────────────────────────
 @interface DinhViColorPickerViewController () <UIColorPickerViewControllerDelegate>
@@ -31,12 +34,13 @@ static NSString * const kSlotTitle[] = {
 @property (nonatomic, assign) CGFloat lineWidth;
 
 @property (nonatomic, strong) NSMutableArray<UIButton *> *swatches;
-@property (nonatomic, strong) UISlider *alphaSlider;
-@property (nonatomic, strong) UISlider *widthSlider;
-@property (nonatomic, strong) UILabel  *alphaLabel;
-@property (nonatomic, strong) UILabel  *widthLabel;
-@property (nonatomic, strong) UIButton *applyButton;
+@property (nonatomic, strong) UISlider  *alphaSlider;
+@property (nonatomic, strong) UISlider  *widthSlider;
+@property (nonatomic, strong) UILabel   *alphaValueLabel;
+@property (nonatomic, strong) UILabel   *widthValueLabel;
+@property (nonatomic, strong) UIButton  *applyButton;
 @property (nonatomic, strong) UIActivityIndicatorView *spinner;
+@property (nonatomic, strong) UIView    *previewBar;
 
 @property (nonatomic, assign) DVSlot editingSlot;
 @end
@@ -56,7 +60,7 @@ static NSString * const kSlotTitle[] = {
                    searchRoot:(NSString *)searchRoot
                    completion:(DinhViColorCompletion)completion {
     DinhViColorPickerViewController *vc = [self new];
-    vc.game = game;
+    vc.game       = game;
     vc.searchRoot = searchRoot;
     vc.completion = completion;
     return vc;
@@ -64,16 +68,30 @@ static NSString * const kSlotTitle[] = {
 
 - (void)viewDidLoad {
     [super viewDidLoad];
-    _colors   = [@[kDefaultXray, kDefaultLine, kDefaultDim] mutableCopy];
+    _colors    = [@[kDefaultXray, kDefaultLine, kDefaultDim] mutableCopy];
     _xrayAlpha = kDefaultXrayAlpha;
     _lineWidth  = kDefaultWidth;
     _swatches   = [NSMutableArray array];
 
-    self.title = LS(@"Tùy chỉnh màu định vị", @"Customize Locator Colors");
-    self.view.backgroundColor = [UIColor systemGroupedBackgroundColor];
-    self.navigationItem.rightBarButtonItem = [[UIBarButtonItem alloc]
+    self.title = LS(@"Định Vị Súng Màu Tự Chọn", @"Custom Color Gun Locator");
+    self.view.backgroundColor = DV_BG;
+
+    // Navigation bar style
+    if (@available(iOS 13, *)) {
+        UINavigationBarAppearance *ap = [UINavigationBarAppearance new];
+        [ap configureWithOpaqueBackground];
+        ap.backgroundColor = DV_CARD;
+        ap.titleTextAttributes = @{ NSForegroundColorAttributeName: DV_INK };
+        self.navigationController.navigationBar.standardAppearance   = ap;
+        self.navigationController.navigationBar.scrollEdgeAppearance = ap;
+        self.navigationController.navigationBar.tintColor = DV_ACCENT;
+    }
+
+    UIBarButtonItem *closeBtn = [[UIBarButtonItem alloc]
         initWithBarButtonSystemItem:UIBarButtonSystemItemClose
                              target:self action:@selector(_close)];
+    self.navigationItem.rightBarButtonItem = closeBtn;
+
     [self _buildUI];
 }
 
@@ -81,6 +99,7 @@ static NSString * const kSlotTitle[] = {
 - (void)_buildUI {
     UIScrollView *scroll = [UIScrollView new];
     scroll.translatesAutoresizingMaskIntoConstraints = NO;
+    scroll.showsVerticalScrollIndicator = NO;
     [self.view addSubview:scroll];
     [NSLayoutConstraint activateConstraints:@[
         [scroll.topAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.topAnchor],
@@ -89,147 +108,331 @@ static NSString * const kSlotTitle[] = {
         [scroll.bottomAnchor constraintEqualToAnchor:self.view.bottomAnchor],
     ]];
 
-    UIStackView *stack = [UIStackView new];
-    stack.axis = UILayoutConstraintAxisVertical;
-    stack.spacing = 16;
-    stack.layoutMargins = UIEdgeInsetsMake(20, 20, 40, 20);
-    stack.layoutMarginsRelativeArrangement = YES;
-    stack.translatesAutoresizingMaskIntoConstraints = NO;
-    [scroll addSubview:stack];
+    UIStackView *root = [UIStackView new];
+    root.axis      = UILayoutConstraintAxisVertical;
+    root.spacing   = 14;
+    root.layoutMargins = UIEdgeInsetsMake(20, 16, 40, 16);
+    root.layoutMarginsRelativeArrangement = YES;
+    root.translatesAutoresizingMaskIntoConstraints = NO;
+    [scroll addSubview:root];
     [NSLayoutConstraint activateConstraints:@[
-        [stack.topAnchor constraintEqualToAnchor:scroll.contentLayoutGuide.topAnchor],
-        [stack.leadingAnchor constraintEqualToAnchor:scroll.contentLayoutGuide.leadingAnchor],
-        [stack.trailingAnchor constraintEqualToAnchor:scroll.contentLayoutGuide.trailingAnchor],
-        [stack.bottomAnchor constraintEqualToAnchor:scroll.contentLayoutGuide.bottomAnchor],
-        [stack.widthAnchor constraintEqualToAnchor:scroll.frameLayoutGuide.widthAnchor],
+        [root.topAnchor constraintEqualToAnchor:scroll.contentLayoutGuide.topAnchor],
+        [root.leadingAnchor constraintEqualToAnchor:scroll.contentLayoutGuide.leadingAnchor],
+        [root.trailingAnchor constraintEqualToAnchor:scroll.contentLayoutGuide.trailingAnchor],
+        [root.bottomAnchor constraintEqualToAnchor:scroll.contentLayoutGuide.bottomAnchor],
+        [root.widthAnchor constraintEqualToAnchor:scroll.frameLayoutGuide.widthAnchor],
     ]];
 
+    // ── Section: Màu ──────────────────────────────────────────────────────────
+    [root addArrangedSubview:[self _sectionLabel:LS(@"MÀU SẮC", @"COLORS")]];
+
+    UIView *colorCard = [self _card];
+    UIStackView *colorStack = [UIStackView new];
+    colorStack.axis    = UILayoutConstraintAxisVertical;
+    colorStack.spacing = 0;
+    colorStack.translatesAutoresizingMaskIntoConstraints = NO;
+    [colorCard addSubview:colorStack];
+    [NSLayoutConstraint activateConstraints:@[
+        [colorStack.topAnchor constraintEqualToAnchor:colorCard.topAnchor],
+        [colorStack.leadingAnchor constraintEqualToAnchor:colorCard.leadingAnchor],
+        [colorStack.trailingAnchor constraintEqualToAnchor:colorCard.trailingAnchor],
+        [colorStack.bottomAnchor constraintEqualToAnchor:colorCard.bottomAnchor],
+    ]];
+
+    NSArray *slotKeys = @[
+        LS(@"Màu súng", @"Gun color"),
+        LS(@"Màu viền súng", @"Outline color"),
+        LS(@"Màu keo", @"Dim color"),
+    ];
+    NSArray *slotSubs = @[
+        @"_XRayColor",
+        @"_OutLineColor",
+        @"_DimColor",
+    ];
+
     for (NSInteger i = 0; i < DVSlotCount; i++) {
-        [stack addArrangedSubview:[self _swatchRowForSlot:(DVSlot)i]];
-        [stack addArrangedSubview:[self _separator]];
+        UIView *row = [self _colorRowWithTitle:slotKeys[i]
+                                      subtitle:slotSubs[i]
+                                          slot:(DVSlot)i];
+        [colorStack addArrangedSubview:row];
+        if (i < DVSlotCount - 1) {
+            UIView *div = [UIView new];
+            div.backgroundColor = DV_BORDER;
+            div.translatesAutoresizingMaskIntoConstraints = NO;
+            [colorStack addArrangedSubview:div];
+            [div.heightAnchor constraintEqualToConstant:0.5].active = YES;
+        }
     }
+    [root addArrangedSubview:colorCard];
 
-    // Alpha slider
-    UIStackView *alphaCol = [UIStackView new];
-    alphaCol.axis = UILayoutConstraintAxisVertical; alphaCol.spacing = 6;
-    UILabel *alphaTitle = [UILabel new];
-    alphaTitle.text = LS(@"Độ đục màu súng (alpha)", @"Gun color opacity (alpha)");
-    alphaTitle.font = [UIFont systemFontOfSize:13]; alphaTitle.textColor = [UIColor secondaryLabelColor];
-    _alphaSlider = [UISlider new];
-    _alphaSlider.minimumValue = 0; _alphaSlider.maximumValue = 1; _alphaSlider.value = _xrayAlpha;
-    [_alphaSlider addTarget:self action:@selector(_alphaChanged:) forControlEvents:UIControlEventValueChanged];
-    _alphaLabel = [UILabel new];
-    _alphaLabel.font = [UIFont monospacedDigitSystemFontOfSize:12 weight:UIFontWeightRegular];
-    _alphaLabel.textColor = [UIColor secondaryLabelColor]; [self _updateAlphaLabel];
-    UIStackView *alphaRow = [[UIStackView alloc] initWithArrangedSubviews:@[_alphaSlider, _alphaLabel]];
-    alphaRow.spacing = 8; [_alphaLabel.widthAnchor constraintEqualToConstant:36].active = YES;
-    [alphaCol addArrangedSubview:alphaTitle]; [alphaCol addArrangedSubview:alphaRow];
-    [stack addArrangedSubview:alphaCol];
-    [stack addArrangedSubview:[self _separator]];
+    // ── Section: Thông số ─────────────────────────────────────────────────────
+    [root addArrangedSubview:[self _sectionLabel:LS(@"THÔNG SỐ", @"PARAMETERS")]];
 
-    // Width slider
-    UIStackView *widthCol = [UIStackView new];
-    widthCol.axis = UILayoutConstraintAxisVertical; widthCol.spacing = 6;
-    UILabel *widthTitle = [UILabel new];
-    widthTitle.text = LS(@"Độ dày viền (_OutLineWidth)", @"Outline width (_OutLineWidth)");
-    widthTitle.font = [UIFont systemFontOfSize:13]; widthTitle.textColor = [UIColor secondaryLabelColor];
-    _widthSlider = [UISlider new];
-    _widthSlider.minimumValue = 0; _widthSlider.maximumValue = 20; _widthSlider.value = _lineWidth;
-    [_widthSlider addTarget:self action:@selector(_widthChanged:) forControlEvents:UIControlEventValueChanged];
-    _widthLabel = [UILabel new];
-    _widthLabel.font = [UIFont monospacedDigitSystemFontOfSize:12 weight:UIFontWeightRegular];
-    _widthLabel.textColor = [UIColor secondaryLabelColor]; [self _updateWidthLabel];
-    UIStackView *widthRow = [[UIStackView alloc] initWithArrangedSubviews:@[_widthSlider, _widthLabel]];
-    widthRow.spacing = 8; [_widthLabel.widthAnchor constraintEqualToConstant:36].active = YES;
-    [widthCol addArrangedSubview:widthTitle]; [widthCol addArrangedSubview:widthRow];
-    [stack addArrangedSubview:widthCol];
-    [stack addArrangedSubview:[self _separator]];
+    UIView *paramCard = [self _card];
+    UIStackView *paramStack = [UIStackView new];
+    paramStack.axis    = UILayoutConstraintAxisVertical;
+    paramStack.spacing = 0;
+    paramStack.translatesAutoresizingMaskIntoConstraints = NO;
+    [paramCard addSubview:paramStack];
+    [NSLayoutConstraint activateConstraints:@[
+        [paramStack.topAnchor constraintEqualToAnchor:paramCard.topAnchor],
+        [paramStack.leadingAnchor constraintEqualToAnchor:paramCard.leadingAnchor],
+        [paramStack.trailingAnchor constraintEqualToAnchor:paramCard.trailingAnchor],
+        [paramStack.bottomAnchor constraintEqualToAnchor:paramCard.bottomAnchor],
+    ]];
 
-    // Preview strip
-    [stack addArrangedSubview:[self _previewStrip]];
+    // Alpha slider row
+    _alphaValueLabel = [UILabel new];
+    _alphaValueLabel.font = [UIFont monospacedDigitSystemFontOfSize:13 weight:UIFontWeightMedium];
+    _alphaValueLabel.textColor = DV_ACCENT;
+    [self _updateAlphaLabel];
+    _alphaSlider = [self _sliderMin:0 max:1 value:_xrayAlpha action:@selector(_alphaChanged:)];
 
-    // Áp dụng button
-    UIButton *btn = [UIButton buttonWithType:UIButtonTypeSystem];
-    [btn setTitle:LS(@"Áp dụng", @"Apply") forState:UIControlStateNormal];
-    btn.titleLabel.font = [UIFont boldSystemFontOfSize:17];
-    btn.backgroundColor = [UIColor systemBlueColor];
-    [btn setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal];
-    btn.layer.cornerRadius = 12; btn.layer.masksToBounds = YES;
+    [paramStack addArrangedSubview:[self _sliderRowTitle:LS(@"Độ đục màu súng", @"Gun opacity")
+                                                subtitle:@"alpha"
+                                                  slider:_alphaSlider
+                                              valueLabel:_alphaValueLabel]];
+
+    UIView *paramDiv = [UIView new];
+    paramDiv.backgroundColor = DV_BORDER;
+    paramDiv.translatesAutoresizingMaskIntoConstraints = NO;
+    [paramStack addArrangedSubview:paramDiv];
+    [paramDiv.heightAnchor constraintEqualToConstant:0.5].active = YES;
+
+    // Width slider row
+    _widthValueLabel = [UILabel new];
+    _widthValueLabel.font = [UIFont monospacedDigitSystemFontOfSize:13 weight:UIFontWeightMedium];
+    _widthValueLabel.textColor = DV_ACCENT;
+    [self _updateWidthLabel];
+    _widthSlider = [self _sliderMin:0 max:20 value:_lineWidth action:@selector(_widthChanged:)];
+
+    [paramStack addArrangedSubview:[self _sliderRowTitle:LS(@"Độ dày viền", @"Outline width")
+                                                subtitle:@"_OutLineWidth"
+                                                  slider:_widthSlider
+                                              valueLabel:_widthValueLabel]];
+    [root addArrangedSubview:paramCard];
+
+    // ── Preview bar ───────────────────────────────────────────────────────────
+    [root addArrangedSubview:[self _sectionLabel:LS(@"XEM TRƯỚC", @"PREVIEW")]];
+    _previewBar = [self _buildPreviewBar];
+    [root addArrangedSubview:_previewBar];
+
+    // ── Apply button ──────────────────────────────────────────────────────────
+    UIButton *btn = [UIButton buttonWithType:UIButtonTypeCustom];
     btn.translatesAutoresizingMaskIntoConstraints = NO;
+    [btn setTitle:LS(@"Áp dụng", @"Apply") forState:UIControlStateNormal];
+    btn.titleLabel.font = [UIFont boldSystemFontOfSize:16];
+    [btn setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal];
+    [btn setTitleColor:[[UIColor whiteColor] colorWithAlphaComponent:0.5] forState:UIControlStateDisabled];
+
+    // Gradient background
+    CAGradientLayer *grad = [CAGradientLayer layer];
+    grad.colors = @[
+        (id)[UIColor colorWithRed:0.18 green:0.48 blue:1.00 alpha:1.0].CGColor,
+        (id)[UIColor colorWithRed:0.10 green:0.32 blue:0.90 alpha:1.0].CGColor,
+    ];
+    grad.startPoint = CGPointMake(0, 0);
+    grad.endPoint   = CGPointMake(1, 1);
+    grad.cornerRadius = 14;
+    grad.frame = CGRectMake(0, 0, 300, 52); // estimado, se actualiza en layoutSubviews
+    [btn.layer insertSublayer:grad atIndex:0];
+
+    btn.layer.cornerRadius = 14;
+    btn.layer.masksToBounds = YES;
+    [btn.heightAnchor constraintEqualToConstant:52].active = YES;
     [btn addTarget:self action:@selector(_apply) forControlEvents:UIControlEventTouchUpInside];
-    [btn.heightAnchor constraintEqualToConstant:50].active = YES;
     self.applyButton = btn;
 
     if (@available(iOS 13, *))
         _spinner = [[UIActivityIndicatorView alloc] initWithActivityIndicatorStyle:UIActivityIndicatorViewStyleMedium];
     else
-        _spinner = [[UIActivityIndicatorView alloc] initWithActivityIndicatorStyle:UIActivityIndicatorViewStyleGray];
+        _spinner = [[UIActivityIndicatorView alloc] initWithActivityIndicatorStyle:UIActivityIndicatorViewStyleWhite];
+    _spinner.color = [UIColor whiteColor];
     _spinner.translatesAutoresizingMaskIntoConstraints = NO;
     [btn addSubview:_spinner];
     [NSLayoutConstraint activateConstraints:@[
         [_spinner.centerYAnchor constraintEqualToAnchor:btn.centerYAnchor],
         [_spinner.trailingAnchor constraintEqualToAnchor:btn.trailingAnchor constant:-16],
     ]];
-    [stack addArrangedSubview:btn];
+
+    [root addArrangedSubview:btn];
 }
 
-- (UIView *)_swatchRowForSlot:(DVSlot)slot {
-    UIView *row = [UIView new];
-    UILabel *lbl = [UILabel new];
-    lbl.text = kSlotTitle[slot];
-    lbl.font = [UIFont systemFontOfSize:14];
-    lbl.translatesAutoresizingMaskIntoConstraints = NO;
-    [row addSubview:lbl];
+// ─── Helpers UI ───────────────────────────────────────────────────────────────
 
+- (UIView *)_sectionLabel:(NSString *)text {
+    UILabel *lbl = [UILabel new];
+    NSMutableAttributedString *as = [[NSMutableAttributedString alloc] initWithString:text
+        attributes:@{
+            NSFontAttributeName: [UIFont systemFontOfSize:11 weight:UIFontWeightSemibold],
+            NSForegroundColorAttributeName: DV_MUTED,
+            NSKernAttributeName: @(0.8),
+        }];
+    lbl.attributedText = as;
+    lbl.translatesAutoresizingMaskIntoConstraints = NO;
+    UIView *wrap = [UIView new];
+    wrap.translatesAutoresizingMaskIntoConstraints = NO;
+    [wrap addSubview:lbl];
+    [NSLayoutConstraint activateConstraints:@[
+        [lbl.leadingAnchor constraintEqualToAnchor:wrap.leadingAnchor constant:4],
+        [lbl.topAnchor constraintEqualToAnchor:wrap.topAnchor],
+        [lbl.bottomAnchor constraintEqualToAnchor:wrap.bottomAnchor],
+        [lbl.trailingAnchor constraintLessThanOrEqualToAnchor:wrap.trailingAnchor],
+    ]];
+    return wrap;
+}
+
+- (UIView *)_card {
+    UIView *v = [UIView new];
+    v.backgroundColor     = DV_CARD;
+    v.layer.cornerRadius  = 14;
+    v.layer.masksToBounds = YES;
+    v.translatesAutoresizingMaskIntoConstraints = NO;
+    return v;
+}
+
+- (UIView *)_colorRowWithTitle:(NSString *)title subtitle:(NSString *)sub slot:(DVSlot)slot {
+    UIView *row = [UIView new];
+    row.translatesAutoresizingMaskIntoConstraints = NO;
+
+    // Title
+    UILabel *titleLbl = [UILabel new];
+    titleLbl.text = title;
+    titleLbl.font = [UIFont systemFontOfSize:15 weight:UIFontWeightMedium];
+    titleLbl.textColor = DV_INK;
+    titleLbl.translatesAutoresizingMaskIntoConstraints = NO;
+
+    // Subtitle (property name)
+    UILabel *subLbl = [UILabel new];
+    subLbl.text = sub;
+    subLbl.font = [UIFont monospacedSystemFontOfSize:11 weight:UIFontWeightRegular];
+    subLbl.textColor = DV_MUTED;
+    subLbl.translatesAutoresizingMaskIntoConstraints = NO;
+
+    // Swatch button
     UIButton *swatch = [UIButton buttonWithType:UIButtonTypeCustom];
     swatch.translatesAutoresizingMaskIntoConstraints = NO;
-    swatch.layer.cornerRadius = 8; swatch.layer.masksToBounds = YES;
-    swatch.layer.borderWidth = 1.5; swatch.layer.borderColor = [UIColor separatorColor].CGColor;
     swatch.backgroundColor = self.colors[slot];
+    swatch.layer.cornerRadius = 10;
+    swatch.layer.masksToBounds = YES;
+    swatch.layer.borderWidth = 2;
+    swatch.layer.borderColor = DV_BORDER.CGColor;
     swatch.tag = slot;
     [swatch addTarget:self action:@selector(_swatchTapped:) forControlEvents:UIControlEventTouchUpInside];
-    [row addSubview:swatch];
     [self.swatches addObject:swatch];
 
+    UIStackView *labelStack = [[UIStackView alloc] initWithArrangedSubviews:@[titleLbl, subLbl]];
+    labelStack.axis    = UILayoutConstraintAxisVertical;
+    labelStack.spacing = 2;
+    labelStack.translatesAutoresizingMaskIntoConstraints = NO;
+
+    [row addSubview:labelStack];
+    [row addSubview:swatch];
+
     [NSLayoutConstraint activateConstraints:@[
-        [row.heightAnchor constraintEqualToConstant:44],
-        [lbl.leadingAnchor constraintEqualToAnchor:row.leadingAnchor],
-        [lbl.centerYAnchor constraintEqualToAnchor:row.centerYAnchor],
-        [swatch.trailingAnchor constraintEqualToAnchor:row.trailingAnchor],
+        [row.heightAnchor constraintEqualToConstant:60],
+        [labelStack.leadingAnchor constraintEqualToAnchor:row.leadingAnchor constant:16],
+        [labelStack.centerYAnchor constraintEqualToAnchor:row.centerYAnchor],
+        [swatch.trailingAnchor constraintEqualToAnchor:row.trailingAnchor constant:-16],
         [swatch.centerYAnchor constraintEqualToAnchor:row.centerYAnchor],
-        [swatch.widthAnchor constraintEqualToConstant:44],
-        [swatch.heightAnchor constraintEqualToConstant:32],
-        [lbl.trailingAnchor constraintLessThanOrEqualToAnchor:swatch.leadingAnchor constant:-8],
+        [swatch.widthAnchor constraintEqualToConstant:40],
+        [swatch.heightAnchor constraintEqualToConstant:40],
+        [labelStack.trailingAnchor constraintLessThanOrEqualToAnchor:swatch.leadingAnchor constant:-12],
+    ]];
+
+    return row;
+}
+
+- (UISlider *)_sliderMin:(float)mn max:(float)mx value:(float)val action:(SEL)action {
+    UISlider *sl = [UISlider new];
+    sl.minimumValue = mn;
+    sl.maximumValue = mx;
+    sl.value = val;
+    sl.minimumTrackTintColor = DV_ACCENT;
+    sl.translatesAutoresizingMaskIntoConstraints = NO;
+    [sl addTarget:self action:action forControlEvents:UIControlEventValueChanged];
+    return sl;
+}
+
+- (UIView *)_sliderRowTitle:(NSString *)title subtitle:(NSString *)sub
+                     slider:(UISlider *)slider valueLabel:(UILabel *)valLbl {
+    UIView *row = [UIView new];
+    row.translatesAutoresizingMaskIntoConstraints = NO;
+
+    UILabel *titleLbl = [UILabel new];
+    titleLbl.text = title;
+    titleLbl.font = [UIFont systemFontOfSize:15 weight:UIFontWeightMedium];
+    titleLbl.textColor = DV_INK;
+    titleLbl.translatesAutoresizingMaskIntoConstraints = NO;
+
+    UILabel *subLbl = [UILabel new];
+    subLbl.text = sub;
+    subLbl.font = [UIFont monospacedSystemFontOfSize:11 weight:UIFontWeightRegular];
+    subLbl.textColor = DV_MUTED;
+    subLbl.translatesAutoresizingMaskIntoConstraints = NO;
+
+    valLbl.translatesAutoresizingMaskIntoConstraints = NO;
+    [valLbl.widthAnchor constraintGreaterThanOrEqualToConstant:38].active = YES;
+
+    UIStackView *sliderRow = [[UIStackView alloc] initWithArrangedSubviews:@[slider, valLbl]];
+    sliderRow.spacing = 10;
+    sliderRow.alignment = UIStackViewAlignmentCenter;
+    sliderRow.translatesAutoresizingMaskIntoConstraints = NO;
+
+    UIStackView *inner = [[UIStackView alloc] initWithArrangedSubviews:@[titleLbl, subLbl, sliderRow]];
+    inner.axis    = UILayoutConstraintAxisVertical;
+    inner.spacing = 4;
+    inner.translatesAutoresizingMaskIntoConstraints = NO;
+
+    [row addSubview:inner];
+    [NSLayoutConstraint activateConstraints:@[
+        [inner.topAnchor constraintEqualToAnchor:row.topAnchor constant:14],
+        [inner.leadingAnchor constraintEqualToAnchor:row.leadingAnchor constant:16],
+        [inner.trailingAnchor constraintEqualToAnchor:row.trailingAnchor constant:-16],
+        [inner.bottomAnchor constraintEqualToAnchor:row.bottomAnchor constant:-14],
     ]];
     return row;
 }
 
-- (UIView *)_previewStrip {
-    UIView *strip = [UIView new];
-    strip.layer.cornerRadius = 6; strip.layer.masksToBounds = YES;
-    strip.translatesAutoresizingMaskIntoConstraints = NO;
-    [strip.heightAnchor constraintEqualToConstant:20].active = YES;
-    UIStackView *sv = [[UIStackView alloc] init];
-    sv.distribution = UIStackViewDistributionFillEqually;
-    sv.translatesAutoresizingMaskIntoConstraints = NO;
+- (UIView *)_buildPreviewBar {
+    UIView *card = [self _card];
+    card.clipsToBounds = YES;
+
+    // 3-segment color band
+    UIStackView *band = [UIStackView new];
+    band.distribution = UIStackViewDistributionFillEqually;
+    band.translatesAutoresizingMaskIntoConstraints = NO;
+
     for (NSInteger i = 0; i < DVSlotCount; i++) {
         UIView *seg = [UIView new];
         seg.backgroundColor = self.colors[i];
         seg.tag = 100 + i;
-        [sv addArrangedSubview:seg];
+        [band addArrangedSubview:seg];
     }
-    [strip addSubview:sv];
-    sv.frame = strip.bounds;
-    sv.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
-    strip.tag = 999;
-    return strip;
-}
 
-- (UIView *)_separator {
-    UIView *v = [UIView new];
-    v.backgroundColor = [UIColor separatorColor];
-    [v.heightAnchor constraintEqualToConstant:0.5].active = YES;
-    return v;
+    // Label overlay
+    UILabel *hint = [UILabel new];
+    hint.text = LS(@"Xem trước màu", @"Color preview");
+    hint.font = [UIFont systemFontOfSize:11 weight:UIFontWeightMedium];
+    hint.textColor = [[UIColor whiteColor] colorWithAlphaComponent:0.7];
+    hint.textAlignment = NSTextAlignmentCenter;
+    hint.translatesAutoresizingMaskIntoConstraints = NO;
+
+    [card addSubview:band];
+    [card addSubview:hint];
+
+    [NSLayoutConstraint activateConstraints:@[
+        [band.topAnchor constraintEqualToAnchor:card.topAnchor],
+        [band.leadingAnchor constraintEqualToAnchor:card.leadingAnchor],
+        [band.trailingAnchor constraintEqualToAnchor:card.trailingAnchor],
+        [band.heightAnchor constraintEqualToConstant:48],
+        [band.bottomAnchor constraintEqualToAnchor:card.bottomAnchor],
+        [hint.centerXAnchor constraintEqualToAnchor:card.centerXAnchor],
+        [hint.centerYAnchor constraintEqualToAnchor:card.centerYAnchor],
+    ]];
+
+    card.tag = 999;
+    return card;
 }
 
 // ─── Actions ──────────────────────────────────────────────────────────────────
@@ -238,16 +441,33 @@ static NSString * const kSlotTitle[] = {
     UIColorPickerViewController *picker = [UIColorPickerViewController new];
     picker.selectedColor = self.colors[self.editingSlot];
     picker.supportsAlpha = NO;
-    picker.delegate = self;
-    picker.title = kSlotTitle[self.editingSlot];
+    picker.delegate      = self;
+    NSArray *names = @[
+        LS(@"Màu súng", @"Gun color"),
+        LS(@"Màu viền súng", @"Outline color"),
+        LS(@"Màu keo", @"Dim color"),
+    ];
+    picker.title = names[self.editingSlot];
     [self presentViewController:picker animated:YES completion:nil];
 }
 
-- (void)_alphaChanged:(UISlider *)sl { _xrayAlpha = sl.value; [self _updateAlphaLabel]; }
-- (void)_widthChanged:(UISlider *)sl { _lineWidth  = sl.value; [self _updateWidthLabel]; }
-- (void)_updateAlphaLabel { _alphaLabel.text = [NSString stringWithFormat:@"%.2f", _xrayAlpha]; }
-- (void)_updateWidthLabel { _widthLabel.text = [NSString stringWithFormat:@"%.1f", _lineWidth]; }
-- (void)_close { [self dismissViewControllerAnimated:YES completion:nil]; }
+- (void)_alphaChanged:(UISlider *)sl {
+    _xrayAlpha = sl.value;
+    [self _updateAlphaLabel];
+}
+- (void)_widthChanged:(UISlider *)sl {
+    _lineWidth = sl.value;
+    [self _updateWidthLabel];
+}
+- (void)_updateAlphaLabel {
+    _alphaValueLabel.text = [NSString stringWithFormat:@"%.2f", _xrayAlpha];
+}
+- (void)_updateWidthLabel {
+    _widthValueLabel.text = [NSString stringWithFormat:@"%.1f", _lineWidth];
+}
+- (void)_close {
+    [self dismissViewControllerAnimated:YES completion:nil];
+}
 
 // ─── UIColorPickerViewControllerDelegate ─────────────────────────────────────
 - (void)colorPickerViewControllerDidFinish:(UIColorPickerViewController *)vc {
@@ -259,8 +479,14 @@ static NSString * const kSlotTitle[] = {
     NSInteger slot = self.editingSlot;
     self.colors[slot] = color;
     self.swatches[slot].backgroundColor = color;
-    UIView *strip = [self.view viewWithTag:999];
-    [[strip viewWithTag:100 + slot] setBackgroundColor:color];
+
+    // Update preview bar segment
+    UIView *bar = [self.view viewWithTag:999];
+    UIStackView *band = (UIStackView *)bar.subviews.firstObject;
+    if ([band isKindOfClass:[UIStackView class]]) {
+        UIView *seg = band.arrangedSubviews[slot];
+        seg.backgroundColor = color;
+    }
 }
 
 // ─── Áp dụng ─────────────────────────────────────────────────────────────────
@@ -273,7 +499,6 @@ static NSString * const kSlotTitle[] = {
     NSString *lineHex = [self _hexFromColor:self.colors[DVSlotLine]];
     NSString *dimHex  = [self _hexFromColor:self.colors[DVSlotDim]];
 
-    // Tên file shader (để AutoPasteManager tìm & ghi đè)
     NSString *shaderFileName = [self.game isEqualToString:@"max"]
         ? @"shaders.RXqs706xmtWYhbN9TqDzP8LDRzk~3D"
         : @"shaders.HPt9DZviTSXL9hpGW9QNOMigNLA~3D";
