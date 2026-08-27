@@ -93,15 +93,17 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 // HUDFeatureRow = alias cho HUDFeatureTile để không phải đổi handleRow: và mọi call-site
 @interface HUDFeatureRow : UIView
 @property (nonatomic, strong) HUDFeature *feature;
-@property (nonatomic, strong) UISwitch   *toggle;
+@property (nonatomic, assign) BOOL        isOn;      // replaces UISwitch — tap tile để toggle
 @property (nonatomic, strong) UIActivityIndicatorView *spinner;
 @property (nonatomic, strong) UILabel    *statusDot;
 @property (nonatomic, strong) UIButton   *previewButton;
 @property (nonatomic, strong) UILabel    *rowTitleLabel;
 @property (nonatomic, strong) UILabel    *rowSubtitleLabel;
+@property (nonatomic, assign) BOOL        isLoading;
 @property (nonatomic, copy)   void (^onChanged)(HUDFeatureRow *row, BOOL isOn);
 @property (nonatomic, copy)   void (^onPreviewTapped)(void);
 - (instancetype)initWithFeature:(HUDFeature *)feature;
+- (void)setOn:(BOOL)on animated:(BOOL)animated;  // compat shim cho call-site cũ
 - (void)setLoading:(BOOL)loading;
 - (void)showResult:(BOOL)success;
 - (void)setActive:(BOOL)active;
@@ -111,6 +113,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 @implementation HUDFeatureRow {
     UIView *_ledDot;       // LED status indicator (top-left)
     UIView *_tileGlow;     // full-tile tinted background khi ON
+    BOOL    _loadingLock;  // block tap khi đang loading
 }
 
 - (instancetype)initWithFeature:(HUDFeature *)feature {
@@ -153,14 +156,11 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     iconIV.translatesAutoresizingMaskIntoConstraints = NO;
     [self addSubview:iconIV];
 
-    // ── Toggle (top-right) ────────────────────────────────
-    // Không scale UISwitch — scale lệch touch area và trông không cân.
-    // UISwitch iOS native intrinsic = 51×31pt, đặt vào tile 96pt là vừa.
-    _toggle = [[UISwitch alloc] init];
-    _toggle.onTintColor  = feature.tint;
-    _toggle.translatesAutoresizingMaskIntoConstraints = NO;
-    [_toggle addTarget:self action:@selector(switchChanged) forControlEvents:UIControlEventValueChanged];
-    [self addSubview:_toggle];
+    // ── Tap gesture: ấn cả tile để toggle ON/OFF ─────────
+    UITapGestureRecognizer *tap = [[UITapGestureRecognizer alloc]
+        initWithTarget:self action:@selector(tileTapped)];
+    [self addGestureRecognizer:tap];
+    self.userInteractionEnabled = YES;
 
     // ── Title ─────────────────────────────────────────────
     UILabel *titleLbl = [[UILabel alloc] init];
@@ -220,7 +220,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 
     // ── Auto-Layout ───────────────────────────────────────
     // Tile height: 96pt priority High (750) — UIStackView FillEqually có thể override
-    // khi cần để 2 cột khớp nhau. UISwitch scale 0.72 → intrinsic ~37×22pt.
+    // khi cần để 2 cột cùng chiều cao. Tap toàn tile để toggle (không có UISwitch).
     NSLayoutConstraint *hc = [self.heightAnchor constraintEqualToConstant:96];
     hc.priority = UILayoutPriorityDefaultHigh;  // 750, không conflict với FillEqually
     [NSLayoutConstraint activateConstraints:@[
@@ -244,24 +244,19 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
         [iconIV.widthAnchor   constraintEqualToConstant:20],
         [iconIV.heightAnchor  constraintEqualToConstant:20],
 
-        // Toggle: top-right, căn centerY với icon row
-        // UISwitch intrinsic 51×31pt — trailing -8 đủ inset, top căn với LED/icon
-        [_toggle.trailingAnchor constraintEqualToAnchor:self.trailingAnchor constant:-8],
-        [_toggle.centerYAnchor  constraintEqualToAnchor:_ledDot.centerYAnchor],
-
-        // Status dot: left of toggle, centered
-        [_statusDot.trailingAnchor constraintEqualToAnchor:_toggle.leadingAnchor constant:-2],
-        [_statusDot.centerYAnchor  constraintEqualToAnchor:_toggle.centerYAnchor],
+        // Status dot: top-right (✓/✕ feedback, ẩn lúc bình thường)
+        [_statusDot.trailingAnchor constraintEqualToAnchor:self.trailingAnchor constant:-10],
+        [_statusDot.topAnchor      constraintEqualToAnchor:self.topAnchor      constant:10],
         [_statusDot.widthAnchor    constraintEqualToConstant:16],
 
-        // Spinner: same position as status dot
+        // Spinner: đè lên status dot
         [_spinner.centerXAnchor constraintEqualToAnchor:_statusDot.centerXAnchor],
         [_spinner.centerYAnchor constraintEqualToAnchor:_statusDot.centerYAnchor],
 
-        // Title: below icon row, full width with insets
+        // Title: below icon row, full width
         [titleLbl.leadingAnchor   constraintEqualToAnchor:self.leadingAnchor  constant:10],
         [titleLbl.trailingAnchor  constraintEqualToAnchor:self.trailingAnchor constant:-10],
-        [titleLbl.topAnchor       constraintEqualToAnchor:iconIV.bottomAnchor constant:6],
+        [titleLbl.topAnchor       constraintEqualToAnchor:iconIV.bottomAnchor constant:7],
 
         // Subtitle: directly below title
         [subLbl.leadingAnchor  constraintEqualToAnchor:titleLbl.leadingAnchor],
@@ -282,9 +277,30 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     return self;
 }
 
-- (void)switchChanged {
+- (void)tileTapped {
     if (![SecurityGuard isEnvironmentTrusted]) { [SecurityGuard bailOut]; return; }
-    if (self.onChanged) self.onChanged(self, self.toggle.isOn);
+    if (_loadingLock) return;  // đang xử lý, bỏ qua tap
+    self.isOn = !self.isOn;
+    [self setActive:self.isOn];
+    // Haptic nhẹ khi tap
+    UIImpactFeedbackGenerator *gen = [[UIImpactFeedbackGenerator alloc]
+        initWithStyle:UIImpactFeedbackStyleLight];
+    [gen impactOccurred];
+    if (self.onChanged) self.onChanged(self, self.isOn);
+}
+
+// Compat shim: call-site cũ dùng [row setOn:NO animated:YES]
+// → thay bằng [row setOn:NO animated:YES]
+- (void)setOn:(BOOL)on animated:(BOOL)animated {
+    self.isOn = on;
+    if (animated) {
+        [self setActive:on];
+    } else {
+        [CATransaction begin];
+        [CATransaction setDisableActions:YES];
+        [self setActive:on];
+        [CATransaction commit];
+    }
 }
 
 - (void)previewTapped {
@@ -306,12 +322,16 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 }
 
 - (void)setLoading:(BOOL)loading {
-    self.toggle.enabled = !loading;
+    _loadingLock = loading;  // block tap khi đang xử lý
+    self.isLoading = loading;
     if (loading) {
         self.statusDot.text = @"";
         [self.spinner startAnimating];
+        // Dim tile nhẹ khi loading
+        [UIView animateWithDuration:0.15 animations:^{ self.alpha = 0.65; }];
     } else {
         [self.spinner stopAnimating];
+        [UIView animateWithDuration:0.15 animations:^{ self.alpha = 1.0; }];
     }
 }
 
@@ -1561,7 +1581,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
             dispatch_async(dispatch_get_main_queue(), ^{
                 [row setLoading:NO];
                 [row showResult:success];
-                if (!success) { [row.toggle setOn:NO animated:YES]; [row setActive:NO]; }
+                if (!success) { [row setOn:NO animated:YES]; [row setActive:NO]; }
                 [weakSelf setStatus:msg color:(success ? HUD_GREEN : HUD_RED)];
             });
         }];
@@ -1593,7 +1613,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
             dispatch_async(dispatch_get_main_queue(), ^{
                 [row setLoading:NO];
                 [row showResult:success];
-                if (!success) { [row.toggle setOn:NO animated:YES]; [row setActive:NO]; }
+                if (!success) { [row setOn:NO animated:YES]; [row setActive:NO]; }
                 [weakSelf setStatus:msg color:(success ? HUD_GREEN : HUD_RED)];
             });
         }];
@@ -1768,7 +1788,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 
     // Chống can thiệp: môi trường bị Frida/tiêm/debug thì khoá mod
     if (![SecurityGuard isEnvironmentTrusted]) {
-        [row.toggle setOn:!isOn animated:YES];
+        [row setOn:!isOn animated:YES];
         [row setActive:NO];
         [self setStatus:LS(@"⛔ Phát hiện can thiệp — đã khoá chức năng",
                           @"⛔ Tampering detected — feature locked") color:HUD_RED];
@@ -1777,7 +1797,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 
     // Khoá chức năng sau license key hợp lệ (đã bind đúng máy)
     if ([KeyManager shared].state != KeyStateActive) {
-        [row.toggle setOn:!isOn animated:YES];
+        [row setOn:!isOn animated:YES];
         [row setActive:NO];
         NSString *msg = ([KeyManager shared].state == KeyStateExpired)
             ? LS(@"🔒 Key đã hết hạn — vui lòng gia hạn", @"🔒 Key expired — please renew")
@@ -1789,7 +1809,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     }
 
     if (!f.configured) {
-        [row.toggle setOn:!isOn animated:YES];
+        [row setOn:!isOn animated:YES];
         [row setActive:NO];
         [row showResult:NO];
         [self setStatus:[NSString stringWithFormat:LS(@"🔧 %@ đang Bảo Trì", @"🔧 %@ under maintenance"), f.title] color:HUD_ORANGE];
@@ -1804,8 +1824,8 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
         for (HUDFeatureRow *other in self.rows) {
             if (other != row && other.feature.exclusive
                 && [other.feature.exclusiveGroup isEqualToString:f.exclusiveGroup]
-                && other.toggle.isOn) {
-                [other.toggle setOn:NO animated:YES];   // programmatic → không kích hoạt paste
+                && other.isOn) {
+                [other setOn:NO animated:YES];   // programmatic → không kích hoạt paste
                 [other setActive:NO];
                 other.statusDot.text = @"";
             }
@@ -1892,7 +1912,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
                     dispatch_async(dispatch_get_main_queue(), ^{
                         [row setLoading:NO];
                         [row showResult:NO];
-                        [row.toggle setOn:NO animated:YES];
+                        [row setOn:NO animated:YES];
                         [row setActive:NO];
                         [weakSelf setStatus:message color:HUD_RED];
                         UINotificationFeedbackGenerator *nfb = [[UINotificationFeedbackGenerator alloc] init];
@@ -1916,7 +1936,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
                                         completion:^(BOOL success, NSString *message) {
         [row setLoading:NO];
         [row showResult:success];
-        if (!success) { [row.toggle setOn:NO animated:YES]; [row setActive:NO]; }
+        if (!success) { [row setOn:NO animated:YES]; [row setActive:NO]; }
         NSString *statusText;
         if (success) {
             statusText = isOn
