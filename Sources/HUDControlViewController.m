@@ -53,6 +53,8 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 @property (nonatomic, copy)   NSString *previewImageURL;  // nil = không có nút xem ảnh
 // customAction: nếu set thì khi toggle ON sẽ mở UI riêng thay vì gọi AutoPasteManager
 @property (nonatomic, copy)   void (^customAction)(HUDFeatureRow *row, HUDControlViewController *vc, NSString *game);
+// restoreFileName: nếu set, khi toggle OFF sẽ dán lại file gốc (mode=goc) thay vì không làm gì
+@property (nonatomic, copy)   NSString *restoreFileName;
 @property (nonatomic, readonly) BOOL configured;
 @end
 
@@ -1462,10 +1464,11 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     dvCustomTH.subtitle   = @"Tùy Chỉnh Màu X-Ray & Viền Súng";
     dvCustomTH.enTitle    = @"Custom Color Gun Locator";
     dvCustomTH.enSubtitle = @"Customize X-Ray & Outline Colors";
-    dvCustomTH.featureKey = kTH(@"dinhvi_custom");
-    dvCustomTH.fileName   = nil;
-    dvCustomTH.searchRoot = rtTH;
-    dvCustomTH.exclusive  = NO;
+    dvCustomTH.featureKey       = kTH(@"dinhvi_custom");
+    dvCustomTH.fileName         = nil;
+    dvCustomTH.restoreFileName  = @"shaders.HPt9DZviTSXL9hpGW9QNOMigNLA~3D";
+    dvCustomTH.searchRoot       = rtTH;
+    dvCustomTH.exclusive        = NO;
     __weak typeof(self) weakSelf = self;
     dvCustomTH.customAction = ^(HUDFeatureRow *row, HUDControlViewController *vc, NSString *game) {
         DinhViColorPickerViewController *picker =
@@ -1494,10 +1497,11 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     dvCustomMax.subtitle   = @"Tùy Chỉnh Màu X-Ray & Viền Súng";
     dvCustomMax.enTitle    = @"Custom Color Gun Locator";
     dvCustomMax.enSubtitle = @"Customize X-Ray & Outline Colors";
-    dvCustomMax.featureKey = kMax(@"dinhvi_custom");
-    dvCustomMax.fileName   = nil;
-    dvCustomMax.searchRoot = rtMax;
-    dvCustomMax.exclusive  = NO;
+    dvCustomMax.featureKey       = kMax(@"dinhvi_custom");
+    dvCustomMax.fileName         = nil;
+    dvCustomMax.restoreFileName  = @"shaders.RXqs706xmtWYhbN9TqDzP8LDRzk~3D";
+    dvCustomMax.searchRoot       = rtMax;
+    dvCustomMax.exclusive        = NO;
     dvCustomMax.customAction = ^(HUDFeatureRow *row, HUDControlViewController *vc, NSString *game) {
         DinhViColorPickerViewController *picker =
             [DinhViColorPickerViewController pickerForGame:@"max"
@@ -1729,7 +1733,31 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 
     // ── customAction: mở UI riêng (vd. color picker) thay vì paste trực tiếp ──────
     if (f.customAction) {
-        if (!isOn) { [row setActive:NO]; return; }  // tắt toggle = không làm gì
+        if (!isOn) {
+            [row setActive:NO];
+            // Nếu có restoreFileName → dán lại file gốc (mode=goc) để tắt hiệu ứng
+            if (f.restoreFileName.length > 0) {
+                [row setLoading:YES];
+                [self setStatus:LS(@"⏳ Đang khôi phục...", @"⏳ Restoring...") color:HUD_MUTED];
+                __weak typeof(self) weakSelf = self;
+                [[AutoPasteManager sharedManager]
+                    pasteFeature:f.featureKey
+                             mod:NO
+                            game:game
+                       fileNamed:f.restoreFileName
+                       underRoot:f.searchRoot ?: @""
+                      completion:^(BOOL ok, NSString *msg) {
+                    dispatch_async(dispatch_get_main_queue(), ^{
+                        [row setLoading:NO];
+                        NSString *status = ok
+                            ? LS(@"✅ Đã khôi phục file gốc", @"✅ Original file restored")
+                            : msg;
+                        [weakSelf setStatus:status color:(ok ? HUD_GREEN : HUD_RED)];
+                    });
+                }];
+            }
+            return;
+        }
         f.customAction(row, self, game);
         return;
     }
