@@ -2128,7 +2128,10 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
                                     completion:^(BOOL success, NSString *msg) {
             [row showResult:success];
             if (!success) { [row setOn:NO animated:YES]; [row setActive:NO]; }
-            [weakSelf setStatus:msg color:(success ? HUD_GREEN : HUD_RED)];
+            NSString *status = success
+                ? LS(@"✅ Đã Kích Hoạt Định Vị Súng Màu Tự Chọn", @"✅ Custom Color Gun Locator Activated")
+                : msg;
+            [weakSelf setStatus:status color:(success ? HUD_GREEN : HUD_RED)];
         }];
     };
 
@@ -2153,7 +2156,10 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
                                     completion:^(BOOL success, NSString *msg) {
             [row showResult:success];
             if (!success) { [row setOn:NO animated:YES]; [row setActive:NO]; }
-            [weakSelf setStatus:msg color:(success ? HUD_GREEN : HUD_RED)];
+            NSString *status = success
+                ? LS(@"✅ Đã Kích Hoạt Định Vị Súng Màu Tự Chọn", @"✅ Custom Color Gun Locator Activated")
+                : msg;
+            [weakSelf setStatus:status color:(success ? HUD_GREEN : HUD_RED)];
         }];
     };
 
