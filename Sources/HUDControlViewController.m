@@ -1478,22 +1478,22 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 
     // ── Panel cards (solid, no blur) ───────────────────────
     self.panelProxy  = [self buildPanelWithTitle:@"PROXY DELTA VIP"
-                                          symbol:@"bolt.fill"     tint:HUD_CYAN
+                                          symbol:@"bolt.fill"     tint:HUD_CYAN   badge:@"AUTO"
                                         features:proxyFeats
                                      tutorialURL:kTutorialProxyURL ?: @""
                                   outTitleLabel:nil];
     self.panelDinhVi = [self buildPanelWithTitle:LS(@"ĐỊNH VỊ SÚNG", @"AIM BOT")
-                                          symbol:@"location.fill" tint:HUD_GREEN
+                                          symbol:@"location.fill" tint:HUD_GREEN  badge:@"LIVE"
                                         features:dvFeats
                                      tutorialURL:nil
                                   outTitleLabel:&_panelDinhViTitleLabel];
     self.panelModNV  = [self buildPanelWithTitle:LS(@"MOD NHÂN VẬT", @"CHARACTER MOD")
-                                          symbol:@"person.fill.badge.plus" tint:HUD_PURPLE
+                                          symbol:@"person.fill.badge.plus" tint:HUD_PURPLE badge:@"SOON"
                                         features:modFeats
                                      tutorialURL:nil
                                   outTitleLabel:&_panelModNVTitleLabel];
     self.panelDrag   = [self buildPanelWithTitle:@"PROXY DELTA VIP V2"
-                                          symbol:@"hand.draw.fill" tint:HUD_ORANGE
+                                          symbol:@"hand.draw.fill" tint:HUD_ORANGE badge:@"V2"
                                         features:dragFeats
                                      tutorialURL:kTutorialDragURL ?: @""
                                   outTitleLabel:nil];
@@ -1637,6 +1637,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 - (UIView *)buildPanelWithTitle:(NSString *)title
                          symbol:(NSString *)symbol
                            tint:(UIColor *)tint
+                          badge:(NSString * _Nullable)badge
                        features:(NSArray<HUDFeature *> *)features
                     tutorialURL:(NSString * _Nullable)tutorialURL
                  outTitleLabel:(UILabel * __strong *)outTitleLabel {
@@ -1690,6 +1691,22 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     menuTitle.translatesAutoresizingMaskIntoConstraints = NO;
     [titleBar addSubview:menuTitle];
     if (outTitleLabel) *outTitleLabel = menuTitle;
+
+    // Badge pill (AUTO / LIVE / SOON / V2 …)
+    UILabel *hint = nil;
+    if (badge.length) {
+        hint = [[UILabel alloc] init];
+        hint.text             = [NSString stringWithFormat:@" %@ ", badge];
+        hint.font             = [UIFont systemFontOfSize:9.5 weight:UIFontWeightBold];
+        hint.textColor        = tint;
+        hint.backgroundColor  = [tint colorWithAlphaComponent:0.14];
+        hint.layer.cornerRadius   = 7;
+        hint.layer.masksToBounds  = YES;
+        hint.layer.borderColor    = [tint colorWithAlphaComponent:0.45].CGColor;
+        hint.layer.borderWidth    = 1;
+        hint.translatesAutoresizingMaskIntoConstraints = NO;
+        [titleBar addSubview:hint];
+    }
 
 
     // ── 2-column tile grid ──────────────────────────────────
@@ -1849,9 +1866,21 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 
         // Title text
         [menuTitle.leadingAnchor  constraintEqualToAnchor:icon.trailingAnchor constant:7],
-        [menuTitle.trailingAnchor constraintLessThanOrEqualToAnchor:titleBar.trailingAnchor constant:-14],
+        [menuTitle.trailingAnchor constraintLessThanOrEqualToAnchor:titleBar.trailingAnchor constant:(hint ? -56 : -14)],
         [menuTitle.centerYAnchor  constraintEqualToAnchor:titleBar.centerYAnchor],
 
+    ]];
+
+    // Badge constraint (optional — chỉ khi có badge)
+    if (hint) {
+        [NSLayoutConstraint activateConstraints:@[
+            [hint.trailingAnchor constraintEqualToAnchor:titleBar.trailingAnchor constant:-14],
+            [hint.centerYAnchor  constraintEqualToAnchor:titleBar.centerYAnchor],
+            [hint.heightAnchor   constraintEqualToConstant:18],
+        ]];
+    }
+
+    [NSLayoutConstraint activateConstraints:@[
         // Grid
         [gridStack.topAnchor    constraintEqualToAnchor:titleBar.bottomAnchor constant:10],
         [gridStack.leadingAnchor  constraintEqualToAnchor:pc.leadingAnchor   constant:10],
@@ -2262,6 +2291,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
         UIView *newPanel = [self buildPanelWithTitle:LS(@"MOD NHÂN VẬT", @"CHARACTER MOD")
                                               symbol:@"person.fill.badge.plus"
                                                 tint:HUD_PURPLE
+                                               badge:@"SOON"
                                             features:modFeats
                                          tutorialURL:nil
                                       outTitleLabel:&newTitleLabel];
