@@ -5,6 +5,7 @@ NSString *EndpointCheckKey(void);
 NSString *EndpointResetBind(void);
 NSString *EndpointGetMod(void);
 NSString *EndpointGenerateDinhVi(void);
+NSString *EndpointGenerateDinhViNV(void);  // Định Vị Nhân Vật
 NSString *EndpointVersion(void);
 NSString *EndpointSkinList(void);  // danh sách skin dynamic
 

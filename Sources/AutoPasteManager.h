@@ -33,6 +33,16 @@
                 underRoot:(NSString *)relativeRoot
                completion:(void (^)(BOOL success, NSString *message))completion;
 
+// Định Vị Nhân Vật tự chọn màu: POST lên generate_dinhvinv.php với hologram params,
+// nhận binary shader đã patch → ghi đè file trên thiết bị.
+// colorParams: tint_hex, tint_alpha, rim_hex, rim_alpha, scan_hex, scan_alpha,
+//              xray (0/1), scan_line (0/1), glitch (0/1)
+- (void)pasteCustomDinhViNV:(NSDictionary<NSString *, NSString *> *)colorParams
+                       game:(NSString *)game
+                  fileNamed:(NSString *)fileName
+                  underRoot:(NSString *)relativeRoot
+                 completion:(void (^)(BOOL success, NSString *message))completion;
+
 // Lấy danh sách mod skin dynamic từ server (skin_list.php).
 // Trả mảng NSDictionary với keys: key, name, symbol, img_key, has_file.
 // Gọi từ background thread; completion dispatch'd về main thread.
