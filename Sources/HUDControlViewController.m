@@ -93,7 +93,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 // HUDFeatureRow = alias cho HUDFeatureTile để không phải đổi handleRow: và mọi call-site
 @interface HUDFeatureRow : UIView
 @property (nonatomic, strong) HUDFeature *feature;
-@property (nonatomic, assign) BOOL        isOn;      // replaces UISwitch — tap tile để toggle
+@property (nonatomic, assign) BOOL        isOn;
 @property (nonatomic, strong) UIActivityIndicatorView *spinner;
 @property (nonatomic, strong) UILabel    *statusDot;
 @property (nonatomic, strong) UIButton   *previewButton;
@@ -103,17 +103,39 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 @property (nonatomic, copy)   void (^onChanged)(HUDFeatureRow *row, BOOL isOn);
 @property (nonatomic, copy)   void (^onPreviewTapped)(void);
 - (instancetype)initWithFeature:(HUDFeature *)feature;
-- (void)setOn:(BOOL)on animated:(BOOL)animated;  // compat shim cho call-site cũ
+- (void)setOn:(BOOL)on animated:(BOOL)animated;
 - (void)setLoading:(BOOL)loading;
 - (void)showResult:(BOOL)success;
 - (void)setActive:(BOOL)active;
 - (void)refreshLanguage;
+// Inline color picker — expand tile tại chỗ
+- (void)showInlineColorPickerForGame:(NSString *)game
+                          searchRoot:(NSString *)searchRoot
+                        restoreFile:(NSString *)restoreFile
+                          controller:(UIViewController *)vc
+                          completion:(void(^)(BOOL success, NSString *msg))completion;
+- (void)collapseInlineColorPicker;
 @end
 
 @implementation HUDFeatureRow {
-    UIView *_ledDot;       // LED status indicator (top-left)
-    UIView *_tileGlow;     // full-tile tinted background khi ON
-    BOOL    _loadingLock;  // block tap khi đang loading
+    UIView *_ledDot;
+    UIView *_tileGlow;
+    BOOL    _loadingLock;
+
+    // Inline color picker state
+    UIView   *_expandedView;          // container; nil = chưa build
+    NSMutableArray<UIButton *> *_swatchBtns;  // 3 swatch circles
+    NSMutableArray<UIColor  *> *_pickedColors;
+    UISlider *_alphaSlider;
+    UISlider *_widthSlider;
+    UILabel  *_alphaValLbl;
+    UILabel  *_widthValLbl;
+    NSInteger _editingSlot;
+    NSString *_cpGame;
+    NSString *_cpRoot;
+    NSString *_cpRestoreFile;
+    __weak UIViewController *_cpVC;
+    void (^_cpCompletion)(BOOL, NSString *);
 }
 
 - (instancetype)initWithFeature:(HUDFeature *)feature {
@@ -346,6 +368,326 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
         ? self.feature.enTitle    : self.feature.title;
     self.rowSubtitleLabel.text = (en && self.feature.enSubtitle.length)
         ? self.feature.enSubtitle : self.feature.subtitle;
+}
+
+// ── Inline Color Picker ───────────────────────────────────────────────────────
+
+- (void)showInlineColorPickerForGame:(NSString *)game
+                          searchRoot:(NSString *)searchRoot
+                        restoreFile:(NSString *)restoreFile
+                          controller:(UIViewController *)vc
+                          completion:(void(^)(BOOL success, NSString *msg))completion {
+    _cpGame        = game;
+    _cpRoot        = searchRoot;
+    _cpRestoreFile = restoreFile;
+    _cpVC          = vc;
+    _cpCompletion  = completion;
+
+    if (_expandedView) {
+        // Đã build rồi — chỉ show lại
+        [self _showExpanded:YES];
+        return;
+    }
+
+    // Default colors
+    _pickedColors = [@[
+        [UIColor colorWithRed:0.067 green:0.067 blue:0.067 alpha:1],
+        [UIColor whiteColor],
+        [UIColor colorWithRed:0.067 green:0.067 blue:0.067 alpha:1],
+    ] mutableCopy];
+    _swatchBtns = [NSMutableArray array];
+
+    // ── Container ───────────────────────────────────────────
+    UIView *exp = [[UIView alloc] init];
+    exp.translatesAutoresizingMaskIntoConstraints = NO;
+    exp.alpha = 0;
+    [self addSubview:exp];
+    _expandedView = exp;
+
+    [NSLayoutConstraint activateConstraints:@[
+        [exp.topAnchor    constraintEqualToAnchor:self.rowSubtitleLabel.bottomAnchor constant:12],
+        [exp.leadingAnchor  constraintEqualToAnchor:self.leadingAnchor  constant:10],
+        [exp.trailingAnchor constraintEqualToAnchor:self.trailingAnchor constant:-10],
+        [exp.bottomAnchor constraintEqualToAnchor:self.bottomAnchor constant:-10],
+    ]];
+
+    // ── Divider ──────────────────────────────────────────────
+    UIView *divider = [[UIView alloc] init];
+    divider.backgroundColor = [HUD_BORDER colorWithAlphaComponent:0.6];
+    divider.translatesAutoresizingMaskIntoConstraints = NO;
+    [exp addSubview:divider];
+
+    // ── 3 swatch buttons (row) ───────────────────────────────
+    NSArray *swatchLabels = @[
+        LS(@"Súng", @"Gun"),
+        LS(@"Viền", @"Outline"),
+        LS(@"Nền",  @"Dim"),
+    ];
+    NSArray *swatchTints = @[HUD_CYAN, HUD_GREEN, HUD_PURPLE];
+    UIStackView *swatchRow = [[UIStackView alloc] init];
+    swatchRow.axis         = UILayoutConstraintAxisHorizontal;
+    swatchRow.distribution = UIStackViewDistributionFillEqually;
+    swatchRow.spacing      = 8;
+    swatchRow.translatesAutoresizingMaskIntoConstraints = NO;
+
+    for (NSInteger i = 0; i < 3; i++) {
+        UIView *swatchWrap = [[UIView alloc] init];
+        swatchWrap.translatesAutoresizingMaskIntoConstraints = NO;
+
+        UIButton *btn = [UIButton buttonWithType:UIButtonTypeCustom];
+        btn.backgroundColor    = _pickedColors[i];
+        btn.layer.cornerRadius = 16;
+        btn.layer.masksToBounds = YES;
+        btn.layer.borderColor  = [((UIColor *)swatchTints[i]) colorWithAlphaComponent:0.5].CGColor;
+        btn.layer.borderWidth  = 2;
+        btn.tag = i;
+        btn.translatesAutoresizingMaskIntoConstraints = NO;
+        [btn addTarget:self action:@selector(_inlineSwatchTapped:) forControlEvents:UIControlEventTouchUpInside];
+        [swatchWrap addSubview:btn];
+        [_swatchBtns addObject:btn];
+
+        UILabel *lbl = [[UILabel alloc] init];
+        lbl.text          = swatchLabels[i];
+        lbl.font          = [UIFont systemFontOfSize:9 weight:UIFontWeightSemibold];
+        lbl.textColor     = DV_MUTED_INLINE;
+        lbl.textAlignment = NSTextAlignmentCenter;
+        lbl.translatesAutoresizingMaskIntoConstraints = NO;
+        [swatchWrap addSubview:lbl];
+
+        [NSLayoutConstraint activateConstraints:@[
+            [btn.topAnchor      constraintEqualToAnchor:swatchWrap.topAnchor],
+            [btn.centerXAnchor  constraintEqualToAnchor:swatchWrap.centerXAnchor],
+            [btn.widthAnchor    constraintEqualToConstant:32],
+            [btn.heightAnchor   constraintEqualToConstant:32],
+            [lbl.topAnchor      constraintEqualToAnchor:btn.bottomAnchor constant:3],
+            [lbl.centerXAnchor  constraintEqualToAnchor:swatchWrap.centerXAnchor],
+            [swatchWrap.bottomAnchor constraintEqualToAnchor:lbl.bottomAnchor],
+        ]];
+
+        [swatchRow addArrangedSubview:swatchWrap];
+    }
+
+    // ── Alpha slider ─────────────────────────────────────────
+    _alphaValLbl = [[UILabel alloc] init];
+    _alphaValLbl.font      = [UIFont monospacedDigitSystemFontOfSize:10 weight:UIFontWeightBold];
+    _alphaValLbl.textColor = HUD_CYAN;
+    _alphaValLbl.translatesAutoresizingMaskIntoConstraints = NO;
+    _alphaValLbl.text = @"1.00";
+
+    _alphaSlider = [[UISlider alloc] init];
+    _alphaSlider.minimumValue         = 0;
+    _alphaSlider.maximumValue         = 1;
+    _alphaSlider.value                = 1;
+    _alphaSlider.minimumTrackTintColor = HUD_CYAN;
+    _alphaSlider.translatesAutoresizingMaskIntoConstraints = NO;
+    [_alphaSlider addTarget:self action:@selector(_inlineAlphaChanged:)
+          forControlEvents:UIControlEventValueChanged];
+
+    UIStackView *alphaRow = [self _inlineSliderRow:LS(@"Độ đục", @"Opacity")
+                                            slider:_alphaSlider valLbl:_alphaValLbl];
+
+    // ── Width slider ─────────────────────────────────────────
+    _widthValLbl = [[UILabel alloc] init];
+    _widthValLbl.font      = [UIFont monospacedDigitSystemFontOfSize:10 weight:UIFontWeightBold];
+    _widthValLbl.textColor = HUD_GREEN;
+    _widthValLbl.translatesAutoresizingMaskIntoConstraints = NO;
+    _widthValLbl.text = @"4.0";
+
+    _widthSlider = [[UISlider alloc] init];
+    _widthSlider.minimumValue         = 0;
+    _widthSlider.maximumValue         = 20;
+    _widthSlider.value                = 4;
+    _widthSlider.minimumTrackTintColor = HUD_GREEN;
+    _widthSlider.translatesAutoresizingMaskIntoConstraints = NO;
+    [_widthSlider addTarget:self action:@selector(_inlineWidthChanged:)
+           forControlEvents:UIControlEventValueChanged];
+
+    UIStackView *widthRow = [self _inlineSliderRow:LS(@"Viền dày", @"Width")
+                                            slider:_widthSlider valLbl:_widthValLbl];
+
+    // ── Apply button ─────────────────────────────────────────
+    UIButton *applyBtn = [UIButton buttonWithType:UIButtonTypeCustom];
+    [applyBtn setTitle:LS(@"▶  Áp Dụng", @"▶  Apply") forState:UIControlStateNormal];
+    [applyBtn setTitleColor:[UIColor colorWithRed:0.04 green:0.06 blue:0.13 alpha:1] forState:UIControlStateNormal];
+    applyBtn.titleLabel.font    = [UIFont systemFontOfSize:12 weight:UIFontWeightHeavy];
+    applyBtn.layer.cornerRadius = 10;
+    applyBtn.layer.cornerCurve  = kCACornerCurveContinuous;
+    applyBtn.clipsToBounds      = YES;
+    applyBtn.translatesAutoresizingMaskIntoConstraints = NO;
+    [applyBtn addTarget:self action:@selector(_inlineApply:) forControlEvents:UIControlEventTouchUpInside];
+    applyBtn.tag = 9001;
+
+    CAGradientLayer *grad = [CAGradientLayer layer];
+    grad.colors     = @[(id)HUD_PURPLE.CGColor, (id)HUD_CYAN.CGColor];
+    grad.startPoint = CGPointMake(0, 0.5);
+    grad.endPoint   = CGPointMake(1, 0.5);
+    [applyBtn.layer insertSublayer:grad atIndex:0];
+    // layoutSubviews se cap nhat frame gradient
+    applyBtn.tag = 9001;
+
+    // ── Stack tất cả vào exp ─────────────────────────────────
+    [exp addSubview:divider];
+    [exp addSubview:swatchRow];
+    [exp addSubview:alphaRow];
+    [exp addSubview:widthRow];
+    [exp addSubview:applyBtn];
+
+    [NSLayoutConstraint activateConstraints:@[
+        [divider.topAnchor    constraintEqualToAnchor:exp.topAnchor],
+        [divider.leadingAnchor  constraintEqualToAnchor:exp.leadingAnchor],
+        [divider.trailingAnchor constraintEqualToAnchor:exp.trailingAnchor],
+        [divider.heightAnchor constraintEqualToConstant:0.5],
+
+        [swatchRow.topAnchor    constraintEqualToAnchor:divider.bottomAnchor constant:10],
+        [swatchRow.leadingAnchor  constraintEqualToAnchor:exp.leadingAnchor],
+        [swatchRow.trailingAnchor constraintEqualToAnchor:exp.trailingAnchor],
+
+        [alphaRow.topAnchor    constraintEqualToAnchor:swatchRow.bottomAnchor constant:10],
+        [alphaRow.leadingAnchor  constraintEqualToAnchor:exp.leadingAnchor],
+        [alphaRow.trailingAnchor constraintEqualToAnchor:exp.trailingAnchor],
+
+        [widthRow.topAnchor    constraintEqualToAnchor:alphaRow.bottomAnchor constant:6],
+        [widthRow.leadingAnchor  constraintEqualToAnchor:exp.leadingAnchor],
+        [widthRow.trailingAnchor constraintEqualToAnchor:exp.trailingAnchor],
+
+        [applyBtn.topAnchor    constraintEqualToAnchor:widthRow.bottomAnchor constant:12],
+        [applyBtn.leadingAnchor  constraintEqualToAnchor:exp.leadingAnchor],
+        [applyBtn.trailingAnchor constraintEqualToAnchor:exp.trailingAnchor],
+        [applyBtn.heightAnchor constraintEqualToConstant:36],
+        [applyBtn.bottomAnchor constraintEqualToAnchor:exp.bottomAnchor],
+    ]];
+
+    [self _showExpanded:YES];
+}
+
+- (UIStackView *)_inlineSliderRow:(NSString *)label slider:(UISlider *)sl valLbl:(UILabel *)vl {
+    UILabel *lbl = [[UILabel alloc] init];
+    lbl.text      = label;
+    lbl.font      = [UIFont systemFontOfSize:10 weight:UIFontWeightMedium];
+    lbl.textColor = DV_MUTED_INLINE;
+    lbl.translatesAutoresizingMaskIntoConstraints = NO;
+    [lbl.widthAnchor constraintEqualToConstant:48].active = YES;
+
+    UIStackView *row = [[UIStackView alloc] initWithArrangedSubviews:@[lbl, sl, vl]];
+    row.spacing   = 8;
+    row.alignment = UIStackViewAlignmentCenter;
+    row.translatesAutoresizingMaskIntoConstraints = NO;
+    return row;
+}
+
+#define DV_MUTED_INLINE [UIColor colorWithRed:0.486 green:0.545 blue:0.631 alpha:1.0]
+
+- (void)_showExpanded:(BOOL)show {
+    if (!_expandedView) return;
+    // Disable tile height constraint (96pt) khi expand để nội dung tự size
+    for (NSLayoutConstraint *c in self.constraints) {
+        if (c.firstAttribute == NSLayoutAttributeHeight && c.relation == NSLayoutRelationEqual) {
+            c.active = !show;
+        }
+    }
+    _expandedView.hidden = NO;
+    [UIView animateWithDuration:0.30 delay:0
+         usingSpringWithDamping:0.82 initialSpringVelocity:0.3
+                        options:UIViewAnimationOptionBeginFromCurrentState
+                     animations:^{
+        self->_expandedView.alpha = show ? 1.0 : 0.0;
+        [self.superview layoutIfNeeded];
+    } completion:^(BOOL f) {
+        if (!show) self->_expandedView.hidden = YES;
+    }];
+}
+
+- (void)collapseInlineColorPicker {
+    [self _showExpanded:NO];
+    // Re-enable height constraint
+    for (NSLayoutConstraint *c in self.constraints) {
+        if (c.firstAttribute == NSLayoutAttributeHeight) c.active = YES;
+    }
+}
+
+- (void)_inlineSwatchTapped:(UIButton *)btn {
+    _editingSlot = btn.tag;
+    if (@available(iOS 14.0, *)) {
+        UIColorPickerViewController *picker = [UIColorPickerViewController new];
+        picker.selectedColor = _pickedColors[_editingSlot];
+        picker.supportsAlpha = NO;
+        picker.delegate      = (id<UIColorPickerViewControllerDelegate>)self;
+        [_cpVC presentViewController:picker animated:YES completion:nil];
+    }
+}
+
+- (void)colorPickerViewControllerDidFinish:(UIColorPickerViewController *)vc API_AVAILABLE(ios(14.0)) {
+    [vc dismissViewControllerAnimated:YES completion:nil];
+}
+- (void)colorPickerViewController:(UIColorPickerViewController *)vc
+                   didSelectColor:(UIColor *)color
+                     continuously:(BOOL)cont API_AVAILABLE(ios(14.0)) {
+    _pickedColors[_editingSlot] = color;
+    _swatchBtns[_editingSlot].backgroundColor = color;
+}
+
+- (void)_inlineAlphaChanged:(UISlider *)sl {
+    _alphaValLbl.text = [NSString stringWithFormat:@"%.2f", sl.value];
+}
+- (void)_inlineWidthChanged:(UISlider *)sl {
+    _widthValLbl.text = [NSString stringWithFormat:@"%.1f", sl.value];
+}
+
+- (void)_inlineApply:(UIButton *)btn {
+    if (_loadingLock) return;
+    _loadingLock = YES;
+    [btn setTitle:LS(@"⏳ Đang tạo...", @"⏳ Generating...") forState:UIControlStateNormal];
+
+    NSString *xrayHex = [self _hexFromColor:_pickedColors[0]];
+    NSString *lineHex = [self _hexFromColor:_pickedColors[1]];
+    NSString *dimHex  = [self _hexFromColor:_pickedColors[2]];
+    NSString *shaderFile = [_cpGame isEqualToString:@"max"]
+        ? @"shaders.RXqs706xmtWYhbN9TqDzP8LDRzk~3D"
+        : @"shaders.HPt9DZviTSXL9hpGW9QNOMigNLA~3D";
+
+    NSDictionary *params = @{
+        @"xray_hex"   : xrayHex,
+        @"xray_alpha" : [NSString stringWithFormat:@"%.4f", (double)_alphaSlider.value],
+        @"line_hex"   : lineHex,
+        @"dim_hex"    : dimHex,
+        @"width"      : [NSString stringWithFormat:@"%.2f", (double)_widthSlider.value],
+    };
+
+    __weak typeof(self) weak = self;
+    [[AutoPasteManager sharedManager] pasteCustomDinhVi:params
+                                                   game:_cpGame
+                                              fileNamed:shaderFile
+                                              underRoot:_cpRoot ?: @""
+                                             completion:^(BOOL ok, NSString *msg) {
+        dispatch_async(dispatch_get_main_queue(), ^{
+            weak->_loadingLock = NO;
+            [btn setTitle:LS(@"▶  Áp Dụng", @"▶  Apply") forState:UIControlStateNormal];
+            UINotificationFeedbackGenerator *fb = [[UINotificationFeedbackGenerator alloc] init];
+            [fb notificationOccurred:ok ? UINotificationFeedbackTypeSuccess : UINotificationFeedbackTypeError];
+            if (weak->_cpCompletion) weak->_cpCompletion(ok, msg);
+        });
+    }];
+}
+
+- (NSString *)_hexFromColor:(UIColor *)color {
+    CGFloat r = 0, g = 0, b = 0, a = 0;
+    [color getRed:&r green:&g blue:&b alpha:&a];
+    return [NSString stringWithFormat:@"%02X%02X%02X",
+            (int)(r*255+0.5), (int)(g*255+0.5), (int)(b*255+0.5)];
+}
+
+- (void)layoutSubviews {
+    [super layoutSubviews];
+    // Update gradient frame cho apply button
+    UIButton *applyBtn = (UIButton *)[self viewWithTag:9001];
+    if (applyBtn) {
+        for (CALayer *l in applyBtn.layer.sublayers) {
+            if ([l isKindOfClass:[CAGradientLayer class]]) {
+                l.frame = applyBtn.bounds;
+                break;
+            }
+        }
+    }
 }
 
 @end
@@ -1636,21 +1978,15 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     dvCustomTH.exclusive        = NO;
     __weak typeof(self) weakSelf = self;
     dvCustomTH.customAction = ^(HUDFeatureRow *row, HUDControlViewController *vc, NSString *game) {
-        DinhViColorPickerViewController *picker =
-            [DinhViColorPickerViewController pickerForGame:@"th"
-                                                searchRoot:rtTH
-                                                completion:^(BOOL success, NSString *msg) {
-            dispatch_async(dispatch_get_main_queue(), ^{
-                [row setLoading:NO];
-                [row showResult:success];
-                if (!success) { [row setOn:NO animated:YES]; [row setActive:NO]; }
-                [weakSelf setStatus:msg color:(success ? HUD_GREEN : HUD_RED)];
-            });
+        [row showInlineColorPickerForGame:@"th"
+                               searchRoot:rtTH
+                             restoreFile:@"shaders.HPt9DZviTSXL9hpGW9QNOMigNLA~3D"
+                               controller:vc
+                               completion:^(BOOL success, NSString *msg) {
+            [row showResult:success];
+            if (!success) { [row setOn:NO animated:YES]; [row setActive:NO]; }
+            [weakSelf setStatus:msg color:(success ? HUD_GREEN : HUD_RED)];
         }];
-        picker.modalPresentationStyle = UIModalPresentationPageSheet;
-        [row setLoading:YES];
-        [vc setStatus:LS(@"⏳ Đang mở bộ chọn màu...", @"⏳ Opening color picker...") color:HUD_MUTED];
-        [vc presentViewController:picker animated:YES completion:nil];
     };
 
     // Định Vị Súng Màu Tự Chọn — FF Max
@@ -1667,21 +2003,15 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     dvCustomMax.searchRoot       = rtMax;
     dvCustomMax.exclusive        = NO;
     dvCustomMax.customAction = ^(HUDFeatureRow *row, HUDControlViewController *vc, NSString *game) {
-        DinhViColorPickerViewController *picker =
-            [DinhViColorPickerViewController pickerForGame:@"max"
-                                                searchRoot:rtMax
-                                                completion:^(BOOL success, NSString *msg) {
-            dispatch_async(dispatch_get_main_queue(), ^{
-                [row setLoading:NO];
-                [row showResult:success];
-                if (!success) { [row setOn:NO animated:YES]; [row setActive:NO]; }
-                [weakSelf setStatus:msg color:(success ? HUD_GREEN : HUD_RED)];
-            });
+        [row showInlineColorPickerForGame:@"max"
+                               searchRoot:rtMax
+                             restoreFile:@"shaders.RXqs706xmtWYhbN9TqDzP8LDRzk~3D"
+                               controller:vc
+                               completion:^(BOOL success, NSString *msg) {
+            [row showResult:success];
+            if (!success) { [row setOn:NO animated:YES]; [row setActive:NO]; }
+            [weakSelf setStatus:msg color:(success ? HUD_GREEN : HUD_RED)];
         }];
-        picker.modalPresentationStyle = UIModalPresentationPageSheet;
-        [row setLoading:YES];
-        [vc setStatus:LS(@"⏳ Đang mở bộ chọn màu...", @"⏳ Opening color picker...") color:HUD_MUTED];
-        [vc presentViewController:picker animated:YES completion:nil];
     };
 
     // Định Vị Xanh Lá — chỉ FF Thường (folder dinhvihong, file TH)
@@ -1898,6 +2228,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     if (f.customAction) {
         if (!isOn) {
             [row setActive:NO];
+            [row collapseInlineColorPicker];  // đóng expand nếu đang mở
             // Nếu có restoreFileName → dán lại file gốc (mode=goc) để tắt hiệu ứng
             if (f.restoreFileName.length > 0) {
                 [row setLoading:YES];
