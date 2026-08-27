@@ -378,6 +378,11 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 @property (nonatomic, strong) UIView    *segmentBar;
 @property (nonatomic, assign) NSInteger  pendingThumbTab;  // compat stub; no-op
 @property (nonatomic, strong) NSMutableArray<UILabel *> *segLabels;
+// Toast
+@property (nonatomic, strong) UIView    *toastView;
+@property (nonatomic, strong) UILabel   *toastLabel;
+@property (nonatomic, strong) UIView    *toastDot;
+@property (nonatomic, strong) NSTimer   *toastTimer;
 @end
 
 // Private API để mở app game theo bundle id
@@ -431,6 +436,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 
     [self setupNavBarAppearance];
     [self buildUI];
+    [self buildToast];
     [self fetchAndShowNotice];
     [[NSNotificationCenter defaultCenter] addObserver:self
         selector:@selector(refreshLocalizedStrings)
@@ -1062,6 +1068,62 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     ]];
     scroll.contentInset          = UIEdgeInsetsMake(0, 0, 88, 0);
     scroll.scrollIndicatorInsets = UIEdgeInsetsMake(0, 0, 88, 0);
+}
+
+// ── Toast notification bar ──────────────────────────────────────────────────
+// Hiện phía trên nút MỞ GAME, slide up/down, auto-dismiss 2s.
+- (void)buildToast {
+    // Outer pill
+    UIView *toast = [[UIView alloc] init];
+    toast.backgroundColor    = [UIColor colorWithRed:0.10 green:0.13 blue:0.20 alpha:0.96];
+    toast.layer.cornerRadius = 14;
+    toast.layer.cornerCurve  = kCACornerCurveContinuous;
+    toast.layer.borderColor  = [UIColor colorWithWhite:1 alpha:0.10].CGColor;
+    toast.layer.borderWidth  = 1;
+    // Shadow
+    toast.layer.shadowColor   = [UIColor blackColor].CGColor;
+    toast.layer.shadowOpacity = 0.35;
+    toast.layer.shadowRadius  = 12;
+    toast.layer.shadowOffset  = CGSizeMake(0, 4);
+    toast.alpha               = 0;
+    toast.translatesAutoresizingMaskIntoConstraints = NO;
+    [self.view addSubview:toast];
+    self.toastView = toast;
+
+    // Color dot (thay đổi màu theo loại thông báo)
+    UIView *dot = [[UIView alloc] init];
+    dot.layer.cornerRadius = 4;
+    dot.translatesAutoresizingMaskIntoConstraints = NO;
+    [toast addSubview:dot];
+    self.toastDot = dot;
+
+    // Message label
+    UILabel *lbl = [[UILabel alloc] init];
+    lbl.font          = [UIFont systemFontOfSize:13 weight:UIFontWeightSemibold];
+    lbl.textColor     = HUD_TEXT;
+    lbl.numberOfLines = 2;
+    lbl.translatesAutoresizingMaskIntoConstraints = NO;
+    [toast addSubview:lbl];
+    self.toastLabel = lbl;
+
+    [NSLayoutConstraint activateConstraints:@[
+        // Toast nằm phía trên openGameButton 10pt, cùng horizontal inset
+        [toast.leadingAnchor   constraintEqualToAnchor:self.view.leadingAnchor  constant:20],
+        [toast.trailingAnchor  constraintEqualToAnchor:self.view.trailingAnchor constant:-20],
+        [toast.bottomAnchor    constraintEqualToAnchor:self.openGameButton.topAnchor constant:-10],
+
+        // Dot: left, centered vertical
+        [dot.leadingAnchor  constraintEqualToAnchor:toast.leadingAnchor constant:14],
+        [dot.centerYAnchor  constraintEqualToAnchor:toast.centerYAnchor],
+        [dot.widthAnchor    constraintEqualToConstant:8],
+        [dot.heightAnchor   constraintEqualToConstant:8],
+
+        // Label: right of dot, inset top/bottom 12pt
+        [lbl.leadingAnchor  constraintEqualToAnchor:dot.trailingAnchor  constant:10],
+        [lbl.trailingAnchor constraintEqualToAnchor:toast.trailingAnchor constant:-14],
+        [lbl.topAnchor      constraintEqualToAnchor:toast.topAnchor     constant:12],
+        [lbl.bottomAnchor   constraintEqualToAnchor:toast.bottomAnchor  constant:-12],
+    ]];
 }
 
 // Tạo 1 panel card (Tactical Matrix Grid) với title bar + 2-column tile grid.
@@ -1952,10 +2014,54 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 }
 
 - (void)setStatus:(NSString *)text color:(UIColor *)color {
+    // Cập nhật statusLabel ở scroll (vẫn giữ làm source of truth)
     self.statusLabel.textColor = color;
-    self.statusLabel.text = text;
-    self.statusLabel.alpha = 0;
-    [UIView animateWithDuration:0.25 animations:^{ self.statusLabel.alpha = 1; }];
+    self.statusLabel.text      = text;
+
+    // ── Toast overlay ────────────────────────────────────────
+    if (!self.toastView) return;
+
+    // Cancel timer cũ nếu đang đếm
+    [self.toastTimer invalidate];
+    self.toastTimer = nil;
+
+    // Cập nhật nội dung
+    self.toastLabel.text        = text;
+    self.toastDot.backgroundColor = color;
+
+    // Border màu nhẹ theo loại thông báo
+    self.toastView.layer.borderColor = [color colorWithAlphaComponent:0.25].CGColor;
+
+    // Slide up + fade in (từ trạng thái hiện tại để handle rapid calls)
+    self.toastView.transform = CGAffineTransformMakeTranslation(0, 12);
+    [UIView animateWithDuration:0.28
+                          delay:0
+         usingSpringWithDamping:0.75
+          initialSpringVelocity:0.5
+                        options:UIViewAnimationOptionBeginFromCurrentState
+                     animations:^{
+        self.toastView.alpha     = 1.0;
+        self.toastView.transform = CGAffineTransformIdentity;
+    } completion:nil];
+
+    // Auto-dismiss sau 2.2s
+    __weak typeof(self) weakSelf = self;
+    self.toastTimer = [NSTimer scheduledTimerWithTimeInterval:2.2
+                                                      target:weakSelf
+                                                    selector:@selector(dismissToast)
+                                                    userInfo:nil
+                                                     repeats:NO];
+}
+
+- (void)dismissToast {
+    [UIView animateWithDuration:0.22 delay:0
+                        options:UIViewAnimationOptionCurveEaseIn
+                     animations:^{
+        self.toastView.alpha     = 0;
+        self.toastView.transform = CGAffineTransformMakeTranslation(0, 8);
+    } completion:^(BOOL f) {
+        self.toastView.transform = CGAffineTransformIdentity;
+    }];
 }
 
 // Cập nhật toàn bộ chuỗi khi người dùng đổi ngôn ngữ
