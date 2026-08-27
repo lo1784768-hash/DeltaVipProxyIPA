@@ -1750,7 +1750,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
                     dispatch_async(dispatch_get_main_queue(), ^{
                         [row setLoading:NO];
                         NSString *status = ok
-                            ? LS(@"✅ Đã khôi phục file gốc", @"✅ Original file restored")
+                            ? LS(@"✅ Đã Tắt Định Vị Súng Màu Tự Chọn", @"✅ Custom Color Gun Locator Disabled")
                             : msg;
                         [weakSelf setStatus:status color:(ok ? HUD_GREEN : HUD_RED)];
                     });
