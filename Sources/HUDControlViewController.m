@@ -154,9 +154,10 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     [self addSubview:iconIV];
 
     // ── Toggle (top-right) ────────────────────────────────
+    // Không scale UISwitch — scale lệch touch area và trông không cân.
+    // UISwitch iOS native intrinsic = 51×31pt, đặt vào tile 96pt là vừa.
     _toggle = [[UISwitch alloc] init];
     _toggle.onTintColor  = feature.tint;
-    _toggle.transform    = CGAffineTransformMakeScale(0.72, 0.72); // compact
     _toggle.translatesAutoresizingMaskIntoConstraints = NO;
     [_toggle addTarget:self action:@selector(switchChanged) forControlEvents:UIControlEventValueChanged];
     [self addSubview:_toggle];
@@ -243,9 +244,10 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
         [iconIV.widthAnchor   constraintEqualToConstant:20],
         [iconIV.heightAnchor  constraintEqualToConstant:20],
 
-        // Toggle: top-right, trailing -10 so scaled switch stays inside border
-        [_toggle.trailingAnchor constraintEqualToAnchor:self.trailingAnchor constant:-10],
-        [_toggle.topAnchor      constraintEqualToAnchor:self.topAnchor      constant:8],
+        // Toggle: top-right, căn centerY với icon row
+        // UISwitch intrinsic 51×31pt — trailing -8 đủ inset, top căn với LED/icon
+        [_toggle.trailingAnchor constraintEqualToAnchor:self.trailingAnchor constant:-8],
+        [_toggle.centerYAnchor  constraintEqualToAnchor:_ledDot.centerYAnchor],
 
         // Status dot: left of toggle, centered
         [_statusDot.trailingAnchor constraintEqualToAnchor:_toggle.leadingAnchor constant:-2],
@@ -1346,44 +1348,52 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     [self switchToPanel:sender.tag];
 }
 
-// Crossfade mượt: fade-out cũ → collapse → fade-in mới
+// Crossfade mượt theo cả hai chiều.
+// Dùng BeginFromCurrentState để handle mid-animation tap (bấm ngược lại không bị khựng).
 - (void)switchToPanel:(NSInteger)tab {
     NSArray<UIView *> *panels = @[self.panelProxy, self.panelDinhVi, self.panelModNV];
     UIView *toShow = panels[(NSUInteger)tab];
-
-    // Tìm panel đang visible
-    UIView *toHide = nil;
-    for (UIView *p in panels) { if (!p.hidden) { toHide = p; break; } }
-    if (!toHide || toHide == toShow) return;
-
-    // panelDrag đi kèm tab 0 (Proxy) — hiện/ẩn cùng panelProxy
     BOOL dragShouldShow = (tab == 0);
 
-    // Pre-show toShow + panelDrag nếu cần
-    toShow.alpha  = 0;
-    toShow.hidden = NO;
-    if (dragShouldShow) {
-        self.panelDrag.alpha  = 0;
-        self.panelDrag.hidden = NO;
-    }
-
-    // Phase 1: fade-out panel cũ (+ panelDrag nếu đang rời tab 0)
-    [UIView animateWithDuration:0.15 delay:0 options:UIViewAnimationOptionCurveEaseIn
-                     animations:^{
-        toHide.alpha = 0;
-        if (!dragShouldShow) self.panelDrag.alpha = 0;
-    }
-                     completion:^(BOOL f) {
-        toHide.hidden = YES;
-        toHide.alpha  = 1;
-        if (!dragShouldShow) { self.panelDrag.hidden = YES; self.panelDrag.alpha = 1; }
-        // Phase 2: fade-in panel mới
-        [UIView animateWithDuration:0.15 delay:0 options:UIViewAnimationOptionCurveEaseOut
-                         animations:^{
-            toShow.alpha = 1;
-            if (dragShouldShow) self.panelDrag.alpha = 1;
+    // Cancel animation đang chạy bằng cách collect trạng thái hiện tại của tất cả panels.
+    // BeginFromCurrentState sẽ tiếp tục từ alpha hiện tại (kể cả đang mid-fade).
+    NSMutableArray<UIView *> *toHideAll = [NSMutableArray array];
+    for (UIView *p in panels) {
+        if (p != toShow) {
+            // Unhide để BeginFromCurrentState có thể fade từ alpha hiện tại về 0
+            p.hidden = NO;
+            [toHideAll addObject:p];
         }
-                         completion:nil];
+    }
+    // panelDrag luôn unhide trước để animation từ current alpha
+    self.panelDrag.hidden = NO;
+
+    // Đảm bảo toShow bắt đầu visible (alpha có thể đang 0 nếu mới unhide)
+    toShow.hidden = NO;
+
+    [UIView animateWithDuration:0.22 delay:0
+                        options:UIViewAnimationOptionCurveEaseInOut
+                               | UIViewAnimationOptionBeginFromCurrentState
+                     animations:^{
+        // Fade-in panel cần show
+        toShow.alpha = 1.0;
+        self.panelDrag.alpha = dragShouldShow ? 1.0 : 0.0;
+        // Fade-out tất cả panel còn lại
+        for (UIView *p in toHideAll) {
+            p.alpha = 0.0;
+        }
+    } completion:^(BOOL finished) {
+        // Ẩn hẳn các panel đã fade về 0
+        for (UIView *p in toHideAll) {
+            if (p.alpha < 0.01) {
+                p.hidden = YES;
+                p.alpha  = 1.0;  // reset để lần sau fade từ 1
+            }
+        }
+        if (!dragShouldShow && self.panelDrag.alpha < 0.01) {
+            self.panelDrag.hidden = YES;
+            self.panelDrag.alpha  = 1.0;
+        }
     }];
 
     NSString *hint = (tab == 0)
