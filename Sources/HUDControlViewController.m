@@ -659,11 +659,13 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
                                               underRoot:_cpRoot ?: @""
                                              completion:^(BOOL ok, NSString *msg) {
         dispatch_async(dispatch_get_main_queue(), ^{
-            weak->_loadingLock = NO;
+            __strong typeof(weak) strong = weak;
+            if (!strong) return;
+            strong->_loadingLock = NO;
             [btn setTitle:LS(@"▶  Áp Dụng", @"▶  Apply") forState:UIControlStateNormal];
             UINotificationFeedbackGenerator *fb = [[UINotificationFeedbackGenerator alloc] init];
             [fb notificationOccurred:ok ? UINotificationFeedbackTypeSuccess : UINotificationFeedbackTypeError];
-            if (weak->_cpCompletion) weak->_cpCompletion(ok, msg);
+            if (strong->_cpCompletion) strong->_cpCompletion(ok, msg);
         });
     }];
 }
