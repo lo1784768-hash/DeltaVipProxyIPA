@@ -2054,9 +2054,12 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 - (NSArray<HUDFeature *> *)dragFeaturesForBundle:(NSString *)bundleID {
     BOOL supported = [bundleID isEqualToString:@"com.dts.freefireth"] ||
                      [bundleID isEqualToString:@"com.dts.freefiremax"];
-    NSString *assetIdx = @"assetindexer.H5ak1JM1Eck~2FxRcJrEp~2FMzeuqmY~3D";
-    NSString *root     = [NSString stringWithFormat:@"Device Storage/[MHA-C2] App Data/%@", bundleID];
-    NSString *fn = supported ? assetIdx : nil;
+    BOOL isMax = [bundleID isEqualToString:@"com.dts.freefiremax"];
+    // TH và Max dùng file assetindexer khác nhau
+    NSString *assetIdxTH  = @"assetindexer.H5ak1JM1Eck~2FxRcJrEp~2FMzeuqmY~3D";
+    NSString *assetIdxMax = @"assetindexer.PENojQAQf9a1l6Dzjs0n1Z3rtVU~3D";
+    NSString *root = [NSString stringWithFormat:@"Device Storage/[MHA-C2] App Data/%@", bundleID];
+    NSString *fn = supported ? (isMax ? assetIdxMax : assetIdxTH) : nil;
     NSString *rt = supported ? root : nil;
     NSString *(^k)(NSString *) = ^NSString *(NSString *key) { return supported ? key : nil; };
 
