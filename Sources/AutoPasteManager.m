@@ -2,6 +2,7 @@
 #import "AppPaths.h"
 #import "Endpoints.h"
 #import "KeyManager.h"
+#import "LanguageManager.h"
 #import "SecurityPinning.h"
 
 @implementation AutoPasteManager
