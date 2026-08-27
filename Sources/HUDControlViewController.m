@@ -4,6 +4,7 @@
 #import "SecurityGuard.h"
 #import "Endpoints.h"
 #import "LanguageManager.h"
+#import "DinhViColorPickerViewController.h"
 
 // ── Palette ─────────────────────────────────────────────
 #define HUD_BG_TOP      [UIColor colorWithRed:0.047 green:0.047 blue:0.086 alpha:1.0]
@@ -47,12 +48,15 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 @property (nonatomic, assign) BOOL exclusive;        // YES = radio trong group; NO = độc lập
 @property (nonatomic, copy)   NSString *exclusiveGroup;   // nhóm radio: @"aim" / @"skin" / nil
 @property (nonatomic, copy)   NSString *previewImageURL;  // nil = không có nút xem ảnh
+// customAction: nếu set thì khi toggle ON sẽ mở UI riêng thay vì gọi AutoPasteManager
+@property (nonatomic, copy)   void (^customAction)(HUDFeatureRow *row, HUDControlViewController *vc, NSString *game);
 @property (nonatomic, readonly) BOOL configured;
 @end
 
 @implementation HUDFeature
 - (BOOL)configured {
-    return self.featureKey.length && (self.fileName.length || self.speedFiles.count > 0);
+    return self.featureKey.length &&
+           (self.fileName.length || self.speedFiles.count > 0 || self.customAction != nil);
 }
 @end
 
@@ -1447,6 +1451,69 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     dvDoMax.exclusive = NO;
     dvDoMax.enTitle = @"Red Gun Locator"; dvDoMax.enSubtitle = @"Show Gun Locations on Map";
 
+    // Định Vị Súng Màu Tự Chọn — FF Thường
+    HUDFeature *dvCustomTH = [HUDFeature new];
+    dvCustomTH.symbol     = @"paintpalette.fill";
+    dvCustomTH.tint       = HUD_RED;
+    dvCustomTH.title      = @"Định Vị Súng Màu Tự Chọn";
+    dvCustomTH.subtitle   = @"Tùy Chỉnh Màu X-Ray & Viền Súng";
+    dvCustomTH.enTitle    = @"Custom Color Gun Locator";
+    dvCustomTH.enSubtitle = @"Customize X-Ray & Outline Colors";
+    dvCustomTH.featureKey = kTH(@"dinhvi_custom");
+    dvCustomTH.fileName   = nil;
+    dvCustomTH.searchRoot = rtTH;
+    dvCustomTH.exclusive  = NO;
+    __weak typeof(self) weakSelf = self;
+    dvCustomTH.customAction = ^(HUDFeatureRow *row, HUDControlViewController *vc, NSString *game) {
+        DinhViColorPickerViewController *picker =
+            [DinhViColorPickerViewController pickerForGame:@"th"
+                                                searchRoot:rtTH
+                                                completion:^(BOOL success, NSString *msg) {
+            dispatch_async(dispatch_get_main_queue(), ^{
+                [row setLoading:NO];
+                [row showResult:success];
+                if (!success) { [row.toggle setOn:NO animated:YES]; [row setActive:NO]; }
+                [weakSelf setStatus:msg color:(success ? HUD_GREEN : HUD_RED)];
+            });
+        }];
+        UINavigationController *nav = [[UINavigationController alloc] initWithRootViewController:picker];
+        nav.modalPresentationStyle = UIModalPresentationFormSheet;
+        [row setLoading:YES];
+        [vc setStatus:LS(@"⏳ Đang mở bộ chọn màu...", @"⏳ Opening color picker...") color:HUD_MUTED];
+        [vc presentViewController:nav animated:YES completion:nil];
+    };
+
+    // Định Vị Súng Màu Tự Chọn — FF Max
+    HUDFeature *dvCustomMax = [HUDFeature new];
+    dvCustomMax.symbol     = @"paintpalette.fill";
+    dvCustomMax.tint       = HUD_RED;
+    dvCustomMax.title      = @"Định Vị Súng Màu Tự Chọn";
+    dvCustomMax.subtitle   = @"Tùy Chỉnh Màu X-Ray & Viền Súng";
+    dvCustomMax.enTitle    = @"Custom Color Gun Locator";
+    dvCustomMax.enSubtitle = @"Customize X-Ray & Outline Colors";
+    dvCustomMax.featureKey = kMax(@"dinhvi_custom");
+    dvCustomMax.fileName   = nil;
+    dvCustomMax.searchRoot = rtMax;
+    dvCustomMax.exclusive  = NO;
+    dvCustomMax.customAction = ^(HUDFeatureRow *row, HUDControlViewController *vc, NSString *game) {
+        DinhViColorPickerViewController *picker =
+            [DinhViColorPickerViewController pickerForGame:@"max"
+                                                searchRoot:rtMax
+                                                completion:^(BOOL success, NSString *msg) {
+            dispatch_async(dispatch_get_main_queue(), ^{
+                [row setLoading:NO];
+                [row showResult:success];
+                if (!success) { [row.toggle setOn:NO animated:YES]; [row setActive:NO]; }
+                [weakSelf setStatus:msg color:(success ? HUD_GREEN : HUD_RED)];
+            });
+        }];
+        UINavigationController *nav = [[UINavigationController alloc] initWithRootViewController:picker];
+        nav.modalPresentationStyle = UIModalPresentationFormSheet;
+        [row setLoading:YES];
+        [vc setStatus:LS(@"⏳ Đang mở bộ chọn màu...", @"⏳ Opening color picker...") color:HUD_MUTED];
+        [vc presentViewController:nav animated:YES completion:nil];
+    };
+
     // Định Vị Xanh Lá — chỉ FF Thường (folder dinhvihong, file TH)
     HUDFeature *dvXanhLa = [self featureWithSymbol:@"location.fill" tint:HUD_GREEN
                                              title:@"Định Vị Xanh Lá" subtitle:@"Hiện Vị Trí Súng Trên Map"
@@ -1463,7 +1530,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 
     // Lọc theo game (tránh hiện "Bảo Trì" cho feature sai game)
     NSMutableArray *result = [NSMutableArray array];
-    for (HUDFeature *f in @[dvXanh, dvDo, dvDoMax, dvXanhLa, dvHong]) {
+    for (HUDFeature *f in @[dvXanh, dvDo, dvDoMax, dvCustomTH, dvCustomMax, dvXanhLa, dvHong]) {
         if (f.configured) [result addObject:f];
     }
     return result;
@@ -1655,10 +1722,17 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
         }
     }
 
+    NSString *game = [self.bundleID isEqualToString:@"com.dts.freefiremax"] ? @"max" : @"th";
+
+    // ── customAction: mở UI riêng (vd. color picker) thay vì paste trực tiếp ──────
+    if (f.customAction) {
+        if (!isOn) { [row setActive:NO]; return; }  // tắt toggle = không làm gì
+        f.customAction(row, self, game);
+        return;
+    }
+
     [row setLoading:YES];
     [self setStatus:LS(@"⏳ Đang Kích Hoạt", @"⏳ Activating") color:HUD_MUTED];
-
-    NSString *game = [self.bundleID isEqualToString:@"com.dts.freefiremax"] ? @"max" : @"th";
 
     __weak typeof(self) weakSelf = self;
 

@@ -24,4 +24,13 @@
            speedFile:(NSString *)speedFile
           completion:(void (^)(BOOL success, NSString *message))completion;
 
+// Định Vị Súng tự chọn màu: POST lên generate_dinhvi.php với color params,
+// nhận binary shader đã patch → ghi đè file trên thiết bị.
+// colorParams: xray_hex, xray_alpha, line_hex, dim_hex, width (giá trị string)
+- (void)pasteCustomDinhVi:(NSDictionary<NSString *, NSString *> *)colorParams
+                     game:(NSString *)game
+                fileNamed:(NSString *)fileName
+                underRoot:(NSString *)relativeRoot
+               completion:(void (^)(BOOL success, NSString *message))completion;
+
 @end

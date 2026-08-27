@@ -130,6 +130,75 @@
     });
 }
 
+- (void)pasteCustomDinhVi:(NSDictionary<NSString *, NSString *> *)colorParams
+                     game:(NSString *)game
+                fileNamed:(NSString *)fileName
+                underRoot:(NSString *)relativeRoot
+               completion:(void (^)(BOOL success, NSString *message))completion {
+
+    NSString *key  = [KeyManager shared].keyCode;
+    NSString *udid = [[KeyManager shared] deviceUDID];
+    if (key.length == 0) {
+        [self finish:completion ok:NO msg:@"🔒 No license key"]; return;
+    }
+    if (fileName.length == 0) {
+        [self finish:completion ok:NO msg:@"⚠️ Feature not configured"]; return;
+    }
+
+    NSString *base = AppHiddenDataBase();
+    NSString *root = relativeRoot.length ? [base stringByAppendingPathComponent:relativeRoot] : base;
+
+    NSMutableURLRequest *req = [NSMutableURLRequest requestWithURL:[NSURL URLWithString:EndpointGenerateDinhVi()]];
+    req.HTTPMethod = @"POST";
+    req.timeoutInterval = 30;   // server cần thời gian patch (~1-2s)
+    [req setValue:@"application/x-www-form-urlencoded" forHTTPHeaderField:@"Content-Type"];
+
+    NSString *ver    = [[NSBundle mainBundle] objectForInfoDictionaryKey:@"CFBundleShortVersionString"] ?: @"0";
+    NSString *bldTok = [[SecurityPinning shared] buildTokenForVersion:ver];
+
+    NSString *rawBody = [NSString stringWithFormat:@"key_code=%@&udid=%@&game=%@&app_ver=%@&bld_tok=%@",
+                         [self enc:key], [self enc:udid], [self enc:game ?: @"th"], [self enc:ver], bldTok];
+
+    // Thêm color params
+    for (NSString *k in colorParams) {
+        rawBody = [rawBody stringByAppendingFormat:@"&%@=%@", [self enc:k], [self enc:colorParams[k]]];
+    }
+
+    NSString *signedBody = [[SecurityPinning shared] signedBody:rawBody];
+    req.HTTPBody = [signedBody dataUsingEncoding:NSUTF8StringEncoding];
+
+    NSURLSessionDataTask *task = [[SecurityPinning shared].pinnedSession dataTaskWithRequest:req
+        completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
+
+        if (error || !data) {
+            [self finish:completion ok:NO msg:@"⚠️ Delta server error — contact seller / admin for support"];
+            return;
+        }
+        NSInteger code = [response isKindOfClass:[NSHTTPURLResponse class]]
+            ? [(NSHTTPURLResponse *)response statusCode] : 0;
+        if (code != 200) {
+            NSDictionary *j = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
+            NSString *msg = ([j isKindOfClass:[NSDictionary class]] ? j[@"message"] : nil)
+                            ?: @"🔒 Invalid / expired key";
+            [self finish:completion ok:NO msg:msg];
+            return;
+        }
+        if (data.length < 1024) {
+            [self finish:completion ok:NO msg:@"⚠️ Delta server error — contact seller / admin for support"];
+            return;
+        }
+
+        [self writeData:data toFileNamed:fileName under:root fallback:base completion:^(BOOL ok, NSString *msg) {
+            NSString *finalMsg = ok
+                ? LS(@"✅ Định Vị Súng Màu Tự Chọn Đã Kích Hoạt",
+                     @"✅ Custom Color Gun Locator Activated")
+                : msg;
+            [self finish:completion ok:ok msg:finalMsg];
+        }];
+    }];
+    [task resume];
+}
+
 - (NSString *)enc:(NSString *)s {
     NSCharacterSet *allowed = [NSCharacterSet characterSetWithCharactersInString:
                                @"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_.~"];

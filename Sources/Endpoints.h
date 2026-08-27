@@ -4,6 +4,7 @@
 NSString *EndpointCheckKey(void);
 NSString *EndpointResetBind(void);
 NSString *EndpointGetMod(void);
+NSString *EndpointGenerateDinhVi(void);
 NSString *EndpointVersion(void);
 
 // URL ảnh (cũng mã hoá XOR)
