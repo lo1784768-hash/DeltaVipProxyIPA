@@ -1268,9 +1268,11 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
             UINotificationFeedbackGenerator *fb = [[UINotificationFeedbackGenerator alloc] init];
             [fb notificationOccurred:ok ? UINotificationFeedbackTypeSuccess : UINotificationFeedbackTypeError];
             if (cb) cb(ok, msg);
-            [ws->_applyBtn setTitle:LS(@"▶  ÁP DỤNG", @"▶  APPLY") forState:UIControlStateNormal];
-            ws->_busy = NO;
-            if (ok) [ws _nvDismiss];
+            __strong typeof(ws) ss = ws;
+            if (!ss) return;
+            [ss->_applyBtn setTitle:LS(@"▶  ÁP DỤNG", @"▶  APPLY") forState:UIControlStateNormal];
+            ss->_busy = NO;
+            if (ok) [ss _nvDismiss];
         });
     }];
 }
