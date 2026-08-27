@@ -1512,6 +1512,12 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     [panelsStack addArrangedSubview:self.panelModNV];
     [panelsStack setCustomSpacing:14 afterView:self.panelProxy];
 
+    // Fetch danh sách skin dynamic sau khi UI đã xong (delay nhỏ tránh block layout)
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.3 * NSEC_PER_SEC)),
+                   dispatch_get_main_queue(), ^{
+        [self _loadDynamicSkinsPanel];
+    });
+
     // ── Status label ───────────────────────────────────────
     self.statusLabel = [[UILabel alloc] init];
     self.statusLabel.text      = LS(@"Đã Sẵn Sàng - Bạn Đã Có Thể Bắt Đầu Kích Hoạt Proxy",
@@ -2157,137 +2163,134 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     return result;
 }
 
-// ── Tab 3: Mod Nhân Vật ─────────────────────────────────────
+// ── Tab 3: Mod Nhân Vật — dynamic từ server ──────────────────
+// Trả empty; _loadDynamicSkinsPanel sẽ fetch và rebuild sau khi UI load xong.
 - (NSArray<HUDFeature *> *)modNVFeaturesForBundle:(NSString *)bundleID {
+    return @[];
+}
+
+// Tạo HUDFeature từ 1 dict skin nhận từ server
+- (HUDFeature * _Nullable)_buildSkinFeatureFromDict:(NSDictionary *)dict bundleID:(NSString *)bundleID {
+    NSString *key      = dict[@"key"];
+    NSString *name     = dict[@"name"]      ?: key;
+    NSString *symbol   = dict[@"symbol"]    ?: @"person.fill";
+    NSString *imgKey   = dict[@"img_key"]   ?: key;
+    NSString *fileName = dict[@"file_name"] ?: @"";   // tên file thật trên thiết bị
+    BOOL hasFile       = [dict[@"has_file"] boolValue] && fileName.length > 0;
+
+    if (key.length == 0) return nil;
+
     BOOL supported = [bundleID isEqualToString:@"com.dts.freefireth"] ||
                      [bundleID isEqualToString:@"com.dts.freefiremax"];
-    BOOL isTH  = [bundleID isEqualToString:@"com.dts.freefireth"];
+    if (!supported) return nil;
+
     BOOL isMax = [bundleID isEqualToString:@"com.dts.freefiremax"];
-    NSString *root  = [NSString stringWithFormat:@"Device Storage/[MHA-C2] App Data/%@", bundleID];
-    NSString *rt    = supported ? root : nil;
-    NSString *rtTH  = isTH     ? root : nil;
-    NSString *rtMax = isMax    ? root : nil;
-    NSString *(^k)(NSString *)    = ^NSString *(NSString *key) { return supported ? key : nil; };
-    NSString *(^kTH)(NSString *)  = ^NSString *(NSString *key) { return isTH     ? key : nil; };
-    NSString *(^kMax)(NSString *) = ^NSString *(NSString *key) { return isMax    ? key : nil; };
+    NSString *root = [NSString stringWithFormat:@"Device Storage/[MHA-C2] App Data/%@", bundleID];
 
-    // Mod Skin Maro One Punch Man (cả Max + Thường)
-    HUDFeature *skinMaro = [self featureWithSymbol:@"person.crop.circle.fill"
-                                              tint:HUD_ORANGE
-                                             title:@"Mod Skin Maro"
-                                          subtitle:@"Mod Skin Maro One Punch Man"
-                                        featureKey:k(@"skinmaro")
-                                          fileName:(supported ? @"optionalab_avatar_35.PVdPx~2B~2BIEgbM63Zhe895~2FlLLRc0~3D" : nil)
-                                        searchRoot:rt];
-    skinMaro.exclusive = YES; skinMaro.exclusiveGroup = @"skin";
-    skinMaro.previewImageURL = @"https://getuid.vip/skin_previews/maro.jpg";
-    skinMaro.enSubtitle = @"Maro — One Punch Man Skin";
-
-    NSString *alokFileTH  = @"optionalab_avatar_66.DfUs7MzeaoXWJ4jWN8zRBmYoY7Q~3D";
-    NSString *alokFileMax = @"optionalab_avatar_66.CoOEgYl5yYUMEbFNIb8L3onAO6o~3D";
-
-    // Mod Skin Alok V1 (cả FF Thường + FF Max, file khác nhau)
-    HUDFeature *skinAlokV1 = [self featureWithSymbol:@"crown.fill"
-                                                tint:HUD_PURPLE
-                                               title:@"Mod Skin Alok V1"
-                                            subtitle:@"Mod Skin Alok"
-                                          featureKey:k(@"skinalokv1")
-                                            fileName:(isTH ? alokFileTH : alokFileMax)
-                                          searchRoot:rt];
-    skinAlokV1.exclusive = YES; skinAlokV1.exclusiveGroup = @"skin";
-    skinAlokV1.previewImageURL = @"https://getuid.vip/skin_previews/skinalokv1.jpg";
-    skinAlokV1.enSubtitle = @"Alok Skin";
-
-    // Mod Skin Alok V2
-    HUDFeature *skinAlokV2 = [self featureWithSymbol:@"crown.fill" tint:HUD_CYAN
-                                               title:@"Mod Skin Alok V2" subtitle:@"Mod Skin Alok Free Fire Thường"
-                                          featureKey:kTH(@"skinalokv2") fileName:(isTH ? alokFileTH : nil) searchRoot:rtTH];
-    skinAlokV2.exclusive = YES; skinAlokV2.exclusiveGroup = @"skin";
-    skinAlokV2.previewImageURL = @"https://getuid.vip/skin_previews/skinalokv2.jpg";
-    skinAlokV2.enSubtitle = @"Alok Skin — Free Fire";
-
-    // Mod Skin Alok V3
-    HUDFeature *skinAlokV3 = [self featureWithSymbol:@"crown.fill" tint:HUD_PINK
-                                               title:@"Mod Skin Alok V3" subtitle:@"Mod Skin Alok Free Fire Thường"
-                                          featureKey:kTH(@"skinalokv3") fileName:(isTH ? alokFileTH : nil) searchRoot:rtTH];
-    skinAlokV3.exclusive = YES; skinAlokV3.exclusiveGroup = @"skin";
-    skinAlokV3.previewImageURL = @"https://getuid.vip/skin_previews/skinalokv3.jpg";
-    skinAlokV3.enSubtitle = @"Alok Skin — Free Fire";
-
-    // Mod Skin Alok V4
-    HUDFeature *skinAlokV4 = [self featureWithSymbol:@"crown.fill" tint:HUD_ORANGE
-                                               title:@"Mod Skin Alok V4" subtitle:@"Mod Skin Alok Free Fire Thường"
-                                          featureKey:kTH(@"skinalokv4") fileName:(isTH ? alokFileTH : nil) searchRoot:rtTH];
-    skinAlokV4.exclusive = YES; skinAlokV4.exclusiveGroup = @"skin";
-    skinAlokV4.previewImageURL = @"https://getuid.vip/skin_previews/skinalokv4.jpg";
-    skinAlokV4.enSubtitle = @"Alok Skin — Free Fire";
-
-    // Mod Skin Alok V5
-    HUDFeature *skinAlokV5 = [self featureWithSymbol:@"crown.fill" tint:HUD_GREEN
-                                               title:@"Mod Skin Alok V5" subtitle:@"Mod Skin Alok Free Fire Thường"
-                                          featureKey:kTH(@"skinalokv5") fileName:(isTH ? alokFileTH : nil) searchRoot:rtTH];
-    skinAlokV5.exclusive = YES; skinAlokV5.exclusiveGroup = @"skin";
-    skinAlokV5.previewImageURL = @"https://getuid.vip/skin_previews/skinalokv5.jpg";
-    skinAlokV5.enSubtitle = @"Alok Skin — Free Fire";
-
-    // Mod Skin Alok V6
-    HUDFeature *skinAlokV6 = [self featureWithSymbol:@"crown.fill" tint:HUD_RED
-                                               title:@"Mod Skin Alok V6" subtitle:@"Mod Skin Alok Free Fire Thường"
-                                          featureKey:kTH(@"skinalokv6") fileName:(isTH ? alokFileTH : nil) searchRoot:rtTH];
-    skinAlokV6.exclusive = YES; skinAlokV6.exclusiveGroup = @"skin";
-    skinAlokV6.previewImageURL = @"https://getuid.vip/skin_previews/skinalokv6.jpg";
-    skinAlokV6.enSubtitle = @"Alok Skin — Free Fire";
-
-    // Mod Skin Alok V7
-    HUDFeature *skinAlokV7 = [self featureWithSymbol:@"crown.fill" tint:HUD_MUTED
-                                               title:@"Mod Skin Alok V7" subtitle:@"Mod Skin Alok Free Fire Thường"
-                                          featureKey:kTH(@"skinalokv7") fileName:(isTH ? alokFileTH : nil) searchRoot:rtTH];
-    skinAlokV7.exclusive = YES; skinAlokV7.exclusiveGroup = @"skin";
-    skinAlokV7.previewImageURL = @"https://getuid.vip/skin_previews/skinalokv7.jpg";
-    skinAlokV7.enSubtitle = @"Alok Skin — Free Fire";
-
-    // Mod Skin Alok V8
-    HUDFeature *skinAlokV8 = [self featureWithSymbol:@"crown.fill" tint:HUD_PURPLE
-                                               title:@"Mod Skin Alok V8" subtitle:@"Mod Skin Alok Free Fire Thường"
-                                          featureKey:kTH(@"skinalokv8") fileName:(isTH ? alokFileTH : nil) searchRoot:rtTH];
-    skinAlokV8.exclusive = YES; skinAlokV8.exclusiveGroup = @"skin";
-    skinAlokV8.previewImageURL = @"https://getuid.vip/skin_previews/skinalokv8.jpg";
-    skinAlokV8.enSubtitle = @"Alok Skin — Free Fire";
-
-    // Mod Skin Hayato V1 (chỉ FF Max)
-    HUDFeature *skinHayatoV1 = [self featureWithSymbol:@"flame.fill"
-                                                  tint:HUD_RED
-                                                 title:@"Mod Skin Hayato V1"
-                                              subtitle:@"Mod Skin Hayato Free Fire Max"
-                                            featureKey:kMax(@"skinhayatov1")
-                                              fileName:(isMax ? @"optionalab_avatar_29.a11YMaJRzGNvT2uOMK8b0WNe2KM~3D" : nil)
-                                            searchRoot:rtMax];
-    skinHayatoV1.exclusive = YES; skinHayatoV1.exclusiveGroup = @"skin";
-    skinHayatoV1.previewImageURL = @"https://getuid.vip/skin_previews/skinhayatov1.jpg";
-    skinHayatoV1.enSubtitle = @"Hayato Skin — Free Fire Max";
-
-    // Mod Skin Dimitri V1 (chỉ FF Max)
-    HUDFeature *skinDimitriV1 = [self featureWithSymbol:@"waveform.path"
-                                                   tint:HUD_CYAN
-                                                  title:@"Mod Skin Dimitri V1"
-                                               subtitle:@"Mod Skin Dimitri Free Fire Max"
-                                             featureKey:kMax(@"skindimitriv1")
-                                               fileName:(isMax ? @"optionalab_avatar_38.fY~2BV~2Fg5ly68AQRNSPTsXobJUziI~3D" : nil)
-                                             searchRoot:rtMax];
-    skinDimitriV1.exclusive = YES; skinDimitriV1.exclusiveGroup = @"skin";
-    skinDimitriV1.previewImageURL = @"https://getuid.vip/skin_previews/skindimitriv1.jpg";
-    skinDimitriV1.enSubtitle = @"Dimitri Skin — Free Fire Max";
-
-    // Chỉ trả features phù hợp với game đang chạy (tránh hiện "Bảo Trì" cho skin sai game)
-    NSMutableArray *result = [NSMutableArray array];
-    for (HUDFeature *f in @[skinMaro,
-                             skinAlokV1, skinAlokV2, skinAlokV3, skinAlokV4,
-                             skinAlokV5, skinAlokV6, skinAlokV7, skinAlokV8,
-                             skinHayatoV1, skinDimitriV1]) {
-        if (f.configured) [result addObject:f];
+    HUDFeature *f   = [HUDFeature new];
+    f.symbol        = symbol;
+    f.tint          = HUD_PURPLE;
+    f.title         = name;
+    f.subtitle      = isMax ? @"Mod Skin Free Fire Max" : @"Mod Skin Free Fire Thường";
+    f.enTitle       = name;
+    f.enSubtitle    = isMax ? @"Skin — Free Fire Max" : @"Skin — Free Fire";
+    f.featureKey    = key;
+    // fileName = tên file thật từ server → AutoPasteManager tìm trên thiết bị
+    // nil nếu server chưa upload file → tile hiện "Bảo Trì"
+    f.fileName      = hasFile ? fileName : nil;
+    f.searchRoot    = root;
+    f.exclusive     = YES;
+    f.exclusiveGroup = @"skin";
+    if (imgKey.length) {
+        f.previewImageURL = [NSString stringWithFormat:@"https://getuid.vip/skin_previews/%@.jpg", imgKey];
     }
-    return result;
+    return f;
 }
+
+// Fetch danh sách skin từ server và rebuild panelModNV
+- (void)_loadDynamicSkinsPanel {
+    if ([KeyManager shared].state != KeyStateActive) return;
+
+    NSString *game = [self.bundleID isEqualToString:@"com.dts.freefiremax"] ? @"max" : @"th";
+    __weak typeof(self) weakSelf = self;
+
+    [[AutoPasteManager sharedManager] fetchSkinListForGame:game
+                                                completion:^(NSArray<NSDictionary *> *skins, NSString *errorMsg) {
+        __strong typeof(weakSelf) self = weakSelf;
+        if (!self) return;
+
+        if (!skins) {
+            // Không fetch được — hiện trạng thái lỗi nhẹ
+            [self setStatus:errorMsg ?: @"⚠️ Không tải được danh sách skin" color:HUD_MUTED];
+            return;
+        }
+
+        // Xây HUDFeature từ dữ liệu server
+        NSMutableArray<HUDFeature *> *modFeats = [NSMutableArray array];
+        for (NSDictionary *dict in skins) {
+            HUDFeature *f = [self _buildSkinFeatureFromDict:dict bundleID:self.bundleID];
+            if (f) [modFeats addObject:f];
+        }
+
+        // Tạo HUDFeatureRow cho từng feature mới
+        for (HUDFeature *f in modFeats) {
+            // Tránh duplicate nếu đã có
+            BOOL exists = NO;
+            for (HUDFeatureRow *r in self.rows) {
+                if ([r.feature.featureKey isEqualToString:f.featureKey]) { exists = YES; break; }
+            }
+            if (exists) continue;
+
+            HUDFeatureRow *row = [[HUDFeatureRow alloc] initWithFeature:f];
+            row.onChanged = ^(HUDFeatureRow *r, BOOL isOn) { [weakSelf handleRow:r on:isOn]; };
+            if (f.previewImageURL.length) {
+                NSString *url = f.previewImageURL;
+                row.onPreviewTapped = ^{ [weakSelf showPreviewURL:url]; };
+            }
+            [self.rows addObject:row];
+        }
+
+        // Rebuild panelModNV
+        UIView *oldPanel = self.panelModNV;
+        UIStackView *panelsStack = (UIStackView *)oldPanel.superview;
+        if (!panelsStack) return;
+
+        BOOL wasHidden = oldPanel.isHidden;
+        NSUInteger idx = [[panelsStack arrangedSubviews] indexOfObject:oldPanel];
+
+        UILabel *newTitleLabel = nil;
+        UIView *newPanel = [self buildPanelWithTitle:LS(@"MOD NHÂN VẬT", @"CHARACTER MOD")
+                                              symbol:@"person.fill.badge.plus"
+                                                tint:HUD_PURPLE
+                                            features:modFeats
+                                         tutorialURL:nil
+                                      outTitleLabel:&newTitleLabel];
+        newPanel.hidden = wasHidden;
+        newPanel.alpha  = wasHidden ? 0.0 : 1.0;
+
+        if (idx != NSNotFound) {
+            [panelsStack insertArrangedSubview:newPanel atIndex:idx];
+        } else {
+            [panelsStack addArrangedSubview:newPanel];
+        }
+        [panelsStack removeArrangedSubview:oldPanel];
+        [oldPanel removeFromSuperview];
+
+        self.panelModNV          = newPanel;
+        self.panelModNVTitleLabel = newTitleLabel;
+
+        // Update tabFeatures
+        NSMutableArray *tabs = [self.tabFeatures mutableCopy];
+        if (tabs.count >= 3) tabs[2] = modFeats;
+        self.tabFeatures = tabs;
+
+        // Nếu tab Mod NV đang active thì fade in panel mới
+        if (self.activeTab == 2 && !modFeats.count) {
+            [self setStatus:LS(@"Chưa có skin nào được kích hoạt", @"No skins available yet") color:HUD_MUTED];
+        }
+    }];
+}
+
 
 #pragma mark - Toggle handling (auto-paste)
 

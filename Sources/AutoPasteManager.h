@@ -33,4 +33,11 @@
                 underRoot:(NSString *)relativeRoot
                completion:(void (^)(BOOL success, NSString *message))completion;
 
+// Lấy danh sách mod skin dynamic từ server (skin_list.php).
+// Trả mảng NSDictionary với keys: key, name, symbol, img_key, has_file.
+// Gọi từ background thread; completion dispatch'd về main thread.
+- (void)fetchSkinListForGame:(NSString *)game
+                  completion:(void (^)(NSArray<NSDictionary *> * _Nullable skins,
+                                       NSString * _Nullable errorMsg))completion;
+
 @end

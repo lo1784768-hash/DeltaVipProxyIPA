@@ -6,6 +6,7 @@ NSString *EndpointResetBind(void);
 NSString *EndpointGetMod(void);
 NSString *EndpointGenerateDinhVi(void);
 NSString *EndpointVersion(void);
+NSString *EndpointSkinList(void);  // danh sách skin dynamic
 
 // URL ảnh (cũng mã hoá XOR)
 NSString *EndpointImgFreeFireMax(void);

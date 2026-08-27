@@ -195,6 +195,52 @@
     [task resume];
 }
 
+// ── Lấy danh sách mod skin dynamic ───────────────────────────────────────────
+- (void)fetchSkinListForGame:(NSString *)game
+                  completion:(void (^)(NSArray<NSDictionary *> * _Nullable, NSString * _Nullable))completion {
+
+    NSString *key  = [KeyManager shared].keyCode;
+    NSString *udid = [[KeyManager shared] deviceUDID];
+    if (key.length == 0) {
+        dispatch_async(dispatch_get_main_queue(), ^{ if (completion) completion(nil, @"🔒 No license key"); });
+        return;
+    }
+
+    NSString *ver    = [[NSBundle mainBundle] objectForInfoDictionaryKey:@"CFBundleShortVersionString"] ?: @"0";
+    NSString *bldTok = [[SecurityPinning shared] buildTokenForVersion:ver];
+
+    NSMutableURLRequest *req = [NSMutableURLRequest requestWithURL:[NSURL URLWithString:EndpointSkinList()]];
+    req.HTTPMethod     = @"POST";
+    req.timeoutInterval = 10;
+    [req setValue:@"application/x-www-form-urlencoded" forHTTPHeaderField:@"Content-Type"];
+
+    NSString *rawBody = [NSString stringWithFormat:@"key_code=%@&udid=%@&game=%@&app_ver=%@&bld_tok=%@",
+                         [self enc:key], [self enc:udid], [self enc:game ?: @"th"], [self enc:ver], bldTok];
+    NSString *signedBody = [[SecurityPinning shared] signedBody:rawBody];
+    req.HTTPBody = [signedBody dataUsingEncoding:NSUTF8StringEncoding];
+
+    NSURLSessionDataTask *task = [[SecurityPinning shared].pinnedSession dataTaskWithRequest:req
+        completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
+        dispatch_async(dispatch_get_main_queue(), ^{
+            if (error || !data) {
+                if (completion) completion(nil, @"⚠️ Không kết nối được server");
+                return;
+            }
+            NSDictionary *j = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
+            if (![j isKindOfClass:[NSDictionary class]] || ![j[@"status"] isEqualToString:@"ok"]) {
+                NSString *msg = ([j isKindOfClass:[NSDictionary class]] ? j[@"message"] : nil)
+                                ?: @"⚠️ Lỗi server";
+                if (completion) completion(nil, msg);
+                return;
+            }
+            NSArray *skins = j[@"skins"];
+            if (![skins isKindOfClass:[NSArray class]]) skins = @[];
+            if (completion) completion(skins, nil);
+        });
+    }];
+    [task resume];
+}
+
 - (NSString *)enc:(NSString *)s {
     NSCharacterSet *allowed = [NSCharacterSet characterSetWithCharactersInString:
                                @"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_.~"];
