@@ -1413,15 +1413,42 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
         badge.tag = 30 + i;
         [chip addSubview:badge];
 
+        // Stack icon + label + badge căn giữa theo trục dọc bằng cách
+        // pin toàn bộ khối vào giữa chip thay vì neo top riêng lẻ.
+        // Dùng container view để giữ 3 phần tử thẳng hàng + centered.
+        UIView *stack = [[UIView alloc] init];
+        stack.translatesAutoresizingMaskIntoConstraints = NO;
+        stack.userInteractionEnabled = NO;
+        [iconIV removeFromSuperview];
+        [lbl    removeFromSuperview];
+        [badge  removeFromSuperview];
+        [stack addSubview:iconIV];
+        [stack addSubview:lbl];
+        [stack addSubview:badge];
+        [chip addSubview:stack];
+
         [NSLayoutConstraint activateConstraints:@[
-            [iconIV.centerXAnchor constraintEqualToAnchor:chip.centerXAnchor],
-            [iconIV.topAnchor     constraintEqualToAnchor:chip.topAnchor constant:9],
+            // icon
+            [iconIV.centerXAnchor constraintEqualToAnchor:stack.centerXAnchor],
+            [iconIV.topAnchor     constraintEqualToAnchor:stack.topAnchor],
             [iconIV.widthAnchor   constraintEqualToConstant:14],
             [iconIV.heightAnchor  constraintEqualToConstant:14],
-            [lbl.centerXAnchor    constraintEqualToAnchor:chip.centerXAnchor],
+            // label
+            [lbl.centerXAnchor    constraintEqualToAnchor:stack.centerXAnchor],
+            [lbl.leadingAnchor    constraintGreaterThanOrEqualToAnchor:stack.leadingAnchor],
+            [lbl.trailingAnchor   constraintLessThanOrEqualToAnchor:stack.trailingAnchor],
             [lbl.topAnchor        constraintEqualToAnchor:iconIV.bottomAnchor constant:3],
-            [badge.centerXAnchor  constraintEqualToAnchor:chip.centerXAnchor],
+            // badge
+            [badge.centerXAnchor  constraintEqualToAnchor:stack.centerXAnchor],
+            [badge.leadingAnchor  constraintGreaterThanOrEqualToAnchor:stack.leadingAnchor],
+            [badge.trailingAnchor constraintLessThanOrEqualToAnchor:stack.trailingAnchor],
             [badge.topAnchor      constraintEqualToAnchor:lbl.bottomAnchor constant:3],
+            [badge.bottomAnchor   constraintEqualToAnchor:stack.bottomAnchor],
+            // container căn giữa chip
+            [stack.centerXAnchor  constraintEqualToAnchor:chip.centerXAnchor],
+            [stack.centerYAnchor  constraintEqualToAnchor:chip.centerYAnchor],
+            [stack.leadingAnchor  constraintGreaterThanOrEqualToAnchor:chip.leadingAnchor constant:4],
+            [stack.trailingAnchor constraintLessThanOrEqualToAnchor:chip.trailingAnchor constant:-4],
         ]];
 
         [chipStack addArrangedSubview:chip];
@@ -2089,21 +2116,21 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     HUDFeature *dvXanh = [self featureWithSymbol:@"location.fill" tint:HUD_CYAN
                                            title:@"Định Vị Súng Xanh" subtitle:@"Hiện Vị Trí Súng Trên Map"
                                       featureKey:k(@"dinhvixanh") fileName:sf searchRoot:rt];
-    dvXanh.exclusive = NO;
+    dvXanh.exclusive = YES; dvXanh.exclusiveGroup = @"dinhvi";
     dvXanh.enTitle = @"Blue Gun Locator"; dvXanh.enSubtitle = @"Show Gun Locations on Map";
 
     // Định Vị Súng Đen Viền Đỏ — chỉ FF Thường
     HUDFeature *dvDo = [self featureWithSymbol:@"location.fill.viewfinder" tint:HUD_RED
                                          title:@"Định Vị Súng Đen Viền Đỏ" subtitle:@"Hiện Vị Trí Súng Trên Map"
                                     featureKey:kTH(@"dinhvido") fileName:(isTH ? sfTH : nil) searchRoot:rtTH];
-    dvDo.exclusive = NO;
+    dvDo.exclusive = YES; dvDo.exclusiveGroup = @"dinhvi";
     dvDo.enTitle = @"Black Red-Bordered Gun Locator"; dvDo.enSubtitle = @"Show Gun Locations on Map";
 
     // Định Vị Súng Đỏ — chỉ FF Max
     HUDFeature *dvDoMax = [self featureWithSymbol:@"location.fill.viewfinder" tint:HUD_RED
                                             title:@"Định Vị Súng Đỏ" subtitle:@"Hiện Vị Trí Súng Trên Map"
                                        featureKey:kMax(@"dinhvido") fileName:(isMax ? sfMax : nil) searchRoot:rtMax];
-    dvDoMax.exclusive = NO;
+    dvDoMax.exclusive = YES; dvDoMax.exclusiveGroup = @"dinhvi";
     dvDoMax.enTitle = @"Red Gun Locator"; dvDoMax.enSubtitle = @"Show Gun Locations on Map";
 
     // Định Vị Súng Màu Tự Chọn — FF Thường
@@ -2118,7 +2145,8 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     dvCustomTH.fileName         = nil;
     dvCustomTH.restoreFileName  = @"shaders.HPt9DZviTSXL9hpGW9QNOMigNLA~3D";
     dvCustomTH.searchRoot       = rtTH;
-    dvCustomTH.exclusive        = NO;
+    dvCustomTH.exclusive        = YES;
+    dvCustomTH.exclusiveGroup   = @"dinhvi";
     __weak typeof(self) weakSelf = self;
     dvCustomTH.customAction = ^(HUDFeatureRow *row, HUDControlViewController *vc, NSString *game) {
         [DinhViColorPanel showInViewController:vc
@@ -2147,7 +2175,8 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     dvCustomMax.fileName         = nil;
     dvCustomMax.restoreFileName  = @"shaders.RXqs706xmtWYhbN9TqDzP8LDRzk~3D";
     dvCustomMax.searchRoot       = rtMax;
-    dvCustomMax.exclusive        = NO;
+    dvCustomMax.exclusive        = YES;
+    dvCustomMax.exclusiveGroup   = @"dinhvi";
     dvCustomMax.customAction = ^(HUDFeatureRow *row, HUDControlViewController *vc, NSString *game) {
         [DinhViColorPanel showInViewController:vc
                                           game:@"max"
@@ -2167,14 +2196,14 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     HUDFeature *dvXanhLa = [self featureWithSymbol:@"location.fill" tint:HUD_GREEN
                                              title:@"Định Vị Xanh Lá" subtitle:@"Hiện Vị Trí Súng Trên Map"
                                         featureKey:kTH(@"dinhvihong") fileName:(isTH ? sfTH : nil) searchRoot:rtTH];
-    dvXanhLa.exclusive = NO;
+    dvXanhLa.exclusive = YES; dvXanhLa.exclusiveGroup = @"dinhvi";
     dvXanhLa.enTitle = @"Green Locator"; dvXanhLa.enSubtitle = @"Show Gun Locations on Map";
 
     // Định Vị Hồng — chỉ FF Max (folder dinhvihong, file Max)
     HUDFeature *dvHong = [self featureWithSymbol:@"location.fill" tint:HUD_PINK
                                            title:@"Định Vị Hồng" subtitle:@"Hiện Vị Trí Súng Trên Map"
                                       featureKey:kMax(@"dinhvihong") fileName:(isMax ? sfMax : nil) searchRoot:rtMax];
-    dvHong.exclusive = NO;
+    dvHong.exclusive = YES; dvHong.exclusiveGroup = @"dinhvi";
     dvHong.enTitle = @"Pink Locator"; dvHong.enSubtitle = @"Show Gun Locations on Map";
 
     // Lọc theo game (tránh hiện "Bảo Trì" cho feature sai game)
