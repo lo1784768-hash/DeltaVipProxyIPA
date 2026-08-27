@@ -2,7 +2,6 @@
 #import "AppPaths.h"
 #import "Endpoints.h"
 #import "KeyManager.h"
-#import "LanguageManager.h"
 #import "SecurityPinning.h"
 
 @implementation AutoPasteManager
@@ -190,11 +189,7 @@
         }
 
         [self writeData:data toFileNamed:fileName under:root fallback:base completion:^(BOOL ok, NSString *msg) {
-            NSString *finalMsg = ok
-                ? LS(@"✅ Định Vị Súng Màu Tự Chọn Đã Kích Hoạt",
-                     @"✅ Custom Color Gun Locator Activated")
-                : msg;
-            [self finish:completion ok:ok msg:finalMsg];
+            [self finish:completion ok:ok msg:msg];
         }];
     }];
     [task resume];
