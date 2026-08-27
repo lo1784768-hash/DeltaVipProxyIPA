@@ -371,6 +371,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 }
 
 // ── Inline Color Picker ───────────────────────────────────────────────────────
+#define DV_MUTED_INLINE [UIColor colorWithRed:0.486 green:0.545 blue:0.631 alpha:1.0]
 
 - (void)showInlineColorPickerForGame:(NSString *)game
                           searchRoot:(NSString *)searchRoot
@@ -574,8 +575,6 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     row.translatesAutoresizingMaskIntoConstraints = NO;
     return row;
 }
-
-#define DV_MUTED_INLINE [UIColor colorWithRed:0.486 green:0.545 blue:0.631 alpha:1.0]
 
 - (void)_showExpanded:(BOOL)show {
     if (!_expandedView) return;
