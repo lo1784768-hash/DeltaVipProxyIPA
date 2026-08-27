@@ -1413,42 +1413,38 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
         badge.tag = 30 + i;
         [chip addSubview:badge];
 
-        // Stack icon + label + badge căn giữa theo trục dọc bằng cách
-        // pin toàn bộ khối vào giữa chip thay vì neo top riêng lẻ.
-        // Dùng container view để giữ 3 phần tử thẳng hàng + centered.
-        UIView *stack = [[UIView alloc] init];
-        stack.translatesAutoresizingMaskIntoConstraints = NO;
-        stack.userInteractionEnabled = NO;
+        // UIStackView vertical: tự tính intrinsicSize đúng, centerX/Y vào chip
         [iconIV removeFromSuperview];
         [lbl    removeFromSuperview];
         [badge  removeFromSuperview];
-        [stack addSubview:iconIV];
-        [stack addSubview:lbl];
-        [stack addSubview:badge];
-        [chip addSubview:stack];
+
+        // Wrap icon vào view cố định 14×14 để stackview không stretch nó
+        UIView *iconWrap = [[UIView alloc] init];
+        iconWrap.translatesAutoresizingMaskIntoConstraints = NO;
+        iconWrap.userInteractionEnabled = NO;
+        [iconWrap addSubview:iconIV];
+        [NSLayoutConstraint activateConstraints:@[
+            [iconWrap.widthAnchor   constraintEqualToConstant:14],
+            [iconWrap.heightAnchor  constraintEqualToConstant:14],
+            [iconIV.centerXAnchor   constraintEqualToAnchor:iconWrap.centerXAnchor],
+            [iconIV.centerYAnchor   constraintEqualToAnchor:iconWrap.centerYAnchor],
+            [iconIV.widthAnchor     constraintEqualToConstant:14],
+            [iconIV.heightAnchor    constraintEqualToConstant:14],
+        ]];
+
+        UIStackView *vStack = [[UIStackView alloc] initWithArrangedSubviews:@[iconWrap, lbl, badge]];
+        vStack.axis               = UILayoutConstraintAxisVertical;
+        vStack.alignment          = UIStackViewAlignmentCenter;
+        vStack.spacing            = 3;
+        vStack.translatesAutoresizingMaskIntoConstraints = NO;
+        vStack.userInteractionEnabled = NO;
+        [chip addSubview:vStack];
 
         [NSLayoutConstraint activateConstraints:@[
-            // icon
-            [iconIV.centerXAnchor constraintEqualToAnchor:stack.centerXAnchor],
-            [iconIV.topAnchor     constraintEqualToAnchor:stack.topAnchor],
-            [iconIV.widthAnchor   constraintEqualToConstant:14],
-            [iconIV.heightAnchor  constraintEqualToConstant:14],
-            // label
-            [lbl.centerXAnchor    constraintEqualToAnchor:stack.centerXAnchor],
-            [lbl.leadingAnchor    constraintGreaterThanOrEqualToAnchor:stack.leadingAnchor],
-            [lbl.trailingAnchor   constraintLessThanOrEqualToAnchor:stack.trailingAnchor],
-            [lbl.topAnchor        constraintEqualToAnchor:iconIV.bottomAnchor constant:3],
-            // badge
-            [badge.centerXAnchor  constraintEqualToAnchor:stack.centerXAnchor],
-            [badge.leadingAnchor  constraintGreaterThanOrEqualToAnchor:stack.leadingAnchor],
-            [badge.trailingAnchor constraintLessThanOrEqualToAnchor:stack.trailingAnchor],
-            [badge.topAnchor      constraintEqualToAnchor:lbl.bottomAnchor constant:3],
-            [badge.bottomAnchor   constraintEqualToAnchor:stack.bottomAnchor],
-            // container căn giữa chip
-            [stack.centerXAnchor  constraintEqualToAnchor:chip.centerXAnchor],
-            [stack.centerYAnchor  constraintEqualToAnchor:chip.centerYAnchor],
-            [stack.leadingAnchor  constraintGreaterThanOrEqualToAnchor:chip.leadingAnchor constant:4],
-            [stack.trailingAnchor constraintLessThanOrEqualToAnchor:chip.trailingAnchor constant:-4],
+            [vStack.centerXAnchor constraintEqualToAnchor:chip.centerXAnchor],
+            [vStack.centerYAnchor constraintEqualToAnchor:chip.centerYAnchor],
+            [vStack.leadingAnchor constraintGreaterThanOrEqualToAnchor:chip.leadingAnchor constant:4],
+            [vStack.trailingAnchor constraintLessThanOrEqualToAnchor:chip.trailingAnchor constant:-4],
         ]];
 
         [chipStack addArrangedSubview:chip];
