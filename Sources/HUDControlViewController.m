@@ -91,7 +91,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 @class HUDFeatureRow;
 
 // HUDFeatureRow = alias cho HUDFeatureTile để không phải đổi handleRow: và mọi call-site
-@interface HUDFeatureRow : UIView
+@interface HUDFeatureRow : UIView <UIColorPickerViewControllerDelegate>
 @property (nonatomic, strong) HUDFeature *feature;
 @property (nonatomic, assign) BOOL        isOn;
 @property (nonatomic, strong) UIActivityIndicatorView *spinner;
