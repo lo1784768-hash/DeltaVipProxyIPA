@@ -303,8 +303,11 @@ static NSString * const kSlotTitle[] = {
     [self.spinner stopAnimating];
     [self.applyButton setTitle:LS(@"Áp dụng", @"Apply") forState:UIControlStateNormal];
 
+    NSString *finalMsg = success
+        ? LS(@"✅ Định Vị Súng Màu Tự Chọn Đã Kích Hoạt", @"✅ Custom Color Gun Locator Activated")
+        : msg;
     [self dismissViewControllerAnimated:YES completion:^{
-        if (self.completion) self.completion(success, msg);
+        if (self.completion) self.completion(success, finalMsg);
     }];
 }
 
