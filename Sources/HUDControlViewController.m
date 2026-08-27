@@ -6,17 +6,23 @@
 #import "LanguageManager.h"
 #import "DinhViColorPickerViewController.h"
 
-// ── Palette ─────────────────────────────────────────────
-#define HUD_BG_TOP      [UIColor colorWithRed:0.047 green:0.047 blue:0.086 alpha:1.0]
-#define HUD_BG_BOTTOM   [UIColor colorWithRed:0.063 green:0.094 blue:0.196 alpha:1.0]
-#define HUD_ORANGE      [UIColor colorWithRed:1.000 green:0.361 blue:0.169 alpha:1.0]
-#define HUD_CYAN        [UIColor colorWithRed:0.000 green:0.831 blue:1.000 alpha:1.0]
-#define HUD_PINK        [UIColor colorWithRed:1.000 green:0.231 blue:0.463 alpha:1.0]
-#define HUD_PURPLE      [UIColor colorWithRed:0.659 green:0.333 blue:0.969 alpha:1.0]
-#define HUD_MUTED       [UIColor colorWithRed:0.561 green:0.561 blue:0.659 alpha:1.0]
-#define HUD_GREEN       [UIColor colorWithRed:0.204 green:0.780 blue:0.349 alpha:1.0]
-#define HUD_RED         [UIColor colorWithRed:1.000 green:0.231 blue:0.322 alpha:1.0]
-#define HUD_TEXT        [UIColor colorWithRed:0.941 green:0.941 blue:0.961 alpha:1.0]
+// ── Palette — Tactical Matrix Grid ──────────────────────
+// Surface
+#define HUD_BG_TOP      [UIColor colorWithRed:0.051 green:0.067 blue:0.102 alpha:1.0]  // #0D111A
+#define HUD_BG_BOTTOM   [UIColor colorWithRed:0.035 green:0.047 blue:0.075 alpha:1.0]  // #090C13
+#define HUD_CARD        [UIColor colorWithRed:0.086 green:0.114 blue:0.169 alpha:1.0]  // #161D2B
+#define HUD_CARD_ON     [UIColor colorWithRed:0.110 green:0.149 blue:0.220 alpha:1.0]  // #1C2638
+#define HUD_BORDER      [UIColor colorWithRed:0.137 green:0.180 blue:0.259 alpha:1.0]  // #232E42
+// Accents
+#define HUD_CYAN        [UIColor colorWithRed:0.000 green:0.898 blue:1.000 alpha:1.0]  // #00E5FF
+#define HUD_GREEN       [UIColor colorWithRed:0.188 green:0.820 blue:0.345 alpha:1.0]  // #30D158
+#define HUD_PURPLE      [UIColor colorWithRed:0.749 green:0.353 blue:0.949 alpha:1.0]  // #BF5AF2
+#define HUD_ORANGE      [UIColor colorWithRed:1.000 green:0.400 blue:0.122 alpha:1.0]  // #FF661F
+#define HUD_PINK        [UIColor colorWithRed:1.000 green:0.216 blue:0.502 alpha:1.0]  // #FF3780
+#define HUD_RED         [UIColor colorWithRed:1.000 green:0.271 blue:0.227 alpha:1.0]  // #FF453A
+// Text
+#define HUD_TEXT        [UIColor colorWithRed:1.000 green:1.000 blue:1.000 alpha:1.0]  // #FFFFFF
+#define HUD_MUTED       [UIColor colorWithRed:0.486 green:0.545 blue:0.631 alpha:1.0]  // #7C8BA1
 
 // ── Tutorial video URLs — điền link YouTube thực tế ────────────────────────
 static NSString *const kTutorialProxyURL = @"https://youtu.be/bchI1KaZhSI";
@@ -65,206 +71,213 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 }
 @end
 
-#pragma mark - Feature row
+// ═══════════════════════════════════════════════════════════
+// #pragma mark - Feature Tile (Tactical Matrix Grid — 2 col)
+// ═══════════════════════════════════════════════════════════
+//
+// Thay thế HUDFeatureRow (list dọc) bằng tile hình chữ nhật
+// dùng trong UICollectionView 2 cột. Khi ON toàn bộ tile sáng
+// lên bằng tinted border + background. Không dùng blur.
+//
+// Layout trong tile (cao 84pt):
+//   ┌──────────────────────────────────┐
+//   │ [LED dot] [icon 22pt]   [toggle] │  ← top row
+//   │ Title 12pt semibold              │
+//   │ Subtitle 10pt muted              │  ← bottom area
+//   └──────────────────────────────────┘
+
+#pragma mark - Feature tile (grid cell)
 
 @class HUDFeatureRow;
 
-@interface HUDFeatureRow : UIView {
-    UIView *_chip;
-    CAGradientLayer *_chipGradient;
-    UIView *_accentBar;
-    UIView *_glowBg;
-}
+// HUDFeatureRow = alias cho HUDFeatureTile để không phải đổi handleRow: và mọi call-site
+@interface HUDFeatureRow : UIView
 @property (nonatomic, strong) HUDFeature *feature;
-@property (nonatomic, strong) UISwitch *toggle;
+@property (nonatomic, strong) UISwitch   *toggle;
 @property (nonatomic, strong) UIActivityIndicatorView *spinner;
-@property (nonatomic, strong) UILabel *statusDot;
-@property (nonatomic, strong) UIButton *previewButton;   // nil nếu không có ảnh preview
-@property (nonatomic, strong) UILabel *rowTitleLabel;    // để cập nhật khi đổi ngôn ngữ
-@property (nonatomic, strong) UILabel *rowSubtitleLabel; // để cập nhật khi đổi ngôn ngữ
+@property (nonatomic, strong) UILabel    *statusDot;
+@property (nonatomic, strong) UIButton   *previewButton;
+@property (nonatomic, strong) UILabel    *rowTitleLabel;
+@property (nonatomic, strong) UILabel    *rowSubtitleLabel;
 @property (nonatomic, copy)   void (^onChanged)(HUDFeatureRow *row, BOOL isOn);
 @property (nonatomic, copy)   void (^onPreviewTapped)(void);
 - (instancetype)initWithFeature:(HUDFeature *)feature;
 - (void)setLoading:(BOOL)loading;
 - (void)showResult:(BOOL)success;
 - (void)setActive:(BOOL)active;
-- (void)refreshLanguage;   // cập nhật VI/EN label khi ngôn ngữ thay đổi
+- (void)refreshLanguage;
 @end
 
-@implementation HUDFeatureRow
+@implementation HUDFeatureRow {
+    UIView *_ledDot;       // LED status indicator (top-left)
+    UIView *_tileGlow;     // full-tile tinted background khi ON
+}
 
 - (instancetype)initWithFeature:(HUDFeature *)feature {
     self = [super initWithFrame:CGRectZero];
-    if (self) {
-        _feature = feature;
-        self.translatesAutoresizingMaskIntoConstraints = NO;
+    if (!self) return nil;
+    _feature = feature;
+    self.translatesAutoresizingMaskIntoConstraints = NO;
 
-        // glow background (fades in when active)
-        _glowBg = [[UIView alloc] init];
-        _glowBg.backgroundColor = [feature.tint colorWithAlphaComponent:0.10];
-        _glowBg.alpha = 0;
-        _glowBg.translatesAutoresizingMaskIntoConstraints = NO;
-        [self addSubview:_glowBg];
+    // ── Tile base styling ──────────────────────────────────
+    self.backgroundColor    = HUD_CARD;
+    self.layer.cornerRadius = 12;
+    self.layer.cornerCurve  = kCACornerCurveContinuous;
+    self.layer.borderWidth  = 1;
+    self.layer.borderColor  = HUD_BORDER.CGColor;
+    self.clipsToBounds      = NO;  // cho phép shadow ngoài
 
-        // left neon accent bar (hidden until active)
-        _accentBar = [[UIView alloc] init];
-        _accentBar.backgroundColor = feature.tint;
-        _accentBar.layer.cornerRadius = 1.5;
-        _accentBar.layer.shadowColor = feature.tint.CGColor;
-        _accentBar.layer.shadowOpacity = 0.9;
-        _accentBar.layer.shadowRadius = 5;
-        _accentBar.layer.shadowOffset = CGSizeZero;
-        _accentBar.alpha = 0;
-        _accentBar.translatesAutoresizingMaskIntoConstraints = NO;
-        [self addSubview:_accentBar];
+    // ── Tinted glow bg (fade-in khi ON) ───────────────────
+    _tileGlow = [[UIView alloc] init];
+    _tileGlow.backgroundColor    = [feature.tint colorWithAlphaComponent:0.12];
+    _tileGlow.layer.cornerRadius = 12;
+    _tileGlow.layer.cornerCurve  = kCACornerCurveContinuous;
+    _tileGlow.alpha              = 0;
+    _tileGlow.translatesAutoresizingMaskIntoConstraints = NO;
+    [self addSubview:_tileGlow];
 
-        // Icon chip — gradient fill + neon glow
-        _chip = [[UIView alloc] init];
-        _chip.layer.cornerRadius = 9;
-        _chip.layer.cornerCurve = kCACornerCurveContinuous;
-        _chip.layer.shadowColor = feature.tint.CGColor;
-        _chip.layer.shadowOpacity = 0.55;
-        _chip.layer.shadowRadius = 7;
-        _chip.layer.shadowOffset = CGSizeMake(0, 2);
-        _chip.translatesAutoresizingMaskIntoConstraints = NO;
-        [self addSubview:_chip];
+    // ── LED dot (top-left) ────────────────────────────────
+    _ledDot = [[UIView alloc] init];
+    _ledDot.layer.cornerRadius = 3.5;
+    _ledDot.backgroundColor    = HUD_BORDER;
+    _ledDot.translatesAutoresizingMaskIntoConstraints = NO;
+    [self addSubview:_ledDot];
 
-        _chipGradient = [CAGradientLayer layer];
-        _chipGradient.colors = @[(id)HUDLighten(feature.tint, 0.25).CGColor, (id)HUDDarken(feature.tint, 0.65).CGColor];
-        _chipGradient.startPoint = CGPointMake(0, 0);
-        _chipGradient.endPoint   = CGPointMake(1, 1);
-        _chipGradient.cornerRadius = 9;
-        [_chip.layer insertSublayer:_chipGradient atIndex:0];
+    // ── SF Symbol icon ────────────────────────────────────
+    UIImageSymbolConfiguration *symCfg = [UIImageSymbolConfiguration
+        configurationWithPointSize:18 weight:UIImageSymbolWeightSemibold];
+    UIImageView *iconIV = [[UIImageView alloc]
+        initWithImage:[UIImage systemImageNamed:feature.symbol withConfiguration:symCfg]];
+    iconIV.tintColor    = feature.tint;
+    iconIV.contentMode  = UIViewContentModeScaleAspectFit;
+    iconIV.translatesAutoresizingMaskIntoConstraints = NO;
+    [self addSubview:iconIV];
 
-        UIImageSymbolConfiguration *cfg = [UIImageSymbolConfiguration configurationWithPointSize:16 weight:UIImageSymbolWeightBold];
-        UIImageView *symbol = [[UIImageView alloc] initWithImage:[UIImage systemImageNamed:feature.symbol withConfiguration:cfg]];
-        symbol.tintColor = [UIColor whiteColor];
-        symbol.contentMode = UIViewContentModeScaleAspectFit;
-        symbol.translatesAutoresizingMaskIntoConstraints = NO;
-        [_chip addSubview:symbol];
+    // ── Toggle (top-right) ────────────────────────────────
+    _toggle = [[UISwitch alloc] init];
+    _toggle.onTintColor  = feature.tint;
+    _toggle.transform    = CGAffineTransformMakeScale(0.72, 0.72); // compact
+    _toggle.translatesAutoresizingMaskIntoConstraints = NO;
+    [_toggle addTarget:self action:@selector(switchChanged) forControlEvents:UIControlEventValueChanged];
+    [self addSubview:_toggle];
 
-        UILabel *title = [[UILabel alloc] init];
-        title.font = [UIFont systemFontOfSize:15 weight:UIFontWeightSemibold];
-        title.textColor = HUD_TEXT;
-        title.translatesAutoresizingMaskIntoConstraints = NO;
-        [self addSubview:title];
-        self.rowTitleLabel = title;
+    // ── Title ─────────────────────────────────────────────
+    UILabel *titleLbl = [[UILabel alloc] init];
+    titleLbl.font          = [UIFont systemFontOfSize:12 weight:UIFontWeightSemibold];
+    titleLbl.textColor     = HUD_TEXT;
+    titleLbl.numberOfLines = 2;
+    titleLbl.lineBreakMode = NSLineBreakByWordWrapping;
+    titleLbl.translatesAutoresizingMaskIntoConstraints = NO;
+    [self addSubview:titleLbl];
+    self.rowTitleLabel = titleLbl;
 
-        UILabel *subtitle = [[UILabel alloc] init];
-        subtitle.font = [UIFont systemFontOfSize:11 weight:UIFontWeightRegular];
-        subtitle.textColor = HUD_MUTED;
-        subtitle.translatesAutoresizingMaskIntoConstraints = NO;
-        [self addSubview:subtitle];
-        self.rowSubtitleLabel = subtitle;
+    // ── Subtitle ──────────────────────────────────────────
+    UILabel *subLbl = [[UILabel alloc] init];
+    subLbl.font          = [UIFont systemFontOfSize:9.5 weight:UIFontWeightRegular];
+    subLbl.textColor     = HUD_MUTED;
+    subLbl.numberOfLines = 2;
+    subLbl.lineBreakMode = NSLineBreakByWordWrapping;
+    subLbl.translatesAutoresizingMaskIntoConstraints = NO;
+    [self addSubview:subLbl];
+    self.rowSubtitleLabel = subLbl;
 
-        [self refreshLanguage];  // set initial text based on current language
+    // ── Status dot label (✓/✕) ────────────────────────────
+    _statusDot = [[UILabel alloc] init];
+    _statusDot.font      = [UIFont systemFontOfSize:11 weight:UIFontWeightBold];
+    _statusDot.textColor = HUD_GREEN;
+    _statusDot.translatesAutoresizingMaskIntoConstraints = NO;
+    [self addSubview:_statusDot];
 
-        _statusDot = [[UILabel alloc] init];
-        _statusDot.font = [UIFont systemFontOfSize:14 weight:UIFontWeightBold];
-        _statusDot.textAlignment = NSTextAlignmentRight;
-        _statusDot.translatesAutoresizingMaskIntoConstraints = NO;
-        [self addSubview:_statusDot];
+    // ── Spinner ───────────────────────────────────────────
+    _spinner = [[UIActivityIndicatorView alloc] initWithActivityIndicatorStyle:UIActivityIndicatorViewStyleMedium];
+    _spinner.color         = feature.tint;
+    _spinner.hidesWhenStopped = YES;
+    _spinner.transform     = CGAffineTransformMakeScale(0.75, 0.75);
+    _spinner.translatesAutoresizingMaskIntoConstraints = NO;
+    [self addSubview:_spinner];
 
-        _spinner = [[UIActivityIndicatorView alloc] initWithActivityIndicatorStyle:UIActivityIndicatorViewStyleMedium];
-        _spinner.color = feature.tint;
-        _spinner.hidesWhenStopped = YES;
-        _spinner.translatesAutoresizingMaskIntoConstraints = NO;
-        [self addSubview:_spinner];
+    // ── Preview button (chỉ khi có previewImageURL) ───────
+    if (feature.previewImageURL.length) {
+        _previewButton = [UIButton buttonWithType:UIButtonTypeSystem];
+        UIImageSymbolConfiguration *pcfg = [UIImageSymbolConfiguration
+            configurationWithPointSize:11 weight:UIImageSymbolWeightBold];
+        [_previewButton setImage:[UIImage systemImageNamed:@"photo.fill" withConfiguration:pcfg]
+                        forState:UIControlStateNormal];
+        _previewButton.tintColor       = [feature.tint colorWithAlphaComponent:0.85];
+        _previewButton.backgroundColor = [feature.tint colorWithAlphaComponent:0.12];
+        _previewButton.layer.cornerRadius = 6;
+        _previewButton.layer.masksToBounds = YES;
+        _previewButton.layer.borderColor   = [feature.tint colorWithAlphaComponent:0.3].CGColor;
+        _previewButton.layer.borderWidth   = 1;
+        _previewButton.translatesAutoresizingMaskIntoConstraints = NO;
+        [self addSubview:_previewButton];
+        [_previewButton addTarget:self action:@selector(previewTapped)
+                forControlEvents:UIControlEventTouchUpInside];
+    }
 
-        _toggle = [[UISwitch alloc] init];
-        _toggle.onTintColor = feature.tint;
-        _toggle.translatesAutoresizingMaskIntoConstraints = NO;
-        [_toggle addTarget:self action:@selector(switchChanged) forControlEvents:UIControlEventValueChanged];
-        [self addSubview:_toggle];
+    [self refreshLanguage];
 
-        // Nút xem ảnh preview (photo.fill) — chỉ tạo khi feature có previewImageURL
-        if (feature.previewImageURL.length) {
-            _previewButton = [UIButton buttonWithType:UIButtonTypeSystem];
-            UIImageSymbolConfiguration *pcfg = [UIImageSymbolConfiguration configurationWithPointSize:13 weight:UIImageSymbolWeightBold];
-            [_previewButton setImage:[UIImage systemImageNamed:@"photo.fill" withConfiguration:pcfg] forState:UIControlStateNormal];
-            _previewButton.tintColor = [feature.tint colorWithAlphaComponent:0.9];
-            _previewButton.backgroundColor = [feature.tint colorWithAlphaComponent:0.12];
-            _previewButton.layer.cornerRadius = 8;
-            _previewButton.layer.masksToBounds = YES;
-            _previewButton.layer.borderColor = [feature.tint colorWithAlphaComponent:0.35].CGColor;
-            _previewButton.layer.borderWidth = 1;
-            _previewButton.translatesAutoresizingMaskIntoConstraints = NO;
-            [self addSubview:_previewButton];
-            [_previewButton addTarget:self action:@selector(previewTapped) forControlEvents:UIControlEventTouchUpInside];
-        }
+    // ── Auto-Layout ───────────────────────────────────────
+    // Tile height: 84pt cố định — UICollectionView sẽ dùng estimatedItemSize
+    [NSLayoutConstraint activateConstraints:@[
+        [self.heightAnchor constraintEqualToConstant:84],
 
+        // tileGlow = full tile
+        [_tileGlow.topAnchor    constraintEqualToAnchor:self.topAnchor],
+        [_tileGlow.leadingAnchor  constraintEqualToAnchor:self.leadingAnchor],
+        [_tileGlow.trailingAnchor constraintEqualToAnchor:self.trailingAnchor],
+        [_tileGlow.bottomAnchor constraintEqualToAnchor:self.bottomAnchor],
+
+        // LED dot: top-left
+        [_ledDot.leadingAnchor constraintEqualToAnchor:self.leadingAnchor constant:10],
+        [_ledDot.topAnchor     constraintEqualToAnchor:self.topAnchor     constant:10],
+        [_ledDot.widthAnchor   constraintEqualToConstant:7],
+        [_ledDot.heightAnchor  constraintEqualToConstant:7],
+
+        // Icon: next to LED dot
+        [iconIV.leadingAnchor constraintEqualToAnchor:_ledDot.trailingAnchor constant:6],
+        [iconIV.centerYAnchor constraintEqualToAnchor:_ledDot.centerYAnchor],
+        [iconIV.widthAnchor   constraintEqualToConstant:22],
+        [iconIV.heightAnchor  constraintEqualToConstant:22],
+
+        // Toggle: top-right
+        [_toggle.trailingAnchor constraintEqualToAnchor:self.trailingAnchor constant:-6],
+        [_toggle.centerYAnchor  constraintEqualToAnchor:_ledDot.centerYAnchor],
+
+        // Status dot: left of toggle
+        [_statusDot.trailingAnchor constraintEqualToAnchor:_toggle.leadingAnchor constant:-4],
+        [_statusDot.centerYAnchor  constraintEqualToAnchor:_toggle.centerYAnchor],
+        [_statusDot.widthAnchor    constraintEqualToConstant:16],
+
+        // Spinner: overlaps status dot position
+        [_spinner.centerXAnchor constraintEqualToAnchor:_statusDot.centerXAnchor],
+        [_spinner.centerYAnchor constraintEqualToAnchor:_statusDot.centerYAnchor],
+
+        // Title: below icon row
+        [titleLbl.leadingAnchor   constraintEqualToAnchor:self.leadingAnchor constant:10],
+        [titleLbl.trailingAnchor  constraintEqualToAnchor:self.trailingAnchor constant:-10],
+        [titleLbl.topAnchor       constraintEqualToAnchor:iconIV.bottomAnchor constant:7],
+
+        // Subtitle: below title
+        [subLbl.leadingAnchor  constraintEqualToAnchor:titleLbl.leadingAnchor],
+        [subLbl.trailingAnchor constraintEqualToAnchor:titleLbl.trailingAnchor],
+        [subLbl.topAnchor      constraintEqualToAnchor:titleLbl.bottomAnchor constant:2],
+    ]];
+
+    // Preview button: bottom-right nếu có
+    if (_previewButton) {
         [NSLayoutConstraint activateConstraints:@[
-            [self.heightAnchor constraintEqualToConstant:62],
-
-            [_glowBg.topAnchor constraintEqualToAnchor:self.topAnchor],
-            [_glowBg.bottomAnchor constraintEqualToAnchor:self.bottomAnchor constant:-0.5],
-            [_glowBg.leadingAnchor constraintEqualToAnchor:self.leadingAnchor],
-            [_glowBg.trailingAnchor constraintEqualToAnchor:self.trailingAnchor],
-
-            [_accentBar.leadingAnchor constraintEqualToAnchor:self.leadingAnchor],
-            [_accentBar.centerYAnchor constraintEqualToAnchor:self.centerYAnchor],
-            [_accentBar.widthAnchor constraintEqualToConstant:3],
-            [_accentBar.heightAnchor constraintEqualToConstant:32],
-
-            [_chip.leadingAnchor constraintEqualToAnchor:self.leadingAnchor constant:16],
-            [_chip.centerYAnchor constraintEqualToAnchor:self.centerYAnchor],
-            [_chip.widthAnchor constraintEqualToConstant:36],
-            [_chip.heightAnchor constraintEqualToConstant:36],
-
-            [symbol.centerXAnchor constraintEqualToAnchor:_chip.centerXAnchor],
-            [symbol.centerYAnchor constraintEqualToAnchor:_chip.centerYAnchor],
-
-            [title.leadingAnchor constraintEqualToAnchor:_chip.trailingAnchor constant:12],
-            [title.bottomAnchor constraintEqualToAnchor:self.centerYAnchor constant:-1],
-
-            [subtitle.leadingAnchor constraintEqualToAnchor:_chip.trailingAnchor constant:12],
-            [subtitle.topAnchor constraintEqualToAnchor:self.centerYAnchor constant:2],
-
-            [_toggle.trailingAnchor constraintEqualToAnchor:self.trailingAnchor constant:-16],
-            [_toggle.centerYAnchor constraintEqualToAnchor:self.centerYAnchor],
-        ]];
-
-        // Spinner & statusDot: đứng trái preview button (nếu có), ngược lại đứng trái toggle
-        UIView   *dotRef   = _previewButton ?: _toggle;
-        CGFloat   dotConst = _previewButton ? -8.0 : -12.0;
-        [NSLayoutConstraint activateConstraints:@[
-            [_spinner.trailingAnchor constraintEqualToAnchor:dotRef.leadingAnchor constant:dotConst],
-            [_spinner.centerYAnchor constraintEqualToAnchor:self.centerYAnchor],
-            [_statusDot.trailingAnchor constraintEqualToAnchor:dotRef.leadingAnchor constant:dotConst],
-            [_statusDot.centerYAnchor constraintEqualToAnchor:self.centerYAnchor],
-            [_statusDot.widthAnchor constraintEqualToConstant:20],
-        ]];
-        if (_previewButton) {
-            [NSLayoutConstraint activateConstraints:@[
-                [_previewButton.trailingAnchor constraintEqualToAnchor:_toggle.leadingAnchor constant:-8],
-                [_previewButton.centerYAnchor constraintEqualToAnchor:self.centerYAnchor],
-                [_previewButton.widthAnchor constraintEqualToConstant:30],
-                [_previewButton.heightAnchor constraintEqualToConstant:30],
-            ]];
-        }
-
-        // bottom hairline
-        UIView *line = [[UIView alloc] init];
-        line.backgroundColor = [UIColor colorWithWhite:1 alpha:0.07];
-        line.translatesAutoresizingMaskIntoConstraints = NO;
-        [self addSubview:line];
-        [NSLayoutConstraint activateConstraints:@[
-            [line.leadingAnchor constraintEqualToAnchor:self.leadingAnchor constant:16],
-            [line.trailingAnchor constraintEqualToAnchor:self.trailingAnchor constant:-16],
-            [line.bottomAnchor constraintEqualToAnchor:self.bottomAnchor],
-            [line.heightAnchor constraintEqualToConstant:0.5],
+            [_previewButton.trailingAnchor constraintEqualToAnchor:self.trailingAnchor constant:-8],
+            [_previewButton.bottomAnchor   constraintEqualToAnchor:self.bottomAnchor  constant:-8],
+            [_previewButton.widthAnchor    constraintEqualToConstant:24],
+            [_previewButton.heightAnchor   constraintEqualToConstant:24],
         ]];
     }
+
     return self;
 }
 
-- (void)layoutSubviews {
-    [super layoutSubviews];
-    _chipGradient.frame = _chip.bounds;
-}
-
 - (void)switchChanged {
-    // Scatter check — bẫy inject xảy ra sau khi app đã chạy ổn định
     if (![SecurityGuard isEnvironmentTrusted]) { [SecurityGuard bailOut]; return; }
     if (self.onChanged) self.onChanged(self, self.toggle.isOn);
 }
@@ -274,11 +287,17 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 }
 
 - (void)setActive:(BOOL)active {
-    [UIView animateWithDuration:0.25 animations:^{
-        self->_glowBg.alpha = active ? 1 : 0;
-        self->_accentBar.alpha = active ? 1 : 0;
-        self->_chip.layer.shadowOpacity = active ? 0.9 : 0.55;
-    }];
+    UIColor *tint = self.feature.tint;
+    [UIView animateWithDuration:0.22 delay:0
+         usingSpringWithDamping:0.8 initialSpringVelocity:0.3
+                        options:UIViewAnimationOptionBeginFromCurrentState
+                     animations:^{
+        self->_tileGlow.alpha       = active ? 1 : 0;
+        self.layer.borderColor      = active
+            ? [tint colorWithAlphaComponent:0.55].CGColor
+            : HUD_BORDER.CGColor;
+        self->_ledDot.backgroundColor = active ? tint : HUD_BORDER;
+    } completion:nil];
 }
 
 - (void)setLoading:(BOOL)loading {
@@ -292,7 +311,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 }
 
 - (void)showResult:(BOOL)success {
-    self.statusDot.text = success ? @"✓" : @"✕";
+    self.statusDot.text      = success ? @"✓" : @"✕";
     self.statusDot.textColor = success ? HUD_GREEN : HUD_RED;
 }
 
@@ -318,21 +337,22 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 @property (nonatomic, strong) UIButton *openGameButton;
 @property (nonatomic, strong) CAGradientLayer *openGameGradient;
 @property (nonatomic, strong) NSMutableArray<HUDFeatureRow *> *rows;
-// ── Tab UI ──
-@property (nonatomic, strong) NSArray<UIButton *> *tabButtons;   // 3 segment buttons
-@property (nonatomic, strong) NSArray<UIColor *>  *tabTints;     // per-tab neon color
+// ── Tab UI (Tactical Matrix Grid — chip bar) ──
+@property (nonatomic, strong) NSArray<UIButton *>             *tabButtons;   // 3 chip buttons
+@property (nonatomic, strong) NSArray<UIColor *>              *tabTints;     // per-tab accent
+@property (nonatomic, strong) NSArray<NSArray<HUDFeature *> *> *tabFeatures; // [tab][feature]
+@property (nonatomic, assign) NSInteger activeTab;
+// Panel cards (solid UIView, no blur)
 @property (nonatomic, strong) UIView  *panelProxy;
 @property (nonatomic, strong) UIView  *panelDinhVi;
 @property (nonatomic, strong) UIView  *panelModNV;
-@property (nonatomic, strong) UIView  *panelDrag;   // AimDrag + FakeDame — cùng ẩn/hiện với tab Proxy
-@property (nonatomic, strong) UILabel *panelDinhViTitleLabel;  // để cập nhật ngôn ngữ
-@property (nonatomic, strong) UILabel *panelModNVTitleLabel;   // để cập nhật ngôn ngữ
-// ── Sliding segmented bar ──
-@property (nonatomic, strong) UIView  *segmentBar;              // outer wrapper (has shadow)
-@property (nonatomic, strong) UIView  *segThumb;                // floating pill indicator
-@property (nonatomic, strong) NSLayoutConstraint *thumbLeft;    // animated leading
-@property (nonatomic, assign) NSInteger pendingThumbTab;        // -1 = nothing pending
-@property (nonatomic, strong) NSMutableArray<UILabel *> *segLabels; // for language refresh
+@property (nonatomic, strong) UIView  *panelDrag;
+@property (nonatomic, strong) UILabel *panelDinhViTitleLabel;
+@property (nonatomic, strong) UILabel *panelModNVTitleLabel;
+// Chip bar container + compat stub
+@property (nonatomic, strong) UIView    *segmentBar;
+@property (nonatomic, assign) NSInteger  pendingThumbTab;  // compat stub; no-op
+@property (nonatomic, strong) NSMutableArray<UILabel *> *segLabels;
 @end
 
 // Private API để mở app game theo bundle id
@@ -356,7 +376,11 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 - (void)viewDidLoad {
     [super viewDidLoad];
     self.pendingThumbTab = -1;
+    self.activeTab = 0;
     self.title = self.appName;
+
+    // ── Background: solid dark (NO blur, performance-safe) ──
+    self.view.backgroundColor = HUD_BG_TOP;
 
     self.bgGradient = [CAGradientLayer layer];
     self.bgGradient.colors = @[(id)HUD_BG_TOP.CGColor, (id)HUD_BG_BOTTOM.CGColor];
@@ -364,16 +388,16 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     self.bgGradient.endPoint   = CGPointMake(0.5, 1.0);
     [self.view.layer insertSublayer:self.bgGradient atIndex:0];
 
-    // Quầng sáng tím (trên) như web
+    // Subtle purple radial glow (top-center) — static, không animate
     self.radialGlow = [CAGradientLayer layer];
     self.radialGlow.type = kCAGradientLayerRadial;
-    self.radialGlow.colors = @[(id)[HUD_PURPLE colorWithAlphaComponent:0.32].CGColor,
+    self.radialGlow.colors = @[(id)[HUD_PURPLE colorWithAlphaComponent:0.20].CGColor,
                                (id)[HUD_PURPLE colorWithAlphaComponent:0.0].CGColor];
     self.radialGlow.startPoint = CGPointMake(0.5, 0.5);
     self.radialGlow.endPoint   = CGPointMake(1.0, 1.0);
     [self.view.layer insertSublayer:self.radialGlow above:self.bgGradient];
 
-    // Faint grid overlay
+    // Dot-grid texture (very subtle)
     UIView *grid = [[UIView alloc] initWithFrame:self.view.bounds];
     grid.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
     grid.backgroundColor = [self gridPatternColor];
@@ -698,7 +722,17 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 }
 
 - (void)buildUI {
-    // ── Scroll container ────────────────────────────────
+    // ══════════════════════════════════════════════════════════
+    // TACTICAL MATRIX GRID — buildUI
+    // Layout:
+    //   • Header: icon (68pt) + name + bundle (compact, horizontal)
+    //   • Chip Tab Bar: 3 pill chips, solid color, no blur
+    //   • Panel cards: solid UIView (#161D2B), NO UIVisualEffectView
+    //   • Features: UICollectionView 2-column grid of HUDFeatureTile
+    //   • Status label + sticky MỞ GAME button
+    // ══════════════════════════════════════════════════════════
+
+    // ── Scroll + content ────────────────────────────────────
     UIScrollView *scroll = [[UIScrollView alloc] init];
     scroll.translatesAutoresizingMaskIntoConstraints = NO;
     scroll.showsVerticalScrollIndicator = NO;
@@ -710,230 +744,270 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     [scroll addSubview:content];
 
     [NSLayoutConstraint activateConstraints:@[
-        [scroll.topAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.topAnchor],
-        [scroll.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor],
+        [scroll.topAnchor    constraintEqualToAnchor:self.view.safeAreaLayoutGuide.topAnchor],
+        [scroll.leadingAnchor  constraintEqualToAnchor:self.view.leadingAnchor],
         [scroll.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor],
         [scroll.bottomAnchor constraintEqualToAnchor:self.view.bottomAnchor],
-
-        [content.topAnchor constraintEqualToAnchor:scroll.topAnchor],
-        [content.leadingAnchor constraintEqualToAnchor:scroll.leadingAnchor],
+        [content.topAnchor    constraintEqualToAnchor:scroll.topAnchor],
+        [content.leadingAnchor  constraintEqualToAnchor:scroll.leadingAnchor],
         [content.trailingAnchor constraintEqualToAnchor:scroll.trailingAnchor],
         [content.bottomAnchor constraintEqualToAnchor:scroll.bottomAnchor],
-        [content.widthAnchor constraintEqualToAnchor:scroll.widthAnchor],
+        [content.widthAnchor  constraintEqualToAnchor:scroll.widthAnchor],
     ]];
 
-    // ── Header: icon + name + bundle ────────────────────
+    // ── Header (horizontal compact) ────────────────────────
+    UIView *headerView = [[UIView alloc] init];
+    headerView.translatesAutoresizingMaskIntoConstraints = NO;
+    [content addSubview:headerView];
+
     UIImageView *iconView = [[UIImageView alloc] initWithImage:self.icon];
     iconView.contentMode = UIViewContentModeScaleAspectFill;
     iconView.clipsToBounds = YES;
-    iconView.layer.cornerRadius = 18;
-    iconView.layer.cornerCurve = kCACornerCurveContinuous;
-    iconView.layer.borderColor = [HUD_CYAN colorWithAlphaComponent:0.45].CGColor;
-    iconView.layer.borderWidth = 1.5;
-    iconView.layer.magnificationFilter = kCAFilterTrilinear;
-    iconView.layer.shadowColor = HUD_CYAN.CGColor;
-    iconView.layer.shadowOpacity = 0.6;
-    iconView.layer.shadowRadius = 18;
-    iconView.layer.shadowOffset = CGSizeMake(0, 4);
+    iconView.layer.cornerRadius = 14;
+    iconView.layer.cornerCurve  = kCACornerCurveContinuous;
+    iconView.layer.borderColor  = [HUD_CYAN colorWithAlphaComponent:0.4].CGColor;
+    iconView.layer.borderWidth  = 1.5;
     iconView.translatesAutoresizingMaskIntoConstraints = NO;
-    [content addSubview:iconView];
+    [headerView addSubview:iconView];
 
     UILabel *nameLabel = [[UILabel alloc] init];
-    nameLabel.text = self.appName;
-    nameLabel.font = [UIFont systemFontOfSize:22 weight:UIFontWeightHeavy];
+    nameLabel.text      = self.appName;
+    nameLabel.font      = [UIFont systemFontOfSize:20 weight:UIFontWeightHeavy];
     nameLabel.textColor = HUD_TEXT;
-    nameLabel.textAlignment = NSTextAlignmentCenter;
     nameLabel.translatesAutoresizingMaskIntoConstraints = NO;
-    [content addSubview:nameLabel];
+    [headerView addSubview:nameLabel];
 
     UILabel *bundleLabel = [[UILabel alloc] init];
-    bundleLabel.text = self.bundleID;
-    bundleLabel.font = [UIFont monospacedSystemFontOfSize:11 weight:UIFontWeightRegular];
+    bundleLabel.text      = self.bundleID;
+    bundleLabel.font      = [UIFont monospacedSystemFontOfSize:10 weight:UIFontWeightRegular];
     bundleLabel.textColor = HUD_MUTED;
-    bundleLabel.textAlignment = NSTextAlignmentCenter;
     bundleLabel.translatesAutoresizingMaskIntoConstraints = NO;
-    [content addSubview:bundleLabel];
+    [headerView addSubview:bundleLabel];
 
-    // ── Sliding Segmented Bar ────────────────────────────
+    // Online indicator dot
+    UIView *onlineDot = [[UIView alloc] init];
+    onlineDot.backgroundColor    = HUD_GREEN;
+    onlineDot.layer.cornerRadius = 4;
+    onlineDot.translatesAutoresizingMaskIntoConstraints = NO;
+    [headerView addSubview:onlineDot];
+
+    UILabel *onlineLbl = [[UILabel alloc] init];
+    onlineLbl.text      = @"ONLINE";
+    onlineLbl.font      = [UIFont systemFontOfSize:9 weight:UIFontWeightBold];
+    onlineLbl.textColor = HUD_GREEN;
+    onlineLbl.translatesAutoresizingMaskIntoConstraints = NO;
+    [headerView addSubview:onlineLbl];
+
+    [NSLayoutConstraint activateConstraints:@[
+        [headerView.topAnchor    constraintEqualToAnchor:content.topAnchor constant:18],
+        [headerView.leadingAnchor  constraintEqualToAnchor:content.leadingAnchor constant:16],
+        [headerView.trailingAnchor constraintEqualToAnchor:content.trailingAnchor constant:-16],
+        [headerView.heightAnchor constraintEqualToConstant:68],
+
+        [iconView.leadingAnchor constraintEqualToAnchor:headerView.leadingAnchor],
+        [iconView.centerYAnchor constraintEqualToAnchor:headerView.centerYAnchor],
+        [iconView.widthAnchor   constraintEqualToConstant:56],
+        [iconView.heightAnchor  constraintEqualToConstant:56],
+
+        [nameLabel.leadingAnchor constraintEqualToAnchor:iconView.trailingAnchor constant:12],
+        [nameLabel.topAnchor     constraintEqualToAnchor:iconView.topAnchor constant:4],
+
+        [bundleLabel.leadingAnchor constraintEqualToAnchor:nameLabel.leadingAnchor],
+        [bundleLabel.topAnchor     constraintEqualToAnchor:nameLabel.bottomAnchor constant:3],
+
+        [onlineDot.leadingAnchor constraintEqualToAnchor:nameLabel.leadingAnchor],
+        [onlineDot.topAnchor     constraintEqualToAnchor:bundleLabel.bottomAnchor constant:5],
+        [onlineDot.widthAnchor   constraintEqualToConstant:8],
+        [onlineDot.heightAnchor  constraintEqualToConstant:8],
+
+        [onlineLbl.leadingAnchor constraintEqualToAnchor:onlineDot.trailingAnchor constant:5],
+        [onlineLbl.centerYAnchor constraintEqualToAnchor:onlineDot.centerYAnchor],
+    ]];
+
+    // ── Chip Tab Bar ───────────────────────────────────────
+    // 3 pill chips — solid fill, no blur, no sliding thumb
     NSArray<NSString *> *tabSyms   = @[@"bolt.fill", @"location.fill", @"person.fill.badge.plus"];
     NSArray<NSString *> *tabLabels = @[
         LS(@"Proxy",   @"Proxy"),
         LS(@"Định Vị", @"Aim Bot"),
         LS(@"Mod NV",  @"Mod Skin"),
     ];
+    NSArray<NSString *> *tabBadges = @[@"AUTO", @"LIVE", @"SOON"];
     self.tabTints = @[HUD_CYAN, HUD_GREEN, HUD_PURPLE];
 
-    // Outer shadow wrapper (not clipping, so glow shows)
-    UIView *segWrap = [[UIView alloc] init];
-    segWrap.backgroundColor = [UIColor clearColor];
-    segWrap.layer.shadowColor   = HUD_PURPLE.CGColor;
-    segWrap.layer.shadowOpacity = 0.30;
-    segWrap.layer.shadowRadius  = 14;
-    segWrap.layer.shadowOffset  = CGSizeMake(0, 4);
-    segWrap.translatesAutoresizingMaskIntoConstraints = NO;
-    [content addSubview:segWrap];
-    self.segmentBar = segWrap;
+    UIView *chipBar = [[UIView alloc] init];
+    chipBar.translatesAutoresizingMaskIntoConstraints = NO;
+    chipBar.backgroundColor = [UIColor colorWithRed:0.055 green:0.075 blue:0.118 alpha:1.0]; // #0E1330
+    chipBar.layer.cornerRadius = 14;
+    chipBar.layer.cornerCurve  = kCACornerCurveContinuous;
+    chipBar.layer.borderColor  = HUD_BORDER.CGColor;
+    chipBar.layer.borderWidth  = 1;
+    [content addSubview:chipBar];
+    self.segmentBar = chipBar;
 
-    // Glass blur container (clips sublayers)
-    UIVisualEffectView *segBlur = [[UIVisualEffectView alloc]
-        initWithEffect:[UIBlurEffect effectWithStyle:UIBlurEffectStyleSystemThinMaterialDark]];
-    segBlur.clipsToBounds = YES;
-    segBlur.layer.cornerRadius = 16;
-    segBlur.layer.cornerCurve  = kCACornerCurveContinuous;
-    segBlur.layer.borderColor  = [UIColor colorWithWhite:1 alpha:0.09].CGColor;
-    segBlur.layer.borderWidth  = 0.5;
-    segBlur.translatesAutoresizingMaskIntoConstraints = NO;
-    [segWrap addSubview:segBlur];
-    [NSLayoutConstraint activateConstraints:@[
-        [segBlur.topAnchor    constraintEqualToAnchor:segWrap.topAnchor],
-        [segBlur.leadingAnchor  constraintEqualToAnchor:segWrap.leadingAnchor],
-        [segBlur.trailingAnchor constraintEqualToAnchor:segWrap.trailingAnchor],
-        [segBlur.bottomAnchor constraintEqualToAnchor:segWrap.bottomAnchor],
-    ]];
-
-    UIView *cv = segBlur.contentView;
-
-    // Sliding thumb pill (lives beneath the buttons in Z-order)
-    UIView *thumb = [[UIView alloc] init];
-    thumb.layer.cornerRadius = 13;
-    thumb.layer.cornerCurve  = kCACornerCurveContinuous;
-    thumb.layer.borderWidth  = 1;
-    thumb.translatesAutoresizingMaskIntoConstraints = NO;
-    [cv addSubview:thumb];
-    self.segThumb = thumb;
-
-    // Equal-width button slots stacked on top of the thumb
-    UIStackView *segStack = [[UIStackView alloc] init];
-    segStack.axis         = UILayoutConstraintAxisHorizontal;
-    segStack.distribution = UIStackViewDistributionFillEqually;
-    segStack.translatesAutoresizingMaskIntoConstraints = NO;
-    [cv addSubview:segStack];
+    UIStackView *chipStack = [[UIStackView alloc] init];
+    chipStack.axis         = UILayoutConstraintAxisHorizontal;
+    chipStack.distribution = UIStackViewDistributionFillEqually;
+    chipStack.spacing      = 4;
+    chipStack.translatesAutoresizingMaskIntoConstraints = NO;
+    [chipBar addSubview:chipStack];
 
     NSMutableArray<UIButton *> *btns = [NSMutableArray array];
     NSMutableArray<UILabel *>  *lbls = [NSMutableArray array];
-    for (NSInteger i = 0; i < 3; i++) {
-        UIButton *btn = [UIButton buttonWithType:UIButtonTypeCustom];
-        btn.tag = i;
-        btn.translatesAutoresizingMaskIntoConstraints = NO;
-        [btn addTarget:self action:@selector(tabButtonTapped:) forControlEvents:UIControlEventTouchUpInside];
 
-        UIImageSymbolConfiguration *symCfg = [UIImageSymbolConfiguration configurationWithPointSize:12 weight:UIImageSymbolWeightBold];
-        UIImageView *iconIV = [[UIImageView alloc] initWithImage:[UIImage systemImageNamed:tabSyms[(NSUInteger)i] withConfiguration:symCfg]];
-        iconIV.contentMode = UIViewContentModeScaleAspectFit;
+    for (NSInteger i = 0; i < 3; i++) {
+        UIButton *chip = [UIButton buttonWithType:UIButtonTypeCustom];
+        chip.tag = i;
+        chip.layer.cornerRadius = 10;
+        chip.layer.cornerCurve  = kCACornerCurveContinuous;
+        chip.layer.masksToBounds = YES;
+        chip.translatesAutoresizingMaskIntoConstraints = NO;
+        [chip addTarget:self action:@selector(tabButtonTapped:) forControlEvents:UIControlEventTouchUpInside];
+
+        // Icon
+        UIImageSymbolConfiguration *symCfg = [UIImageSymbolConfiguration
+            configurationWithPointSize:12 weight:UIImageSymbolWeightBold];
+        UIImageView *iconIV = [[UIImageView alloc]
+            initWithImage:[UIImage systemImageNamed:tabSyms[(NSUInteger)i] withConfiguration:symCfg]];
+        iconIV.contentMode           = UIViewContentModeScaleAspectFit;
         iconIV.translatesAutoresizingMaskIntoConstraints = NO;
         iconIV.userInteractionEnabled = NO;
         iconIV.tag = 10 + i;
-        [btn addSubview:iconIV];
+        [chip addSubview:iconIV];
 
+        // Label
         UILabel *lbl = [[UILabel alloc] init];
-        lbl.text          = tabLabels[(NSUInteger)i];
-        lbl.font          = [UIFont systemFontOfSize:11 weight:UIFontWeightSemibold];
-        lbl.textAlignment = NSTextAlignmentCenter;
+        lbl.text           = tabLabels[(NSUInteger)i];
+        lbl.font           = [UIFont systemFontOfSize:10 weight:UIFontWeightBold];
+        lbl.textAlignment  = NSTextAlignmentCenter;
         lbl.translatesAutoresizingMaskIntoConstraints = NO;
         lbl.userInteractionEnabled = NO;
         lbl.tag = 20 + i;
-        [btn addSubview:lbl];
+        [chip addSubview:lbl];
         [lbls addObject:lbl];
 
+        // Badge pill
+        UILabel *badge = [[UILabel alloc] init];
+        badge.text          = [NSString stringWithFormat:@" %@ ", tabBadges[(NSUInteger)i]];
+        badge.font          = [UIFont systemFontOfSize:7.5 weight:UIFontWeightBold];
+        badge.textAlignment = NSTextAlignmentCenter;
+        badge.layer.cornerRadius  = 4;
+        badge.layer.masksToBounds = YES;
+        badge.translatesAutoresizingMaskIntoConstraints = NO;
+        badge.tag = 30 + i;
+        [chip addSubview:badge];
+
         [NSLayoutConstraint activateConstraints:@[
-            [iconIV.centerXAnchor constraintEqualToAnchor:btn.centerXAnchor],
-            [iconIV.bottomAnchor  constraintEqualToAnchor:btn.centerYAnchor constant:0],
+            [iconIV.centerXAnchor constraintEqualToAnchor:chip.centerXAnchor],
+            [iconIV.topAnchor     constraintEqualToAnchor:chip.topAnchor constant:9],
             [iconIV.widthAnchor   constraintEqualToConstant:14],
             [iconIV.heightAnchor  constraintEqualToConstant:14],
-            [lbl.centerXAnchor    constraintEqualToAnchor:btn.centerXAnchor],
+            [lbl.centerXAnchor    constraintEqualToAnchor:chip.centerXAnchor],
             [lbl.topAnchor        constraintEqualToAnchor:iconIV.bottomAnchor constant:3],
+            [badge.centerXAnchor  constraintEqualToAnchor:chip.centerXAnchor],
+            [badge.topAnchor      constraintEqualToAnchor:lbl.bottomAnchor constant:3],
         ]];
 
-        [segStack addArrangedSubview:btn];
-        [btns addObject:btn];
+        [chipStack addArrangedSubview:chip];
+        [btns addObject:chip];
     }
     self.tabButtons = [btns copy];
     self.segLabels  = lbls;
 
-    // Thumb: 1/3 bar width, inset 4pt top/bottom; leading drives the slide
-    self.thumbLeft = [thumb.leadingAnchor constraintEqualToAnchor:cv.leadingAnchor constant:0];
     [NSLayoutConstraint activateConstraints:@[
-        self.thumbLeft,
-        [thumb.widthAnchor  constraintEqualToAnchor:cv.widthAnchor multiplier:1.0/3.0],
-        [thumb.topAnchor    constraintEqualToAnchor:cv.topAnchor    constant:4],
-        [thumb.bottomAnchor constraintEqualToAnchor:cv.bottomAnchor constant:-4],
-
-        [segStack.topAnchor    constraintEqualToAnchor:cv.topAnchor],
-        [segStack.bottomAnchor constraintEqualToAnchor:cv.bottomAnchor],
-        [segStack.leadingAnchor  constraintEqualToAnchor:cv.leadingAnchor],
-        [segStack.trailingAnchor constraintEqualToAnchor:cv.trailingAnchor],
+        [chipBar.topAnchor     constraintEqualToAnchor:headerView.bottomAnchor constant:16],
+        [chipBar.leadingAnchor   constraintEqualToAnchor:content.leadingAnchor   constant:16],
+        [chipBar.trailingAnchor  constraintEqualToAnchor:content.trailingAnchor  constant:-16],
+        [chipBar.heightAnchor  constraintEqualToConstant:64],
+        [chipStack.topAnchor     constraintEqualToAnchor:chipBar.topAnchor     constant:4],
+        [chipStack.leadingAnchor   constraintEqualToAnchor:chipBar.leadingAnchor   constant:4],
+        [chipStack.trailingAnchor  constraintEqualToAnchor:chipBar.trailingAnchor  constant:-4],
+        [chipStack.bottomAnchor  constraintEqualToAnchor:chipBar.bottomAnchor  constant:-4],
     ]];
 
     [self selectTab:0];
 
-    // ── 3 Panels ─────────────────────────────────────────
+    // ── Build feature data + rows array ───────────────────
     self.rows = [NSMutableArray array];
 
+    NSArray<HUDFeature *> *proxyFeats = [self proxyFeaturesForBundle:self.bundleID];
+    NSArray<HUDFeature *> *dvFeats    = [self dinhViFeaturesForBundle:self.bundleID];
+    NSArray<HUDFeature *> *modFeats   = [self modNVFeaturesForBundle:self.bundleID];
+    NSArray<HUDFeature *> *dragFeats  = [self dragFeaturesForBundle:self.bundleID];
+    self.tabFeatures = @[proxyFeats, dvFeats, modFeats];
+
+    // Pre-create HUDFeatureRow objects for ALL features (so handleRow: / radio logic works)
+    __weak typeof(self) weakSelf = self;
+    for (NSArray<HUDFeature *> *featSet in @[proxyFeats, dvFeats, modFeats, dragFeats]) {
+        for (HUDFeature *f in featSet) {
+            HUDFeatureRow *row = [[HUDFeatureRow alloc] initWithFeature:f];
+            row.onChanged = ^(HUDFeatureRow *r, BOOL isOn) { [weakSelf handleRow:r on:isOn]; };
+            if (f.previewImageURL.length) {
+                NSString *url = f.previewImageURL;
+                row.onPreviewTapped = ^{ [weakSelf showPreviewURL:url]; };
+            }
+            [self.rows addObject:row];
+        }
+    }
+
+    // ── Panel cards (solid, no blur) ───────────────────────
     self.panelProxy  = [self buildPanelWithTitle:@"PROXY DELTA VIP"
                                           symbol:@"bolt.fill"     tint:HUD_CYAN   badge:@"AUTO"
-                                        features:[self proxyFeaturesForBundle:self.bundleID]
+                                        features:proxyFeats
                                      tutorialURL:kTutorialProxyURL ?: @""
                                   outTitleLabel:nil];
     self.panelDinhVi = [self buildPanelWithTitle:LS(@"ĐỊNH VỊ SÚNG", @"AIM BOT")
                                           symbol:@"location.fill" tint:HUD_GREEN  badge:@"LIVE"
-                                        features:[self dinhViFeaturesForBundle:self.bundleID]
+                                        features:dvFeats
                                      tutorialURL:nil
                                   outTitleLabel:&_panelDinhViTitleLabel];
     self.panelModNV  = [self buildPanelWithTitle:LS(@"MOD NHÂN VẬT", @"CHARACTER MOD")
                                           symbol:@"person.fill.badge.plus" tint:HUD_PURPLE badge:@"SOON"
-                                        features:[self modNVFeaturesForBundle:self.bundleID]
+                                        features:modFeats
                                      tutorialURL:nil
                                   outTitleLabel:&_panelModNVTitleLabel];
-
-    // ── PROXY DELTA VIP V2 panel ─────────────────────────────────────────────
-    self.panelDrag = [self buildPanelWithTitle:@"PROXY DELTA VIP V2"
-                                        symbol:@"hand.draw.fill"
-                                          tint:HUD_ORANGE
-                                         badge:@"V2"
-                                      features:[self dragFeaturesForBundle:self.bundleID]
-                                   tutorialURL:kTutorialDragURL ?: @""
-                                outTitleLabel:nil];
+    self.panelDrag   = [self buildPanelWithTitle:@"PROXY DELTA VIP V2"
+                                          symbol:@"hand.draw.fill" tint:HUD_ORANGE badge:@"V2"
+                                        features:dragFeats
+                                     tutorialURL:kTutorialDragURL ?: @""
+                                  outTitleLabel:nil];
 
     self.panelDinhVi.hidden = YES;
     self.panelModNV.hidden  = YES;
-    // panelDrag KHÔNG ẩn lúc khởi tạo vì tab 0 (Proxy) là tab mặc định
-    // switchToPanel: sẽ ẩn nó khi user chuyển sang tab khác
 
-    // Container stack — UIStackView tự collapse view hidden → không chiếm không gian
     UIStackView *panelsStack = [[UIStackView alloc] init];
     panelsStack.axis    = UILayoutConstraintAxisVertical;
     panelsStack.spacing = 0;
     panelsStack.translatesAutoresizingMaskIntoConstraints = NO;
     [content addSubview:panelsStack];
     [panelsStack addArrangedSubview:self.panelProxy];
-    [panelsStack addArrangedSubview:self.panelDrag];   // sau panelProxy, cùng ẩn/hiện
+    [panelsStack addArrangedSubview:self.panelDrag];
     [panelsStack addArrangedSubview:self.panelDinhVi];
     [panelsStack addArrangedSubview:self.panelModNV];
-    // Khoảng cách 14pt giữa panelProxy và panelDrag (chỉ tác dụng khi cả 2 visible)
     [panelsStack setCustomSpacing:14 afterView:self.panelProxy];
 
-    // ── Status line ─────────────────────────────────────
+    // ── Status label ───────────────────────────────────────
     self.statusLabel = [[UILabel alloc] init];
-    self.statusLabel.text = LS(@"Đã Sẵn Sàng - Bạn Đã Có Thể Bắt Đầu Kích Hoạt Proxy",
-                              @"Ready — Activate Proxy Now");
-    self.statusLabel.font = [UIFont systemFontOfSize:13 weight:UIFontWeightMedium];
+    self.statusLabel.text      = LS(@"Đã Sẵn Sàng - Bạn Đã Có Thể Bắt Đầu Kích Hoạt Proxy",
+                                   @"Ready — Activate Proxy Now");
+    self.statusLabel.font      = [UIFont systemFontOfSize:13 weight:UIFontWeightMedium];
     self.statusLabel.textColor = HUD_MUTED;
     self.statusLabel.textAlignment = NSTextAlignmentCenter;
     self.statusLabel.numberOfLines = 0;
     self.statusLabel.translatesAutoresizingMaskIntoConstraints = NO;
     [content addSubview:self.statusLabel];
 
-    // ── Nút MỞ GAME (gradient) ──────────────────────────
+    // ── MỞ GAME sticky button ──────────────────────────────
     self.openGameButton = [UIButton buttonWithType:UIButtonTypeSystem];
     [self.openGameButton setTitle:LS(@"▶  MỞ GAME", @"▶  OPEN GAME") forState:UIControlStateNormal];
-    [self.openGameButton setTitleColor:[UIColor colorWithRed:0.04 green:0.06 blue:0.13 alpha:1.0] forState:UIControlStateNormal];
-    self.openGameButton.titleLabel.font = [UIFont systemFontOfSize:17 weight:UIFontWeightHeavy];
+    [self.openGameButton setTitleColor:[UIColor colorWithRed:0.04 green:0.06 blue:0.13 alpha:1.0]
+                               forState:UIControlStateNormal];
+    self.openGameButton.titleLabel.font   = [UIFont systemFontOfSize:17 weight:UIFontWeightHeavy];
     self.openGameButton.layer.cornerRadius = 16;
-    self.openGameButton.layer.cornerCurve = kCACornerCurveContinuous;
-    self.openGameButton.clipsToBounds = YES;
+    self.openGameButton.layer.cornerCurve  = kCACornerCurveContinuous;
+    self.openGameButton.clipsToBounds      = YES;
     self.openGameButton.translatesAutoresizingMaskIntoConstraints = NO;
     [self.openGameButton addTarget:self action:@selector(launchGame) forControlEvents:UIControlEventTouchUpInside];
-    // Note: added to self.view (sticky) below — NOT to content
 
     self.openGameGradient = [CAGradientLayer layer];
     self.openGameGradient.colors = @[(id)HUD_PURPLE.CGColor, (id)HUD_CYAN.CGColor];
@@ -942,38 +1016,18 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     self.openGameGradient.cornerRadius = 16;
     [self.openGameButton.layer insertSublayer:self.openGameGradient atIndex:0];
 
-    // ── Constraints ─────────────────────────────────────
+    // ── Constraints ────────────────────────────────────────
     [NSLayoutConstraint activateConstraints:@[
-        [iconView.topAnchor constraintEqualToAnchor:content.topAnchor constant:20],
-        [iconView.centerXAnchor constraintEqualToAnchor:content.centerXAnchor],
-        [iconView.widthAnchor constraintEqualToConstant:82],
-        [iconView.heightAnchor constraintEqualToConstant:82],
+        [panelsStack.topAnchor    constraintEqualToAnchor:chipBar.bottomAnchor    constant:16],
+        [panelsStack.leadingAnchor  constraintEqualToAnchor:content.leadingAnchor   constant:16],
+        [panelsStack.trailingAnchor constraintEqualToAnchor:content.trailingAnchor  constant:-16],
 
-        [nameLabel.topAnchor constraintEqualToAnchor:iconView.bottomAnchor constant:12],
-        [nameLabel.leadingAnchor constraintEqualToAnchor:content.leadingAnchor constant:24],
-        [nameLabel.trailingAnchor constraintEqualToAnchor:content.trailingAnchor constant:-24],
-
-        [bundleLabel.topAnchor constraintEqualToAnchor:nameLabel.bottomAnchor constant:3],
-        [bundleLabel.leadingAnchor constraintEqualToAnchor:content.leadingAnchor constant:24],
-        [bundleLabel.trailingAnchor constraintEqualToAnchor:content.trailingAnchor constant:-24],
-
-        [segWrap.topAnchor constraintEqualToAnchor:bundleLabel.bottomAnchor constant:20],
-        [segWrap.leadingAnchor constraintEqualToAnchor:content.leadingAnchor constant:16],
-        [segWrap.trailingAnchor constraintEqualToAnchor:content.trailingAnchor constant:-16],
-        [segWrap.heightAnchor constraintEqualToConstant:52],
-
-        [panelsStack.topAnchor constraintEqualToAnchor:segWrap.bottomAnchor constant:16],
-        [panelsStack.leadingAnchor constraintEqualToAnchor:content.leadingAnchor constant:16],
-        [panelsStack.trailingAnchor constraintEqualToAnchor:content.trailingAnchor constant:-16],
-
-        [self.statusLabel.topAnchor constraintEqualToAnchor:panelsStack.bottomAnchor constant:18],
-        [self.statusLabel.leadingAnchor constraintEqualToAnchor:content.leadingAnchor constant:24],
-        [self.statusLabel.trailingAnchor constraintEqualToAnchor:content.trailingAnchor constant:-24],
-        // Status label closes the scroll content — MỞ GAME is a sticky overlay button
+        [self.statusLabel.topAnchor    constraintEqualToAnchor:panelsStack.bottomAnchor constant:18],
+        [self.statusLabel.leadingAnchor  constraintEqualToAnchor:content.leadingAnchor   constant:24],
+        [self.statusLabel.trailingAnchor constraintEqualToAnchor:content.trailingAnchor  constant:-24],
         [self.statusLabel.bottomAnchor constraintEqualToAnchor:content.bottomAnchor constant:-24],
     ]];
 
-    // ── Sticky MỞ GAME button (fixed above safe area, outside scroll) ─────
     [self.view addSubview:self.openGameButton];
     [NSLayoutConstraint activateConstraints:@[
         [self.openGameButton.leadingAnchor  constraintEqualToAnchor:self.view.leadingAnchor  constant:20],
@@ -981,13 +1035,16 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
         [self.openGameButton.bottomAnchor   constraintEqualToAnchor:self.view.safeAreaLayoutGuide.bottomAnchor constant:-16],
         [self.openGameButton.heightAnchor   constraintEqualToConstant:56],
     ]];
-    // Extra bottom inset so status label isn't hidden behind the sticky button
-    scroll.contentInset = UIEdgeInsetsMake(0, 0, 88, 0);
+    scroll.contentInset          = UIEdgeInsetsMake(0, 0, 88, 0);
     scroll.scrollIndicatorInsets = UIEdgeInsetsMake(0, 0, 88, 0);
 }
 
-// Tạo 1 panel card (neon blur card) với title bar + danh sách feature rows.
-// Các row được append vào self.rows để handleRow: / radio logic vẫn hoạt động.
+// Tạo 1 panel card (Tactical Matrix Grid) với title bar + 2-column tile grid.
+// buildPanelWithTitle: — Tactical Matrix Grid edition
+// Solid UIView card (NO UIVisualEffectView blur).
+// Feature tiles laid out as 2-column UIStackView grid (2 tiles per row).
+// Rows are NOT re-created here — buildUI pre-creates them into self.rows
+// and passes them in via the `features` array which maps to indices in self.rows.
 // tutorialURL: @"" = hiện "sắp có"; @"https://…" = mở YouTube; nil = ẩn row
 - (UIView *)buildPanelWithTitle:(NSString *)title
                          symbol:(NSString *)symbol
@@ -996,116 +1053,134 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
                        features:(NSArray<HUDFeature *> *)features
                     tutorialURL:(NSString * _Nullable)tutorialURL
                  outTitleLabel:(UILabel * __strong *)outTitleLabel {
+
+    // ── Outer shadow wrapper ────────────────────────────────
     UIView *panelWrap = [[UIView alloc] init];
     panelWrap.backgroundColor = [UIColor clearColor];
-    panelWrap.layer.shadowColor = tint.CGColor;
-    panelWrap.layer.shadowOpacity = 0.35;
-    panelWrap.layer.shadowRadius = 18;
-    panelWrap.layer.shadowOffset = CGSizeZero;
+    panelWrap.layer.shadowColor   = [tint colorWithAlphaComponent:0.5].CGColor;
+    panelWrap.layer.shadowOpacity = 0.22;
+    panelWrap.layer.shadowRadius  = 14;
+    panelWrap.layer.shadowOffset  = CGSizeMake(0, 4);
     panelWrap.translatesAutoresizingMaskIntoConstraints = NO;
 
-    UIVisualEffectView *panel = [[UIVisualEffectView alloc] initWithEffect:[UIBlurEffect effectWithStyle:UIBlurEffectStyleSystemThinMaterialDark]];
-    panel.clipsToBounds = YES;
-    panel.layer.cornerRadius = 18;
-    panel.layer.cornerCurve = kCACornerCurveContinuous;
-    panel.layer.borderColor = [tint colorWithAlphaComponent:0.55].CGColor;
-    panel.layer.borderWidth = 1;
-    panel.translatesAutoresizingMaskIntoConstraints = NO;
-    [panelWrap addSubview:panel];
-    UIView *pc = panel.contentView;   // pc = panelContent
+    // ── Solid card (no blur) ────────────────────────────────
+    UIView *pc = [[UIView alloc] init];
+    pc.backgroundColor    = HUD_CARD;
+    pc.clipsToBounds      = YES;
+    pc.layer.cornerRadius = 18;
+    pc.layer.cornerCurve  = kCACornerCurveContinuous;
+    pc.layer.borderColor  = [tint colorWithAlphaComponent:0.40].CGColor;
+    pc.layer.borderWidth  = 1;
+    pc.translatesAutoresizingMaskIntoConstraints = NO;
+    [panelWrap addSubview:pc];
 
-    // Title bar
+    // ── Title bar ───────────────────────────────────────────
     UIView *titleBar = [[UIView alloc] init];
+    titleBar.backgroundColor = [tint colorWithAlphaComponent:0.08];
     titleBar.translatesAutoresizingMaskIntoConstraints = NO;
     [pc addSubview:titleBar];
 
+    // Left accent rail
     UIView *accent = [[UIView alloc] init];
-    accent.backgroundColor = tint;
+    accent.backgroundColor    = tint;
     accent.layer.cornerRadius = 2;
-    accent.layer.shadowColor = tint.CGColor;
-    accent.layer.shadowOpacity = 0.9;
-    accent.layer.shadowRadius = 5;
-    accent.layer.shadowOffset = CGSizeZero;
     accent.translatesAutoresizingMaskIntoConstraints = NO;
     [titleBar addSubview:accent];
 
-    UIImageSymbolConfiguration *symCfg = [UIImageSymbolConfiguration configurationWithPointSize:14 weight:UIImageSymbolWeightBold];
-    UIImageView *icon = [[UIImageView alloc] initWithImage:[UIImage systemImageNamed:symbol withConfiguration:symCfg]];
-    icon.tintColor = tint;
+    UIImageSymbolConfiguration *symCfg = [UIImageSymbolConfiguration
+        configurationWithPointSize:13 weight:UIImageSymbolWeightBold];
+    UIImageView *icon = [[UIImageView alloc]
+        initWithImage:[UIImage systemImageNamed:symbol withConfiguration:symCfg]];
+    icon.tintColor   = tint;
     icon.contentMode = UIViewContentModeScaleAspectFit;
-    icon.layer.shadowColor = tint.CGColor;
-    icon.layer.shadowOpacity = 0.9;
-    icon.layer.shadowRadius = 6;
-    icon.layer.shadowOffset = CGSizeZero;
     icon.translatesAutoresizingMaskIntoConstraints = NO;
     [titleBar addSubview:icon];
 
     UILabel *menuTitle = [[UILabel alloc] init];
-    menuTitle.text = title;
-    menuTitle.font = [UIFont systemFontOfSize:14 weight:UIFontWeightHeavy];
+    menuTitle.text      = title;
+    menuTitle.font      = [UIFont systemFontOfSize:13 weight:UIFontWeightHeavy];
     menuTitle.textColor = tint;
-    menuTitle.layer.shadowColor = tint.CGColor;
-    menuTitle.layer.shadowOpacity = 0.7;
-    menuTitle.layer.shadowRadius = 6;
-    menuTitle.layer.shadowOffset = CGSizeZero;
     menuTitle.translatesAutoresizingMaskIntoConstraints = NO;
     [titleBar addSubview:menuTitle];
     if (outTitleLabel) *outTitleLabel = menuTitle;
 
     UILabel *hint = [[UILabel alloc] init];
-    hint.text = [NSString stringWithFormat:@"  %@  ", badge];
-    hint.font = [UIFont systemFontOfSize:10 weight:UIFontWeightBold];
-    hint.textColor = tint;
-    hint.backgroundColor = [tint colorWithAlphaComponent:0.15];
-    hint.layer.cornerRadius = 8;
-    hint.layer.masksToBounds = YES;
-    hint.layer.borderColor = [tint colorWithAlphaComponent:0.5].CGColor;
-    hint.layer.borderWidth = 1;
+    hint.text             = [NSString stringWithFormat:@" %@ ", badge];
+    hint.font             = [UIFont systemFontOfSize:9.5 weight:UIFontWeightBold];
+    hint.textColor        = tint;
+    hint.backgroundColor  = [tint colorWithAlphaComponent:0.14];
+    hint.layer.cornerRadius   = 7;
+    hint.layer.masksToBounds  = YES;
+    hint.layer.borderColor    = [tint colorWithAlphaComponent:0.45].CGColor;
+    hint.layer.borderWidth    = 1;
     hint.translatesAutoresizingMaskIntoConstraints = NO;
     [titleBar addSubview:hint];
 
-    // Rows stack
-    UIStackView *stack = [[UIStackView alloc] init];
-    stack.axis = UILayoutConstraintAxisVertical;
-    stack.spacing = 0;
-    stack.translatesAutoresizingMaskIntoConstraints = NO;
-    [pc addSubview:stack];
+    // ── 2-column tile grid ──────────────────────────────────
+    // Build rows of 2 tiles each using nested UIStackViews.
+    // HUDFeatureRow tiles are already in self.rows — find them by featureKey match.
+    UIStackView *gridStack = [[UIStackView alloc] init];
+    gridStack.axis      = UILayoutConstraintAxisVertical;
+    gridStack.spacing   = 8;
+    gridStack.translatesAutoresizingMaskIntoConstraints = NO;
+    [pc addSubview:gridStack];
 
-    __weak typeof(self) weakSelf = self;
-    for (HUDFeature *feature in features) {
-        HUDFeatureRow *row = [[HUDFeatureRow alloc] initWithFeature:feature];
-        row.onChanged = ^(HUDFeatureRow *r, BOOL isOn) {
-            [weakSelf handleRow:r on:isOn];
-        };
-        if (feature.previewImageURL.length) {
-            NSString *url = feature.previewImageURL;
-            row.onPreviewTapped = ^{ [weakSelf showPreviewURL:url]; };
+    NSUInteger count = features.count;
+    NSUInteger i = 0;
+    while (i < count) {
+        // Find matching HUDFeatureRow for features[i]
+        HUDFeatureRow *tileA = nil;
+        HUDFeatureRow *tileB = nil;
+        NSString *keyA = features[i].featureKey;
+        for (HUDFeatureRow *r in self.rows) {
+            if ([r.feature.featureKey isEqualToString:keyA]) { tileA = r; break; }
         }
-        [self.rows addObject:row];
-        [stack addArrangedSubview:row];
+
+        if (i + 1 < count) {
+            NSString *keyB = features[i+1].featureKey;
+            for (HUDFeatureRow *r in self.rows) {
+                if ([r.feature.featureKey isEqualToString:keyB]) { tileB = r; break; }
+            }
+        }
+
+        UIStackView *rowStack = [[UIStackView alloc] init];
+        rowStack.axis         = UILayoutConstraintAxisHorizontal;
+        rowStack.distribution = UIStackViewDistributionFillEqually;
+        rowStack.spacing      = 8;
+        rowStack.translatesAutoresizingMaskIntoConstraints = NO;
+
+        if (tileA) [rowStack addArrangedSubview:tileA];
+        if (tileB) {
+            [rowStack addArrangedSubview:tileB];
+        } else {
+            // Odd tile: add spacer so single tile doesn't stretch full width
+            UIView *spacer = [[UIView alloc] init];
+            spacer.backgroundColor = [UIColor clearColor];
+            [rowStack addArrangedSubview:spacer];
+        }
+
+        [gridStack addArrangedSubview:rowStack];
+        i += (tileB ? 2 : 1);
     }
 
-    // ── Tutorial row bên trong panel (tuỳ chọn) ─────────────────────────────
-    NSLayoutYAxisAnchor *stackBottomAnchor = pc.bottomAnchor;
-    CGFloat stackBottomConst = -4;
+    // ── Tutorial row (optional) ─────────────────────────────
+    NSLayoutYAxisAnchor *gridBottomAnchor = pc.bottomAnchor;
+    CGFloat gridBottomConst = -10;
 
     if (tutorialURL != nil) {
         BOOL hasURL = tutorialURL.length > 0;
-        UIColor *ytRed = [UIColor colorWithRed:1.0 green:0.22 blue:0.18 alpha:1.0];
+        UIColor *ytRed    = [UIColor colorWithRed:1.0 green:0.22 blue:0.18 alpha:1.0];
         UIColor *tutColor = hasURL ? ytRed : HUD_MUTED;
 
-        // Separator hairline
         UIView *sep = [[UIView alloc] init];
-        sep.backgroundColor = [UIColor colorWithWhite:1 alpha:0.07];
+        sep.backgroundColor = [UIColor colorWithWhite:1 alpha:0.06];
         sep.translatesAutoresizingMaskIntoConstraints = NO;
         [pc addSubview:sep];
 
-        // Tutorial row
         UIView *tutRow = [[UIView alloc] init];
         tutRow.translatesAutoresizingMaskIntoConstraints = NO;
         [pc addSubview:tutRow];
 
-        // Play icon
         UIImageSymbolConfiguration *playCfg = [UIImageSymbolConfiguration
             configurationWithPointSize:16 weight:UIImageSymbolWeightBold];
         UIImageView *playIcon = [[UIImageView alloc]
@@ -1132,33 +1207,29 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
         [tutRow addSubview:tutSub];
 
         [NSLayoutConstraint activateConstraints:@[
-            [sep.leadingAnchor  constraintEqualToAnchor:pc.leadingAnchor  constant:16],
-            [sep.trailingAnchor constraintEqualToAnchor:pc.trailingAnchor constant:-16],
+            [sep.leadingAnchor  constraintEqualToAnchor:pc.leadingAnchor  constant:12],
+            [sep.trailingAnchor constraintEqualToAnchor:pc.trailingAnchor constant:-12],
             [sep.heightAnchor   constraintEqualToConstant:0.5],
-
             [tutRow.leadingAnchor  constraintEqualToAnchor:pc.leadingAnchor],
             [tutRow.trailingAnchor constraintEqualToAnchor:pc.trailingAnchor],
             [tutRow.heightAnchor   constraintEqualToConstant:50],
             [tutRow.bottomAnchor   constraintEqualToAnchor:pc.bottomAnchor],
             [sep.bottomAnchor      constraintEqualToAnchor:tutRow.topAnchor],
-
-            [playIcon.leadingAnchor  constraintEqualToAnchor:tutRow.leadingAnchor constant:16],
-            [playIcon.centerYAnchor  constraintEqualToAnchor:tutRow.centerYAnchor],
-            [playIcon.widthAnchor    constraintEqualToConstant:20],
-            [playIcon.heightAnchor   constraintEqualToConstant:20],
-
+            [playIcon.leadingAnchor constraintEqualToAnchor:tutRow.leadingAnchor constant:16],
+            [playIcon.centerYAnchor constraintEqualToAnchor:tutRow.centerYAnchor],
+            [playIcon.widthAnchor   constraintEqualToConstant:20],
+            [playIcon.heightAnchor  constraintEqualToConstant:20],
             [tutTitle.leadingAnchor constraintEqualToAnchor:playIcon.trailingAnchor constant:12],
             [tutTitle.bottomAnchor  constraintEqualToAnchor:tutRow.centerYAnchor constant:-1],
-
-            [tutSub.leadingAnchor constraintEqualToAnchor:tutTitle.leadingAnchor],
-            [tutSub.topAnchor     constraintEqualToAnchor:tutRow.centerYAnchor constant:3],
+            [tutSub.leadingAnchor   constraintEqualToAnchor:tutTitle.leadingAnchor],
+            [tutSub.topAnchor       constraintEqualToAnchor:tutRow.centerYAnchor constant:3],
         ]];
 
         if (hasURL) {
             UIButton *tapBtn = [UIButton buttonWithType:UIButtonTypeCustom];
-            tapBtn.backgroundColor = [UIColor clearColor];
+            tapBtn.backgroundColor             = [UIColor clearColor];
             tapBtn.translatesAutoresizingMaskIntoConstraints = NO;
-            tapBtn.accessibilityIdentifier = tutorialURL;
+            tapBtn.accessibilityIdentifier     = tutorialURL;
             [tapBtn addTarget:self action:@selector(tutorialButtonTapped:)
                  forControlEvents:UIControlEventTouchUpInside];
             [tutRow addSubview:tapBtn];
@@ -1170,43 +1241,49 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
             ]];
         }
 
-        // Stack bottom anchors to sep top
-        stackBottomAnchor = sep.topAnchor;
-        stackBottomConst  = 0;
+        gridBottomAnchor = sep.topAnchor;
+        gridBottomConst  = 0;
     }
 
     [NSLayoutConstraint activateConstraints:@[
-        [panel.topAnchor constraintEqualToAnchor:panelWrap.topAnchor],
-        [panel.leadingAnchor constraintEqualToAnchor:panelWrap.leadingAnchor],
-        [panel.trailingAnchor constraintEqualToAnchor:panelWrap.trailingAnchor],
-        [panel.bottomAnchor constraintEqualToAnchor:panelWrap.bottomAnchor],
+        // Card fills wrapper
+        [pc.topAnchor    constraintEqualToAnchor:panelWrap.topAnchor],
+        [pc.leadingAnchor  constraintEqualToAnchor:panelWrap.leadingAnchor],
+        [pc.trailingAnchor constraintEqualToAnchor:panelWrap.trailingAnchor],
+        [pc.bottomAnchor constraintEqualToAnchor:panelWrap.bottomAnchor],
 
-        [titleBar.topAnchor constraintEqualToAnchor:pc.topAnchor],
-        [titleBar.leadingAnchor constraintEqualToAnchor:pc.leadingAnchor],
+        // Title bar
+        [titleBar.topAnchor    constraintEqualToAnchor:pc.topAnchor],
+        [titleBar.leadingAnchor  constraintEqualToAnchor:pc.leadingAnchor],
         [titleBar.trailingAnchor constraintEqualToAnchor:pc.trailingAnchor],
-        [titleBar.heightAnchor constraintEqualToConstant:46],
+        [titleBar.heightAnchor constraintEqualToConstant:44],
 
-        [accent.leadingAnchor constraintEqualToAnchor:titleBar.leadingAnchor constant:16],
+        // Accent rail
+        [accent.leadingAnchor constraintEqualToAnchor:titleBar.leadingAnchor constant:14],
         [accent.centerYAnchor constraintEqualToAnchor:titleBar.centerYAnchor],
-        [accent.widthAnchor constraintEqualToConstant:4],
-        [accent.heightAnchor constraintEqualToConstant:16],
+        [accent.widthAnchor   constraintEqualToConstant:3],
+        [accent.heightAnchor  constraintEqualToConstant:18],
 
-        [icon.leadingAnchor constraintEqualToAnchor:accent.trailingAnchor constant:10],
+        // Icon
+        [icon.leadingAnchor constraintEqualToAnchor:accent.trailingAnchor constant:9],
         [icon.centerYAnchor constraintEqualToAnchor:titleBar.centerYAnchor],
-        [icon.widthAnchor constraintEqualToConstant:15],
-        [icon.heightAnchor constraintEqualToConstant:15],
+        [icon.widthAnchor   constraintEqualToConstant:15],
+        [icon.heightAnchor  constraintEqualToConstant:15],
 
+        // Title text
         [menuTitle.leadingAnchor constraintEqualToAnchor:icon.trailingAnchor constant:7],
         [menuTitle.centerYAnchor constraintEqualToAnchor:titleBar.centerYAnchor],
 
-        [hint.trailingAnchor constraintEqualToAnchor:titleBar.trailingAnchor constant:-16],
-        [hint.centerYAnchor constraintEqualToAnchor:titleBar.centerYAnchor],
-        [hint.heightAnchor constraintEqualToConstant:18],
+        // Badge
+        [hint.trailingAnchor constraintEqualToAnchor:titleBar.trailingAnchor constant:-14],
+        [hint.centerYAnchor  constraintEqualToAnchor:titleBar.centerYAnchor],
+        [hint.heightAnchor   constraintEqualToConstant:18],
 
-        [stack.topAnchor constraintEqualToAnchor:titleBar.bottomAnchor],
-        [stack.leadingAnchor constraintEqualToAnchor:pc.leadingAnchor],
-        [stack.trailingAnchor constraintEqualToAnchor:pc.trailingAnchor],
-        [stack.bottomAnchor constraintEqualToAnchor:stackBottomAnchor constant:stackBottomConst],
+        // Grid
+        [gridStack.topAnchor    constraintEqualToAnchor:titleBar.bottomAnchor constant:10],
+        [gridStack.leadingAnchor  constraintEqualToAnchor:pc.leadingAnchor   constant:10],
+        [gridStack.trailingAnchor constraintEqualToAnchor:pc.trailingAnchor  constant:-10],
+        [gridStack.bottomAnchor constraintEqualToAnchor:gridBottomAnchor constant:gridBottomConst],
     ]];
 
     return panelWrap;
@@ -1220,51 +1297,43 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 
 #pragma mark - Tab switching
 
-// Cập nhật màu icon+label — tab chọn: neon tint; còn lại: muted
+// Chip Tab Bar: highlight active chip with tint background + border.
+// No sliding thumb — just swap chip bg/border colors.
 - (void)selectTab:(NSInteger)tab {
+    self.activeTab = tab;
     for (NSInteger i = 0; i < (NSInteger)self.tabButtons.count; i++) {
         UIColor *tint  = self.tabTints[(NSUInteger)i];
         BOOL    active = (i == tab);
+        UIButton *chip = self.tabButtons[(NSUInteger)i];
 
-        // Icon color via tag 10+i
-        UIView *iconV = [self.tabButtons[(NSUInteger)i] viewWithTag:10 + i];
-        if ([iconV isKindOfClass:[UIImageView class]]) {
-            ((UIImageView *)iconV).tintColor = active ? tint : HUD_MUTED;
-        }
-        // Label color via tag 20+i
-        UIView *lblV = [self.tabButtons[(NSUInteger)i] viewWithTag:20 + i];
-        if ([lblV isKindOfClass:[UILabel class]]) {
-            ((UILabel *)lblV).textColor = active ? tint : HUD_MUTED;
-        }
+        UIImageView *iconV = (UIImageView *)[chip viewWithTag:10 + i];
+        UILabel     *lblV  = (UILabel     *)[chip viewWithTag:20 + i];
+        UILabel     *badgeV = (UILabel    *)[chip viewWithTag:30 + i];
+
+        [UIView animateWithDuration:0.20 delay:0
+                            options:UIViewAnimationOptionCurveEaseInOut
+                         animations:^{
+            chip.backgroundColor   = active ? [tint colorWithAlphaComponent:0.18] : [UIColor clearColor];
+            chip.layer.borderColor = active ? [tint colorWithAlphaComponent:0.55].CGColor
+                                            : [UIColor clearColor].CGColor;
+            chip.layer.borderWidth = active ? 1.0 : 0.0;
+
+            if (iconV)  iconV.tintColor   = active ? tint : HUD_MUTED;
+            if (lblV)   lblV.textColor    = active ? tint : HUD_MUTED;
+            if (badgeV) {
+                badgeV.textColor       = active ? tint : HUD_MUTED;
+                badgeV.backgroundColor = active ? [tint colorWithAlphaComponent:0.14]
+                                                : [HUD_MUTED colorWithAlphaComponent:0.10];
+            }
+        } completion:nil];
     }
-    [self updateThumbForTab:tab animated:YES];
 }
 
-// Spring-animate the thumb pill to the selected slot
+// updateThumbForTab: kept as no-op stub so viewDidLayoutSubviews doesn't crash.
+// Chip tab bar doesn't use a sliding thumb.
 - (void)updateThumbForTab:(NSInteger)tab animated:(BOOL)animated {
-    CGFloat segWidth = self.segmentBar.bounds.size.width;
-    if (segWidth < 1) {
-        // Layout not done yet — defer until viewDidLayoutSubviews
-        self.pendingThumbTab = tab;
-        return;
-    }
-    UIColor *tint = self.tabTints[(NSUInteger)tab];
-    self.thumbLeft.constant          = tab * (segWidth / 3.0);
-    self.segThumb.backgroundColor    = [tint colorWithAlphaComponent:0.20];
-    self.segThumb.layer.borderColor  = [tint colorWithAlphaComponent:0.45].CGColor;
-
-    if (animated) {
-        [UIView animateWithDuration:0.44 delay:0
-             usingSpringWithDamping:0.72 initialSpringVelocity:0.6
-                            options:UIViewAnimationOptionBeginFromCurrentState
-                         animations:^{ [self.segmentBar layoutIfNeeded]; }
-                         completion:nil];
-    } else {
-        [CATransaction begin];
-        [CATransaction setDisableActions:YES];
-        [self.segmentBar layoutIfNeeded];
-        [CATransaction commit];
-    }
+    // No-op: chip highlight is applied entirely in selectTab:
+    (void)tab; (void)animated;
 }
 
 // Bấm tab → cập nhật pills + fade crossfade giữa 2 panel
