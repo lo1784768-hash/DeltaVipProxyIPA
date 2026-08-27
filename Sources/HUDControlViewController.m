@@ -111,7 +111,6 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     UILabel   *_alphaLbl;
     UILabel   *_widthLbl;
     UIButton  *_applyBtn;
-    CAGradientLayer *_applyGrad;
     NSInteger  _editingSlot;
 
     NSString  *_game;
@@ -225,7 +224,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     div.translatesAutoresizingMaskIntoConstraints = NO;
 
     // ── 3 swatch columns ──────────────────────────────────────
-    NSArray<NSString *>  *labels = @[LS(@"Súng X-Ray", @"X-Ray"), LS(@"Viền Súng", @"Outline"), LS(@"Nền Mờ", @"Dim")];
+    NSArray<NSString *>  *labels = @[LS(@"Súng X-Ray", @"X-Ray"), LS(@"Viền Súng", @"Outline"), LS(@"Màu Keo", @"Glue Color")];
     NSArray<UIColor *>   *tints  = @[
         [UIColor colorWithRed:0 green:0.898 blue:1 alpha:1],      // cyan
         [UIColor colorWithRed:0.188 green:0.820 blue:0.345 alpha:1], // green
@@ -330,23 +329,58 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     UIStackView *alphaRow = [self _sliderRow:LS(@"Độ đục", @"Opacity") slider:_alphaSlider valLbl:_alphaLbl];
     UIStackView *widthRow = [self _sliderRow:LS(@"Viền dày", @"Outline W") slider:_widthSlider valLbl:_widthLbl];
 
-    // ── Apply button ──────────────────────────────────────────
+    // ── Apply button — gradient baked into UIImage (tránh CALayer sublayer bị che) ──
     _applyBtn = [UIButton buttonWithType:UIButtonTypeCustom];
     [_applyBtn setTitle:LS(@"▶  ÁP DỤNG", @"▶  APPLY") forState:UIControlStateNormal];
     [_applyBtn setTitleColor:[UIColor colorWithRed:0.04 green:0.06 blue:0.13 alpha:1] forState:UIControlStateNormal];
-    _applyBtn.titleLabel.font    = [UIFont systemFontOfSize:14 weight:UIFontWeightHeavy];
+    [_applyBtn setTitleColor:[[UIColor colorWithRed:0.04 green:0.06 blue:0.13 alpha:1] colorWithAlphaComponent:0.5]
+                    forState:UIControlStateHighlighted];
+    _applyBtn.titleLabel.font    = [UIFont systemFontOfSize:15 weight:UIFontWeightHeavy];
     _applyBtn.layer.cornerRadius = 14;
     _applyBtn.layer.cornerCurve  = kCACornerCurveContinuous;
     _applyBtn.clipsToBounds      = YES;
     _applyBtn.translatesAutoresizingMaskIntoConstraints = NO;
     [_applyBtn addTarget:self action:@selector(_apply) forControlEvents:UIControlEventTouchUpInside];
-
-    _applyGrad = [CAGradientLayer layer];
-    _applyGrad.colors     = @[(id)[UIColor colorWithRed:0.749 green:0.353 blue:0.949 alpha:1].CGColor,
-                               (id)[UIColor colorWithRed:0 green:0.898 blue:1 alpha:1].CGColor];
-    _applyGrad.startPoint = CGPointMake(0, 0.5);
-    _applyGrad.endPoint   = CGPointMake(1, 0.5);
-    [_applyBtn.layer insertSublayer:_applyGrad atIndex:0];
+    // Render gradient → UIImage để không bị UIKit's internal layer hierarchy che
+    {
+        CGSize sz = CGSizeMake(320, 48);
+        UIGraphicsImageRendererFormat *fmt = [UIGraphicsImageRendererFormat preferredFormat];
+        fmt.scale = 0;
+        UIGraphicsImageRenderer *renderer = [[UIGraphicsImageRenderer alloc] initWithSize:sz format:fmt];
+        UIImage *gradImg = [renderer imageWithActions:^(UIGraphicsImageRendererContext *ctx) {
+            CGContextRef cg = ctx.CGContext;
+            NSArray *colors = @[
+                (__bridge id)[UIColor colorWithRed:0.749 green:0.353 blue:0.949 alpha:1].CGColor,
+                (__bridge id)[UIColor colorWithRed:0 green:0.898 blue:1 alpha:1].CGColor,
+            ];
+            CGFloat locs[2] = {0, 1};
+            CGColorSpaceRef cs = CGColorSpaceCreateDeviceRGB();
+            CGGradientRef grad = CGGradientCreateWithColors(cs, (__bridge CFArrayRef)colors, locs);
+            CGContextDrawLinearGradient(cg, grad,
+                CGPointMake(0, sz.height/2), CGPointMake(sz.width, sz.height/2), 0);
+            CGGradientRelease(grad);
+            CGColorSpaceRelease(cs);
+        }];
+        UIImage *gradImgResizable = [gradImg resizableImageWithCapInsets:UIEdgeInsetsZero];
+        [_applyBtn setBackgroundImage:gradImgResizable forState:UIControlStateNormal];
+        // Pressed state: tối hơn
+        UIImage *gradDark = [renderer imageWithActions:^(UIGraphicsImageRendererContext *ctx) {
+            CGContextRef cg = ctx.CGContext;
+            NSArray *colors = @[
+                (__bridge id)[UIColor colorWithRed:0.5 green:0.2 blue:0.7 alpha:1].CGColor,
+                (__bridge id)[UIColor colorWithRed:0 green:0.6 blue:0.75 alpha:1].CGColor,
+            ];
+            CGFloat locs[2] = {0, 1};
+            CGColorSpaceRef cs = CGColorSpaceCreateDeviceRGB();
+            CGGradientRef grad = CGGradientCreateWithColors(cs, (__bridge CFArrayRef)colors, locs);
+            CGContextDrawLinearGradient(cg, grad,
+                CGPointMake(0, sz.height/2), CGPointMake(sz.width, sz.height/2), 0);
+            CGGradientRelease(grad);
+            CGColorSpaceRelease(cs);
+        }];
+        [_applyBtn setBackgroundImage:[gradDark resizableImageWithCapInsets:UIEdgeInsetsZero]
+                             forState:UIControlStateHighlighted];
+    }
 
     // ── Assemble card ─────────────────────────────────────────
     [card addSubview:headerRow];
@@ -420,7 +454,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 
 - (void)layoutSubviews {
     [super layoutSubviews];
-    if (_applyGrad && _applyBtn) _applyGrad.frame = _applyBtn.bounds;
+    // gradient baked into UIImage — không cần update frame
 }
 
 - (void)presentAnimated:(BOOL)animated {
