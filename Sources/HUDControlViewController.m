@@ -1647,11 +1647,10 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
                 [weakSelf setStatus:msg color:(success ? HUD_GREEN : HUD_RED)];
             });
         }];
-        UINavigationController *nav = [[UINavigationController alloc] initWithRootViewController:picker];
-        nav.modalPresentationStyle = UIModalPresentationFormSheet;
+        picker.modalPresentationStyle = UIModalPresentationPageSheet;
         [row setLoading:YES];
         [vc setStatus:LS(@"⏳ Đang mở bộ chọn màu...", @"⏳ Opening color picker...") color:HUD_MUTED];
-        [vc presentViewController:nav animated:YES completion:nil];
+        [vc presentViewController:picker animated:YES completion:nil];
     };
 
     // Định Vị Súng Màu Tự Chọn — FF Max
@@ -1679,11 +1678,10 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
                 [weakSelf setStatus:msg color:(success ? HUD_GREEN : HUD_RED)];
             });
         }];
-        UINavigationController *nav = [[UINavigationController alloc] initWithRootViewController:picker];
-        nav.modalPresentationStyle = UIModalPresentationFormSheet;
+        picker.modalPresentationStyle = UIModalPresentationPageSheet;
         [row setLoading:YES];
         [vc setStatus:LS(@"⏳ Đang mở bộ chọn màu...", @"⏳ Opening color picker...") color:HUD_MUTED];
-        [vc presentViewController:nav animated:YES completion:nil];
+        [vc presentViewController:picker animated:YES completion:nil];
     };
 
     // Định Vị Xanh Lá — chỉ FF Thường (folder dinhvihong, file TH)
