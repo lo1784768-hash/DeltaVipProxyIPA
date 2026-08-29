@@ -214,15 +214,10 @@ static void sg_snapshot_image_count(void) {
 
 __attribute__((noinline, optnone))
 static BOOL sg_check_image_count(void) {
-    uint32_t current = _dyld_image_count();
-    if (sg_image_count_baseline == 0) {
-        // Lần đầu gọi: chốt baseline (app đã stable sau timer delay)
-        sg_image_count_baseline = current;
-        return YES;
-    }
-    // Inject runtime thường tăng đột biến ≥1 image lạ
-    // Cho phép +5 buffer để tránh false-positive với lazy framework
-    return (current <= sg_image_count_baseline + 5);
+    // Disabled: eSign inject dylib riêng khi resign → false-positive không tránh được.
+    // hasInjectionTools() vẫn check tên dylib độc hại (Frida/Substrate/...) — đủ rồi.
+    (void)sg_image_count_baseline;
+    return YES;
 }
 
 @implementation SecurityGuard
