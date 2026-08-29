@@ -60,7 +60,7 @@ static void sg_decode_bid(char out[35]) {
     out[34] = '\0';
 }
 
-// ─── Danh sách dylib độc hại ─────────────────────────────────────────────────
+// ─── Blacklist tên dylib độc hại (vẫn giữ làm lớp nhanh) ────────────────────
 static const char *kBadLibs[] = {
     "FridaGadget", "frida-agent", "frida", "gum-js-loop", "gadget",
     "cynject", "cycript", "libcycript",
@@ -68,6 +68,22 @@ static const char *kBadLibs[] = {
     "TweakInject", "libdyld_sim", "RevealServer",
     "iSpy", "SSLKillSwitch", "killswitch",
     "trolldecrypt", "flexdecrypt",
+    NULL
+};
+
+// ─── Whitelist path prefix dylib hợp lệ ──────────────────────────────────────
+// Chỉ cho phép dylib từ các prefix system Apple hoặc chính binary của app.
+// Bất kỳ dylib nào nằm ngoài các prefix này → inject lạ → bail.
+// Phân tích IPA đã ký bằng eSign: không có dylib nào ngoài /System + /usr/lib.
+static const char *kAllowedPrefixes[] = {
+    "/System/Library/Frameworks/",
+    "/System/Library/PrivateFrameworks/",
+    "/System/Library/AccessibilityBundles/",
+    "/usr/lib/",
+    "/usr/lib/swift/",
+    "/private/preboot/",          // palera1n bootstrap path (nếu app chạy trên JB device hợp lệ)
+    "/var/containers/Bundle/",    // chính binary của app
+    "/private/var/containers/Bundle/",
     NULL
 };
 
@@ -246,17 +262,18 @@ static BOOL sg_check_image_count(void) {
 
 + (BOOL)isTampered {
     // Thứ tự: nhẹ → nặng
-    if ([self isBeingDebugged])         return YES;
-    if (!sg_check_codesign())           return YES;
-    if ([self hasInsertedLibraries])    return YES;
-    if (!sg_check_image_count())        return YES;
-    if ([self hasInjectionTools])       return YES;
-    if ([self hasJailbreakPaths])       return YES;
-    if ([self hasBundleIDMismatch])     return YES;
-    if ([self hasDisplayNameMismatch])  return YES;
-    if ([self hasCriticalMethodHooked]) return YES;
-    if (!sg_check_text_hash())          return YES;
-    if ([self isTimingAnomalous])       return YES;
+    if ([self isBeingDebugged])         return YES; // ptrace P_TRACED
+    if (!sg_check_codesign())           return YES; // CS_VALID=0
+    if ([self hasInsertedLibraries])    return YES; // DYLD env var
+    if (!sg_check_image_count())        return YES; // image count tăng đột biến
+    if ([self hasInjectionTools])       return YES; // blacklist tên (Frida/Substrate/...)
+    if ([self hasUnknownDylib])         return YES; // whitelist path — bắt dylib tên random
+    if ([self hasJailbreakPaths])       return YES; // filesystem jailbreak
+    if ([self hasBundleIDMismatch])     return YES; // repackage
+    if ([self hasDisplayNameMismatch])  return YES; // repackage
+    if ([self hasCriticalMethodHooked]) return YES; // IMP hook
+    if (!sg_check_text_hash())          return YES; // binary patch
+    if ([self isTimingAnomalous])       return YES; // debugger overhead
     return NO;
 }
 
@@ -294,7 +311,7 @@ static BOOL sg_check_image_count(void) {
 }
 
 + (BOOL)hasInjectionTools {
-    // Check 1: dylib names trong image list
+    // Blacklist tên (nhanh, bắt tool phổ biến)
     uint32_t n = _dyld_image_count();
     for (uint32_t i = 0; i < n; i++) {
         const char *name = _dyld_get_image_name(i);
@@ -302,6 +319,25 @@ static BOOL sg_check_image_count(void) {
         for (int j = 0; kBadLibs[j] != NULL; j++) {
             if (strcasestr(name, kBadLibs[j]) != NULL) return YES;
         }
+    }
+    return NO;
+}
+
++ (BOOL)hasUnknownDylib {
+    // Whitelist path prefix — bắt dylib tên random do cracker tự inject.
+    // Bất kỳ dylib nào không bắt đầu bằng prefix hợp lệ → bail.
+    uint32_t n = _dyld_image_count();
+    for (uint32_t i = 0; i < n; i++) {
+        const char *name = _dyld_get_image_name(i);
+        if (!name) continue;
+        BOOL allowed = NO;
+        for (int j = 0; kAllowedPrefixes[j] != NULL; j++) {
+            if (strncmp(name, kAllowedPrefixes[j], strlen(kAllowedPrefixes[j])) == 0) {
+                allowed = YES;
+                break;
+            }
+        }
+        if (!allowed) return YES; // path lạ → inject
     }
     return NO;
 }
