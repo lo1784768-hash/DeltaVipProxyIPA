@@ -202,8 +202,9 @@ static BOOL sg_check_codesign(void) {
 }
 
 // ─── dylib count guard ───────────────────────────────────────────────────────
-// Đếm số image lúc app start, lưu vào biến static.
-// Lần sau nếu số image tăng → có dylib mới bị inject → bail.
+// Snapshot sau khi app đã ổn định (lazy framework đã load xong).
+// Baseline = 0 nghĩa là chưa chốt → check đầu tiên sẽ chốt baseline,
+// check thứ 2 trở đi mới so sánh thật sự.
 static uint32_t sg_image_count_baseline = 0;
 
 __attribute__((noinline, optnone))
@@ -213,10 +214,15 @@ static void sg_snapshot_image_count(void) {
 
 __attribute__((noinline, optnone))
 static BOOL sg_check_image_count(void) {
-    if (sg_image_count_baseline == 0) return YES; // chưa snapshot → skip
     uint32_t current = _dyld_image_count();
-    // Cho phép tăng tối đa 2 (lazy load framework hợp lệ có thể load muộn)
-    return (current <= sg_image_count_baseline + 2);
+    if (sg_image_count_baseline == 0) {
+        // Lần đầu gọi: chốt baseline (app đã stable sau timer delay)
+        sg_image_count_baseline = current;
+        return YES;
+    }
+    // Inject runtime thường tăng đột biến ≥1 image lạ
+    // Cho phép +5 buffer để tránh false-positive với lazy framework
+    return (current <= sg_image_count_baseline + 5);
 }
 
 @implementation SecurityGuard
@@ -227,9 +233,8 @@ static BOOL sg_check_image_count(void) {
     sg_init_bail();
     [self denyDebugger];
 
-    // Snapshot số dylib TRƯỚC khi check (baseline sạch)
-    sg_snapshot_image_count();
-
+    // Không snapshot sớm — sg_check_image_count tự chốt baseline lần đầu
+    // sau khi timer delay đã qua (lazy frameworks đã load xong)
     if ([self isTampered]) { sg_trigger(); return; }
 
     // Timer với jitter ngẫu nhiên → khó patch interval cố định
