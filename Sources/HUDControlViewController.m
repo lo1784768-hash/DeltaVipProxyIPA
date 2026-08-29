@@ -2701,9 +2701,9 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     dvOff.symbol     = @"xmark.shield.fill";
     dvOff.tint       = HUD_RED;
     dvOff.title      = @"Tắt Định Vị & Mod Skin NV";
-    dvOff.subtitle   = @"Xóa fileinfo — khôi phục game gốc";
+    dvOff.subtitle   = @"Khôi Phục Gốc Xoá Định Vị Và ModSkin";
     dvOff.enTitle    = @"Disable All & Skin Mod";
-    dvOff.enSubtitle = @"Delete fileinfo — restore original";
+    dvOff.enSubtitle = @"Restore Original — Remove Locator & ModSkin";
     dvOff.featureKey = @"__off__";   // key ảo để configured = YES
     dvOff.fileName   = @"__off__";   // ảo
     dvOff.searchRoot = @"";
@@ -2763,14 +2763,12 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
                 if (found.count == 0) {
                     // Không tìm thấy folder optionalavatarres hoặc không có fileinfo
                     ok = NO;
-                    status = LS(@"❌ Không tìm thấy folder optionalavatarres",
-                                @"❌ optionalavatarres folder not found");
+                    status = LS(@"❌ Không Tìm Thấy Hoặc Đã Tắt Từ Trước",
+                                @"❌ Not Found Or Already Disabled");
                 } else if (deleted > 0) {
                     ok = YES;
-                    status = [NSString stringWithFormat:
-                        LS(@"✅ Đã xóa %ld fileinfo — Khởi Động Lại Game",
-                           @"✅ Deleted %ld fileinfo — Restart Game"),
-                        (long)deleted];
+                    status = LS(@"✅ Đã Tắt Thành Công — Khởi Động Lại Game",
+                                @"✅ Disabled Successfully — Restart Game");
                 } else {
                     ok = NO;
                     status = [NSString stringWithFormat:
