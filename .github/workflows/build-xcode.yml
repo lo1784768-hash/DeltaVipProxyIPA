@@ -91,14 +91,20 @@ jobs:
             exit 1
           fi
 
+          # Lấy version động từ project.yml
+          APP_VER=$(grep 'MARKETING_VERSION' project.yml | head -1 | sed 's/.*: *"\(.*\)"/\1/' | tr -d '[:space:]')
+          IPA_NAME="DeltaProxyVN-${APP_VER}.ipa"
+          echo "APP_VER=$APP_VER" >> $GITHUB_ENV
+          echo "IPA_NAME=$IPA_NAME" >> $GITHUB_ENV
+
           mkdir -p Payload
           cp -r "$BUILT_APP" Payload/
-          zip -qr DeltaProxyVN-1.4.0.ipa Payload/
+          zip -qr "$IPA_NAME" Payload/
 
-          if [ -f "DeltaProxyVN-1.4.0.ipa" ]; then
-            echo "✓ IPA created: DeltaProxyVN-1.4.0.ipa"
-            unzip -l DeltaProxyVN-1.4.0.ipa | head -20
-            ls -lh DeltaProxyVN-1.4.0.ipa
+          if [ -f "$IPA_NAME" ]; then
+            echo "✓ IPA created: $IPA_NAME"
+            unzip -l "$IPA_NAME" | head -20
+            ls -lh "$IPA_NAME"
           else
             echo "Error: IPA creation failed"
             exit 1
@@ -109,14 +115,14 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: IMGUIDELTA-IPA
-          path: DeltaProxyVN-1.4.0.ipa
+          path: ${{ env.IPA_NAME }}
           retention-days: 30
 
       # Create auto-tag
       - name: Create Release Tag
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
-          TAG="v1.4.0"
+          TAG="v${APP_VER}"
           echo "Creating tag: $TAG"
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
@@ -130,7 +136,7 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ env.TAG }}
-          files: DeltaProxyVN-1.4.0.ipa
+          files: ${{ env.IPA_NAME }}
           draft: false
           prerelease: false
           body: |
@@ -147,7 +153,7 @@ jobs:
             1. Download IPA below
             2. Sign with esign or codesign:
                ```bash
-               esign -s cert.p12:password -p provision.mobileprovision DeltaProxyVN-1.4.0.ipa
+               esign -s cert.p12:password -p provision.mobileprovision DeltaProxyVN-${{ env.APP_VER }}.ipa
                ```
             3. Install via Sideloadly/AltStore/TrollStore
 
