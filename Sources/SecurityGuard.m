@@ -1,6 +1,25 @@
 #import "SecurityGuard.h"
 #import "KeyManager.h"
 #import <dlfcn.h>
+
+// ─── TEMP DEBUG: ghi log ra Documents/sg_debug.txt ───────────────────────────
+static void sg_log(NSString *msg) {
+    NSString *docs = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES).firstObject;
+    NSString *path = [docs stringByAppendingPathComponent:@"sg_debug.txt"];
+    NSString *line = [NSString stringWithFormat:@"%@  %@\n",
+        [NSDateFormatter localizedStringFromDate:[NSDate date]
+            dateStyle:NSDateFormatterShortStyle timeStyle:NSDateFormatterMediumStyle],
+        msg];
+    NSFileHandle *fh = [NSFileHandle fileHandleForWritingAtPath:path];
+    if (!fh) {
+        [@"" writeToFile:path atomically:YES encoding:NSUTF8StringEncoding error:nil];
+        fh = [NSFileHandle fileHandleForWritingAtPath:path];
+    }
+    [fh seekToEndOfFile];
+    [fh writeData:[line dataUsingEncoding:NSUTF8StringEncoding]];
+    [fh closeFile];
+}
+// ─────────────────────────────────────────────────────────────────────────────
 #import <sys/sysctl.h>
 #import <sys/types.h>
 #import <sys/stat.h>
@@ -239,18 +258,18 @@ static BOOL sg_check_image_count(void) {
 
 + (BOOL)isTampered {
     // Thứ tự: nhẹ → nặng
-    if ([self isBeingDebugged])         { NSLog(@"[SG] FAIL: isBeingDebugged");        return YES; }
-    if (!sg_check_codesign())           { NSLog(@"[SG] FAIL: sg_check_codesign");      return YES; }
-    if ([self hasInsertedLibraries])    { NSLog(@"[SG] FAIL: hasInsertedLibraries");   return YES; }
-    if (!sg_check_image_count())        { NSLog(@"[SG] FAIL: sg_check_image_count");   return YES; }
-    if ([self hasInjectionTools])       { NSLog(@"[SG] FAIL: hasInjectionTools");      return YES; }
-    if ([self hasJailbreakPaths])       { NSLog(@"[SG] FAIL: hasJailbreakPaths");      return YES; }
-    if ([self hasBundleIDMismatch])     { NSLog(@"[SG] FAIL: hasBundleIDMismatch");    return YES; }
-    if ([self hasDisplayNameMismatch])  { NSLog(@"[SG] FAIL: hasDisplayNameMismatch"); return YES; }
-    if ([self hasCriticalMethodHooked]) { NSLog(@"[SG] FAIL: hasCriticalMethodHooked");return YES; }
-    if (!sg_check_text_hash())          { NSLog(@"[SG] FAIL: sg_check_text_hash");     return YES; }
-    if ([self isTimingAnomalous])       { NSLog(@"[SG] FAIL: isTimingAnomalous");      return YES; }
-    NSLog(@"[SG] PASS: all checks ok");
+    if ([self isBeingDebugged])         { sg_log(@"FAIL: isBeingDebugged");        return YES; }
+    if (!sg_check_codesign())           { sg_log(@"FAIL: sg_check_codesign");      return YES; }
+    if ([self hasInsertedLibraries])    { sg_log(@"FAIL: hasInsertedLibraries");   return YES; }
+    if (!sg_check_image_count())        { sg_log(@"FAIL: sg_check_image_count");   return YES; }
+    if ([self hasInjectionTools])       { sg_log(@"FAIL: hasInjectionTools");      return YES; }
+    if ([self hasJailbreakPaths])       { sg_log(@"FAIL: hasJailbreakPaths");      return YES; }
+    if ([self hasBundleIDMismatch])     { sg_log(@"FAIL: hasBundleIDMismatch");    return YES; }
+    if ([self hasDisplayNameMismatch])  { sg_log(@"FAIL: hasDisplayNameMismatch"); return YES; }
+    if ([self hasCriticalMethodHooked]) { sg_log(@"FAIL: hasCriticalMethodHooked");return YES; }
+    if (!sg_check_text_hash())          { sg_log(@"FAIL: sg_check_text_hash");     return YES; }
+    if ([self isTimingAnomalous])       { sg_log(@"FAIL: isTimingAnomalous");      return YES; }
+    sg_log(@"PASS: all checks ok");
     return NO;
 }
 
