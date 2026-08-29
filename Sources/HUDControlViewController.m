@@ -2712,57 +2712,79 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     // Capture bundleID tại thời điểm build feature list (không capture self để tránh retain cycle)
     NSString *_dvOffBundleID = bundleID;
     dvOff.customAction = ^(HUDFeatureRow *row, HUDControlViewController *vc, NSString *game) {
-        // Path: ~/Documents/Device Storage/[MHA-C2] App Data/{bundleID}/
-        //         contentcache/Optional/ios/optionalavatarres/fileinfo
+        // Tìm folder "optionalavatarres" bằng cách duyệt đệ quy từ appDataRoot
+        // (giống AutoPasteManager tìm file để paste) rồi xóa "fileinfo" bên trong.
         NSString *docs = [NSHomeDirectory() stringByAppendingPathComponent:@"Documents"];
         NSString *appDataRoot = [docs stringByAppendingPathComponent:
             [NSString stringWithFormat:@"Device Storage/[MHA-C2] App Data/%@", _dvOffBundleID]];
-        NSString *fileinfo = [appDataRoot stringByAppendingPathComponent:
-            @"contentcache/Optional/ios/optionalavatarres/fileinfo"];
 
         NSFileManager *fm = [NSFileManager defaultManager];
         __weak HUDControlViewController *weakVC = vc;
 
         [row setLoading:YES];
-        [vc setStatus:LS(@"⏳ Đang xóa fileinfo...", @"⏳ Removing fileinfo...") color:HUD_MUTED];
+        [vc setStatus:LS(@"⏳ Đang tìm và xóa fileinfo...", @"⏳ Searching fileinfo...") color:HUD_MUTED];
 
         dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-            BOOL existed = [fm fileExistsAtPath:fileinfo];
-            NSError *err = nil;
-            BOOL ok = NO;
-            if (existed) {
-                ok = [fm removeItemAtPath:fileinfo error:&err];
-            } else {
-                ok = YES; // không có cũng coi như thành công (đã tắt rồi)
+            // Duyệt đệ quy tìm tất cả folder tên "optionalavatarres"
+            NSMutableArray<NSString *> *found = [NSMutableArray array];
+            NSDirectoryEnumerator *en = [fm enumeratorAtPath:appDataRoot];
+            for (NSString *sub in en) {
+                // Kiểm tra component cuối là "optionalavatarres"
+                if ([[sub lastPathComponent] isEqualToString:@"optionalavatarres"]) {
+                    NSString *fullFolder = [appDataRoot stringByAppendingPathComponent:sub];
+                    BOOL isDir = NO;
+                    if ([fm fileExistsAtPath:fullFolder isDirectory:&isDir] && isDir) {
+                        NSString *fi = [fullFolder stringByAppendingPathComponent:@"fileinfo"];
+                        if ([fm fileExistsAtPath:fi]) {
+                            [found addObject:fi];
+                        }
+                    }
+                }
+            }
+
+            NSInteger deleted = 0;
+            NSError *lastErr = nil;
+            for (NSString *fi in found) {
+                NSError *e = nil;
+                if ([fm removeItemAtPath:fi error:&e]) {
+                    deleted++;
+                } else {
+                    lastErr = e;
+                }
             }
 
             dispatch_async(dispatch_get_main_queue(), ^{
                 [row setLoading:NO];
-                // Luôn về trạng thái OFF sau khi thực hiện (đây là action 1 lần)
                 [row setOn:NO animated:YES];
                 [row setActive:NO];
-                row.statusDot.text = ok ? @"✓" : @"✕";
-                row.statusDot.textColor = ok ? HUD_GREEN : HUD_RED;
+
                 NSString *status;
-                if (!existed) {
-                    status = LS(@"ℹ️ Fileinfo không tồn tại (đã tắt sẵn)",
-                                @"ℹ️ Fileinfo not found (already off)");
-                } else if (ok) {
-                    status = LS(@"✅ Đã Tắt Định Vị & Mod Skin NV — Khởi Động Lại Game",
-                                @"✅ Disabled All — Restart Game to Apply");
-                } else {
+                BOOL ok;
+                if (found.count == 0) {
+                    // Không tìm thấy folder optionalavatarres hoặc không có fileinfo
+                    ok = NO;
+                    status = LS(@"❌ Không tìm thấy folder optionalavatarres",
+                                @"❌ optionalavatarres folder not found");
+                } else if (deleted > 0) {
+                    ok = YES;
                     status = [NSString stringWithFormat:
-                        LS(@"❌ Không thể xóa fileinfo: %@", @"❌ Failed to delete fileinfo: %@"),
-                        err.localizedDescription ?: @"unknown"];
+                        LS(@"✅ Đã xóa %ld fileinfo — Khởi Động Lại Game",
+                           @"✅ Deleted %ld fileinfo — Restart Game"),
+                        (long)deleted];
+                } else {
+                    ok = NO;
+                    status = [NSString stringWithFormat:
+                        LS(@"❌ Xóa thất bại: %@", @"❌ Delete failed: %@"),
+                        lastErr.localizedDescription ?: @"unknown"];
                 }
+
+                row.statusDot.text      = ok ? @"✓" : @"✕";
+                row.statusDot.textColor = ok ? HUD_GREEN : HUD_RED;
                 [weakVC setStatus:status color:(ok ? HUD_GREEN : HUD_RED)];
                 UINotificationFeedbackGenerator *fb = [[UINotificationFeedbackGenerator alloc] init];
                 [fb notificationOccurred:ok ? UINotificationFeedbackTypeSuccess : UINotificationFeedbackTypeError];
-                // Reset dot sau 3s
                 dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(3 * NSEC_PER_SEC)),
-                               dispatch_get_main_queue(), ^{
-                    row.statusDot.text = @"";
-                });
+                               dispatch_get_main_queue(), ^{ row.statusDot.text = @""; });
             });
         });
     };
