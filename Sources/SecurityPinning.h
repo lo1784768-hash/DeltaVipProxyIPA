@@ -25,9 +25,13 @@ NS_ASSUME_NONNULL_BEGIN
 /// Thêm &ts=<unix>&sig=<hmac_hex> vào rawBody và trả về chuỗi đã ký.
 - (NSString *)signedBody:(NSString *)rawBody;
 
-/// Build token layer 2: HMAC(build_secret, appVer) — gửi kèm mọi request.
-/// Server verify độc lập; IPA cũ/cracked không có secret này.
+/// Build token layer 2: HMAC(build_secret, "appVer:installNonce") — gửi kèm mọi request.
+/// Server verify độc lập; IPA cũ/cracked không có secret + không biết nonce.
 - (NSString *)buildTokenForVersion:(NSString *)appVer;
+
+/// Install nonce — random 32-hex, sinh 1 lần lúc cài app, lưu Keychain.
+/// Gửi plain text kèm request để server tái tạo msg = "ver:nonce" khi verify bld_tok.
+- (NSString *)installNonce;
 
 @end
 

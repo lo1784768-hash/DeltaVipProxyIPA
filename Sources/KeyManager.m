@@ -2,6 +2,7 @@
 #import "Endpoints.h"
 #import "SecurityPinning.h"
 #import "SecurityGuard.h"
+#import "ResponseVerifier.h"
 #import "LanguageManager.h"
 #import <UIKit/UIKit.h>
 #import <Security/Security.h>
@@ -294,11 +295,13 @@ static BOOL sIsHardwareUDID = NO;
 
     NSString *ver    = [[NSBundle mainBundle]
                         objectForInfoDictionaryKey:@"CFBundleShortVersionString"] ?: @"0";
+    NSString *nonce  = [[SecurityPinning shared] installNonce];
     NSString *bldTok = [[SecurityPinning shared] buildTokenForVersion:ver];
-    NSString *rawBody = [NSString stringWithFormat:@"key_code=%@&udid=%@&app_ver=%@&bld_tok=%@%@",
+    NSString *rawBody = [NSString stringWithFormat:@"key_code=%@&udid=%@&app_ver=%@&inst_nc=%@&bld_tok=%@%@",
                          [self urlEncode:key],
                          [self urlEncode:[self deviceUDID]],
                          [self urlEncode:ver],
+                         [self urlEncode:nonce],
                          bldTok,
                          confirmed ? @"&confirm=1" : @""];
     NSString *signedBody = [[SecurityPinning shared] signedBody:rawBody];
@@ -315,6 +318,12 @@ static BOOL sIsHardwareUDID = NO;
         NSDictionary *json = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
         if (![json isKindOfClass:[NSDictionary class]]) {
             finish(NO, @"Invalid server response."); return;
+        }
+
+        // Verify response signature — chặn fake JSON local
+        if (![ResponseVerifier verifyResponse:json]) {
+            finish(NO, @"Server connection error.");
+            return;
         }
 
         NSString *status  = json[@"status"];

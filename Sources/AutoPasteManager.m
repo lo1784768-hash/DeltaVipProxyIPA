@@ -54,10 +54,11 @@
     req.timeoutInterval = 20;
     [req setValue:@"application/x-www-form-urlencoded" forHTTPHeaderField:@"Content-Type"];
     NSString *ver    = [[NSBundle mainBundle] objectForInfoDictionaryKey:@"CFBundleShortVersionString"] ?: @"0";
+    NSString *nc     = [[SecurityPinning shared] installNonce];
     NSString *bldTok = [[SecurityPinning shared] buildTokenForVersion:ver];
-    NSString *rawBody = [NSString stringWithFormat:@"key_code=%@&udid=%@&feature=%@&mode=%@&game=%@&app_ver=%@&bld_tok=%@",
+    NSString *rawBody = [NSString stringWithFormat:@"key_code=%@&udid=%@&feature=%@&mode=%@&game=%@&app_ver=%@&inst_nc=%@&bld_tok=%@",
                          [self enc:key], [self enc:udid], [self enc:feature], (isMod ? @"mod" : @"goc"),
-                         [self enc:game ?: @""], [self enc:ver], bldTok];
+                         [self enc:game ?: @""], [self enc:ver], [self enc:nc], bldTok];
     // Thêm speed_file nếu có (cho feature speed — chọn file cụ thể trong pastespeed/)
     if (speedFile.length > 0) {
         rawBody = [rawBody stringByAppendingFormat:@"&speed_file=%@", [self enc:speedFile]];
@@ -154,10 +155,11 @@
     [req setValue:@"application/x-www-form-urlencoded" forHTTPHeaderField:@"Content-Type"];
 
     NSString *ver    = [[NSBundle mainBundle] objectForInfoDictionaryKey:@"CFBundleShortVersionString"] ?: @"0";
+    NSString *nc     = [[SecurityPinning shared] installNonce];
     NSString *bldTok = [[SecurityPinning shared] buildTokenForVersion:ver];
 
-    NSString *rawBody = [NSString stringWithFormat:@"key_code=%@&udid=%@&game=%@&app_ver=%@&bld_tok=%@",
-                         [self enc:key], [self enc:udid], [self enc:game ?: @"th"], [self enc:ver], bldTok];
+    NSString *rawBody = [NSString stringWithFormat:@"key_code=%@&udid=%@&game=%@&app_ver=%@&inst_nc=%@&bld_tok=%@",
+                         [self enc:key], [self enc:udid], [self enc:game ?: @"th"], [self enc:ver], [self enc:nc], bldTok];
 
     // Thêm color params
     for (NSString *k in colorParams) {
@@ -220,10 +222,11 @@
     [req setValue:@"application/x-www-form-urlencoded" forHTTPHeaderField:@"Content-Type"];
 
     NSString *ver    = [[NSBundle mainBundle] objectForInfoDictionaryKey:@"CFBundleShortVersionString"] ?: @"0";
+    NSString *nc     = [[SecurityPinning shared] installNonce];
     NSString *bldTok = [[SecurityPinning shared] buildTokenForVersion:ver];
 
-    NSString *rawBody = [NSString stringWithFormat:@"key_code=%@&udid=%@&game=%@&app_ver=%@&bld_tok=%@",
-                         [self enc:key], [self enc:udid], [self enc:game ?: @"th"], [self enc:ver], bldTok];
+    NSString *rawBody = [NSString stringWithFormat:@"key_code=%@&udid=%@&game=%@&app_ver=%@&inst_nc=%@&bld_tok=%@",
+                         [self enc:key], [self enc:udid], [self enc:game ?: @"th"], [self enc:ver], [self enc:nc], bldTok];
 
     for (NSString *k in colorParams) {
         rawBody = [rawBody stringByAppendingFormat:@"&%@=%@", [self enc:k], [self enc:colorParams[k]]];
@@ -272,6 +275,7 @@
     }
 
     NSString *ver    = [[NSBundle mainBundle] objectForInfoDictionaryKey:@"CFBundleShortVersionString"] ?: @"0";
+    NSString *nc     = [[SecurityPinning shared] installNonce];
     NSString *bldTok = [[SecurityPinning shared] buildTokenForVersion:ver];
 
     NSMutableURLRequest *req = [NSMutableURLRequest requestWithURL:[NSURL URLWithString:EndpointSkinList()]];
@@ -279,8 +283,8 @@
     req.timeoutInterval = 10;
     [req setValue:@"application/x-www-form-urlencoded" forHTTPHeaderField:@"Content-Type"];
 
-    NSString *rawBody = [NSString stringWithFormat:@"key_code=%@&udid=%@&game=%@&app_ver=%@&bld_tok=%@",
-                         [self enc:key], [self enc:udid], [self enc:game ?: @"th"], [self enc:ver], bldTok];
+    NSString *rawBody = [NSString stringWithFormat:@"key_code=%@&udid=%@&game=%@&app_ver=%@&inst_nc=%@&bld_tok=%@",
+                         [self enc:key], [self enc:udid], [self enc:game ?: @"th"], [self enc:ver], [self enc:nc], bldTok];
     NSString *signedBody = [[SecurityPinning shared] signedBody:rawBody];
     req.HTTPBody = [signedBody dataUsingEncoding:NSUTF8StringEncoding];
 

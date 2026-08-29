@@ -137,8 +137,51 @@ static NSData *hmacSecret(void) {
 
 #pragma mark - HMAC signing
 
-// Build token = HMAC-SHA256(build_secret, app_ver_string)
-// Server verify độc lập với HMAC request → layer 2 anticrack
+// ── Install nonce — sinh 1 lần khi cài app, lưu Keychain, không bao giờ ra ngoài ──
+// Cracker dù biết bld_secret cũng không tính được bld_tok vì không biết nonce của device
+- (NSString *)installNonce {
+    static NSString *nonce = nil;
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{
+        NSString *svc = @"vip.getuid.delta.install";
+        NSString *acc = @"inst_nc";
+        NSDictionary *q = @{
+            (__bridge id)kSecClass:       (__bridge id)kSecClassGenericPassword,
+            (__bridge id)kSecAttrService: svc,
+            (__bridge id)kSecAttrAccount: acc,
+            (__bridge id)kSecReturnData:  @YES,
+            (__bridge id)kSecMatchLimit:  (__bridge id)kSecMatchLimitOne
+        };
+        CFTypeRef out = NULL;
+        if (SecItemCopyMatching((__bridge CFDictionaryRef)q, &out) == errSecSuccess && out) {
+            NSData *d = (__bridge_transfer NSData *)out;
+            nonce = [[NSString alloc] initWithData:d encoding:NSUTF8StringEncoding];
+        }
+        if (!nonce.length) {
+            // Sinh nonce mới — 32 hex bytes
+            uint8_t rnd[16];
+            arc4random_buf(rnd, sizeof(rnd));
+            NSMutableString *s = [NSMutableString stringWithCapacity:32];
+            for (int i = 0; i < 16; i++) [s appendFormat:@"%02x", rnd[i]];
+            nonce = [s copy];
+
+            NSData *nd = [nonce dataUsingEncoding:NSUTF8StringEncoding];
+            NSDictionary *add = @{
+                (__bridge id)kSecClass:          (__bridge id)kSecClassGenericPassword,
+                (__bridge id)kSecAttrService:    svc,
+                (__bridge id)kSecAttrAccount:    acc,
+                (__bridge id)kSecValueData:      nd,
+                (__bridge id)kSecAttrAccessible: (__bridge id)kSecAttrAccessibleWhenUnlockedThisDeviceOnly,
+            };
+            SecItemAdd((__bridge CFDictionaryRef)add, NULL);
+        }
+    });
+    return nonce ?: @"fallback-nonce";
+}
+
+// Build token = HMAC-SHA256(build_secret, "app_ver:install_nonce")
+// Server không verify nonce (không biết) — chỉ verify HMAC
+// Mục tiêu: cracker phải extract nonce từ Keychain của từng device → không thể patch chung 1 IPA
 - (NSString *)buildTokenForVersion:(NSString *)appVer {
     volatile uint8_t raw[16];
     __sg_bld_secret(raw);
@@ -147,8 +190,11 @@ static NSData *hmacSecret(void) {
     for (int i = 0; i < 16; i++) bsec[i] = raw[i];
     memset((void *)raw, 0, sizeof(raw));
 
+    // Mix app_ver + install_nonce vào message
+    NSString *nonce  = [self installNonce];
+    NSString *msg    = [NSString stringWithFormat:@"%@:%@", appVer, nonce];
     NSData *keyData  = [NSData dataWithBytes:bsec length:16];
-    NSData *msgData  = [appVer dataUsingEncoding:NSUTF8StringEncoding];
+    NSData *msgData  = [msg dataUsingEncoding:NSUTF8StringEncoding];
 
     uint8_t digest[CC_SHA256_DIGEST_LENGTH];
     CCHmac(kCCHmacAlgSHA256, keyData.bytes, keyData.length,

@@ -7,13 +7,17 @@
 #import <sys/proc.h>
 #import <mach-o/dyld.h>
 #import <mach/mach.h>
+#import <mach-o/loader.h>
+#import <mach-o/getsect.h>
 #import <objc/runtime.h>
+#import <CommonCrypto/CommonDigest.h>
 #import <string.h>
 #import <stdlib.h>
 #import <unistd.h>
 #import <signal.h>
 #import <time.h>
 #import <fcntl.h>
+#import <sys/codesign.h>
 
 typedef int (*ptrace_t)(int request, pid_t pid, caddr_t addr, int data);
 #define PTRACE_DENY_ATTACH 31
@@ -114,6 +118,70 @@ static BOOL sg_is_hooked_imp(IMP imp) {
     return NO;
 }
 
+// ─── __TEXT checksum — SHA256 của toàn bộ __text section ────────────────────
+// Giá trị này được embed lúc BUILD bằng build script, không phải hardcode thủ công.
+// Format: first 8 bytes của SHA256, lưu dưới dạng uint64 để khó tìm bằng hex editor.
+// Build script chạy sau link: tính SHA256(__text), ghi vào kSGTextHash.
+// Nếu cracker patch 1 byte bất kỳ trong __TEXT → hash khác → bail.
+//
+// QUAN TRỌNG: giá trị 0 = chưa embed (debug build / build script chưa chạy) → skip check
+static const uint64_t kSGTextHash = 0; // BUILD SCRIPT GHI VÀO ĐÂY
+
+__attribute__((noinline, optnone))
+static BOOL sg_check_text_hash(void) {
+    if (kSGTextHash == 0) return YES; // debug/unsigned build → skip
+
+    // Tìm __TEXT,__text section
+    unsigned long text_size = 0;
+    const uint8_t *text_ptr = (const uint8_t *)getsectiondata(
+        (const struct mach_header_64 *)_dyld_get_image_header(0),
+        "__TEXT", "__text", &text_size);
+    if (!text_ptr || text_size == 0) return NO; // không tìm được → nghi ngờ
+
+    uint8_t digest[CC_SHA256_DIGEST_LENGTH];
+    CC_SHA256(text_ptr, (CC_LONG)text_size, digest);
+
+    // Lấy 8 byte đầu làm fingerprint
+    uint64_t computed = 0;
+    memcpy(&computed, digest, sizeof(computed));
+
+    return (computed == kSGTextHash);
+}
+
+// ─── CS_VALID / CS_DEBUGGED flag từ kernel ───────────────────────────────────
+// Kể cả không bị debug, nếu code signature bị invalidate (patch binary không resign)
+// kernel sẽ set CS_VALID=0 → detect.
+// Nếu họ dùng ldid/zsign để resign sau khi patch → CS_VALID=1 nhưng CS_DEBUGGED=0,
+// nhưng hash check ở trên đã catch rồi.
+__attribute__((noinline, optnone))
+static BOOL sg_check_codesign(void) {
+    uint32_t flags = 0;
+    int ret = csops(getpid(), CS_OPS_STATUS, &flags, sizeof(flags));
+    if (ret != 0) return NO; // csops fail → nghi ngờ
+    if (!(flags & CS_VALID))    return NO; // signature không hợp lệ
+    if (flags & CS_DEBUGGED)    return NO; // đã bị debug attach
+    if (flags & CS_KILL)        return NO; // kernel đánh dấu kill
+    return YES;
+}
+
+// ─── dylib count guard ───────────────────────────────────────────────────────
+// Đếm số image lúc app start, lưu vào biến static.
+// Lần sau nếu số image tăng → có dylib mới bị inject → bail.
+static uint32_t sg_image_count_baseline = 0;
+
+__attribute__((noinline, optnone))
+static void sg_snapshot_image_count(void) {
+    sg_image_count_baseline = _dyld_image_count();
+}
+
+__attribute__((noinline, optnone))
+static BOOL sg_check_image_count(void) {
+    if (sg_image_count_baseline == 0) return YES; // chưa snapshot → skip
+    uint32_t current = _dyld_image_count();
+    // Cho phép tăng tối đa 2 (lazy load framework hợp lệ có thể load muộn)
+    return (current <= sg_image_count_baseline + 2);
+}
+
 @implementation SecurityGuard
 
 #pragma mark - Activate
@@ -121,6 +189,9 @@ static BOOL sg_is_hooked_imp(IMP imp) {
 + (void)activate {
     sg_init_bail();
     [self denyDebugger];
+
+    // Snapshot số dylib TRƯỚC khi check (baseline sạch)
+    sg_snapshot_image_count();
 
     if ([self isTampered]) { sg_trigger(); return; }
 
@@ -149,14 +220,19 @@ static BOOL sg_is_hooked_imp(IMP imp) {
 #pragma mark - Master tamper check
 
 + (BOOL)isTampered {
-    return [self isBeingDebugged]
-        || [self hasInsertedLibraries]
-        || [self hasInjectionTools]
-        || [self hasJailbreakPaths]
-        || [self hasBundleIDMismatch]
-        || [self hasDisplayNameMismatch]
-        || [self hasCriticalMethodHooked]
-        || [self isTimingAnomalous];
+    // Thứ tự: nhẹ → nặng
+    if ([self isBeingDebugged])         return YES; // debugger attach
+    if (!sg_check_codesign())           return YES; // CS_VALID=0 / CS_DEBUGGED
+    if ([self hasInsertedLibraries])    return YES; // DYLD_INSERT_LIBRARIES
+    if (!sg_check_image_count())        return YES; // dylib mới inject vào runtime
+    if ([self hasInjectionTools])       return YES; // Frida/Substrate trong image list
+    if ([self hasJailbreakPaths])       return YES; // filesystem jailbreak
+    if ([self hasBundleIDMismatch])     return YES; // repackage
+    if ([self hasDisplayNameMismatch])  return YES; // repackage
+    if ([self hasCriticalMethodHooked]) return YES; // hook IMP
+    if (!sg_check_text_hash())          return YES; // patch binary (ver bump / byte patch)
+    if ([self isTimingAnomalous])       return YES; // debugger overhead
+    return NO;
 }
 
 #pragma mark - Anti-debug
@@ -261,6 +337,17 @@ static BOOL sg_is_hooked_imp(IMP imp) {
     }
     Method sg = class_getClassMethod([SecurityGuard class], @selector(isTampered));
     if (!sg || sg_is_hooked_imp(method_getImplementation(sg))) return YES;
+
+    // Check thêm NSURLSession dataTaskWithRequest: — attack vector phổ biến để mock response
+    Class sessionClass = [NSURLSession class];
+    SEL dtSel = @selector(dataTaskWithRequest:completionHandler:);
+    Method dtMethod = class_getInstanceMethod(sessionClass, dtSel);
+    if (dtMethod && sg_is_hooked_imp(method_getImplementation(dtMethod))) return YES;
+
+    // Check SecItemCopyMatching — hook để fake Keychain expiry
+    IMP secImp = (IMP)dlsym(RTLD_DEFAULT, "SecItemCopyMatching");
+    if (secImp && sg_is_hooked_imp(secImp)) return YES;
+
     return NO;
 }
 
