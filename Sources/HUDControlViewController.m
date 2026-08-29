@@ -2694,7 +2694,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     };
 
     // ── Tắt Toàn Bộ Định Vị (xóa fileinfo) ──────────────────────
-    // Xóa Documents/contentcache/Optional/ios/optionalavatarres/fileinfo
+    // Xóa Device Storage/[MHA-C2] App Data/{bundleID}/contentcache/Optional/ios/optionalavatarres/fileinfo
     // → game không còn biết shader nào để load → định vị & mod skin NV tắt hẳn.
     // Tile không phải radio (exclusive=NO), chỉ là action 1 lần → tự về OFF sau khi xong.
     HUDFeature *dvOff = [HUDFeature new];
@@ -2709,10 +2709,15 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     dvOff.searchRoot = @"";
     dvOff.exclusive  = NO;
     dvOff.exclusiveGroup = nil;
+    // Capture bundleID tại thời điểm build feature list (không capture self để tránh retain cycle)
+    NSString *_dvOffBundleID = bundleID;
     dvOff.customAction = ^(HUDFeatureRow *row, HUDControlViewController *vc, NSString *game) {
-        // Đường dẫn fileinfo (Documents/contentcache/Optional/ios/optionalavatarres/fileinfo)
+        // Path: ~/Documents/Device Storage/[MHA-C2] App Data/{bundleID}/
+        //         contentcache/Optional/ios/optionalavatarres/fileinfo
         NSString *docs = [NSHomeDirectory() stringByAppendingPathComponent:@"Documents"];
-        NSString *fileinfo = [docs stringByAppendingPathComponent:
+        NSString *appDataRoot = [docs stringByAppendingPathComponent:
+            [NSString stringWithFormat:@"Device Storage/[MHA-C2] App Data/%@", _dvOffBundleID]];
+        NSString *fileinfo = [appDataRoot stringByAppendingPathComponent:
             @"contentcache/Optional/ios/optionalavatarres/fileinfo"];
 
         NSFileManager *fm = [NSFileManager defaultManager];
