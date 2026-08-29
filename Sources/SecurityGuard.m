@@ -169,12 +169,16 @@ static BOOL sg_check_text_hash(void) {
 // nhưng hash check ở trên đã catch rồi.
 __attribute__((noinline, optnone))
 static BOOL sg_check_codesign(void) {
+    // CS_VALID bị clear khi binary bị patch NHƯNG CHƯA resign.
+    // Sau khi resign bằng eSign/AltStore/Sideloadly: CS_VALID=1 nhưng
+    // CS_DEBUGGED có thể được set tùy công cụ → false-positive crash.
+    // Chỉ check CS_VALID (đủ để bắt binary patch chưa resign).
+    // CS_DEBUGGED và CS_KILL bỏ qua — quá nhạy với resign tools hợp lệ.
     uint32_t flags = 0;
     int ret = csops(getpid(), CS_OPS_STATUS, &flags, sizeof(flags));
-    if (ret != 0) return NO; // csops fail → nghi ngờ
-    if (!(flags & CS_VALID))    return NO; // signature không hợp lệ
-    if (flags & CS_DEBUGGED)    return NO; // đã bị debug attach
-    if (flags & CS_KILL)        return NO; // kernel đánh dấu kill
+    if (ret != 0) return YES; // csops không hoạt động trên thiết bị này → skip
+    if (!(flags & CS_VALID)) return NO; // binary patch chưa resign → bail
+    // CS_DEBUGGED: bỏ qua — resign tools set bit này, không đáng tin
     return YES;
 }
 
@@ -259,27 +263,15 @@ static BOOL sg_check_image_count(void) {
 }
 
 + (BOOL)isBeingDebugged {
-    // Check 1: sysctl P_TRACED flag
+    // sysctl P_TRACED — reliable, không false-positive với eSign/resign tools
     int mib[4] = { CTL_KERN, KERN_PROC, KERN_PROC_PID, getpid() };
     struct kinfo_proc info; info.kp_proc.p_flag = 0;
     size_t sz = sizeof(info);
     if (sysctl(mib, 4, &info, &sz, NULL, 0) == 0) {
         if ((info.kp_proc.p_flag & P_TRACED) != 0) return YES;
     }
-    // Check 2: exception port — lldb đăng ký exception handler
-    mach_port_t task = mach_task_self();
-    exception_mask_t masks[EXC_TYPES_COUNT];
-    mach_msg_type_number_t count = 0;
-    exception_handler_t handlers[EXC_TYPES_COUNT];
-    exception_behavior_t behaviors[EXC_TYPES_COUNT];
-    thread_state_flavor_t flavors[EXC_TYPES_COUNT];
-    kern_return_t kr = task_get_exception_ports(task,
-        EXC_MASK_ALL, masks, &count, handlers, behaviors, flavors);
-    if (kr == KERN_SUCCESS) {
-        for (mach_msg_type_number_t i = 0; i < count; i++) {
-            if (MACH_PORT_VALID(handlers[i])) return YES;
-        }
-    }
+    // NOTE: task_get_exception_ports bị bỏ — iOS system services tự đăng ký
+    // exception handler → false-positive trên thiết bị thường (không phải debugger).
     return NO;
 }
 
