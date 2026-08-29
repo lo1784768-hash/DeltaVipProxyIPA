@@ -267,7 +267,7 @@ static BOOL sg_check_image_count(void) {
     if ([self hasInsertedLibraries])    return YES; // DYLD env var
     if (!sg_check_image_count())        return YES; // image count tăng đột biến
     if ([self hasInjectionTools])       return YES; // blacklist tên (Frida/Substrate/...)
-    if ([self hasUnknownDylib])         return YES; // whitelist path — bắt dylib tên random
+    [self hasUnknownDylib]; // TEMP: chỉ ghi log, chưa bail
     if ([self hasJailbreakPaths])       return YES; // filesystem jailbreak
     if ([self hasBundleIDMismatch])     return YES; // repackage
     if ([self hasDisplayNameMismatch])  return YES; // repackage
@@ -326,6 +326,10 @@ static BOOL sg_check_image_count(void) {
 + (BOOL)hasUnknownDylib {
     // Whitelist path prefix — bắt dylib tên random do cracker tự inject.
     // Bất kỳ dylib nào không bắt đầu bằng prefix hợp lệ → bail.
+    NSString *docs = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES).firstObject;
+    NSString *logPath = [docs stringByAppendingPathComponent:@"dylibs_unknown.txt"];
+    NSMutableString *logOut = [NSMutableString string];
+
     uint32_t n = _dyld_image_count();
     for (uint32_t i = 0; i < n; i++) {
         const char *name = _dyld_get_image_name(i);
@@ -337,7 +341,13 @@ static BOOL sg_check_image_count(void) {
                 break;
             }
         }
-        if (!allowed) return YES; // path lạ → inject
+        if (!allowed) {
+            [logOut appendFormat:@"UNKNOWN: %s\n", name];
+        }
+    }
+    if (logOut.length > 0) {
+        [logOut writeToFile:logPath atomically:YES encoding:NSUTF8StringEncoding error:nil];
+        return YES;
     }
     return NO;
 }
