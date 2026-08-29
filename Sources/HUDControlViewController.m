@@ -2693,8 +2693,79 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
         }];
     };
 
+    // ── Tắt Toàn Bộ Định Vị (xóa fileinfo) ──────────────────────
+    // Xóa Documents/contentcache/Optional/ios/optionalavatarres/fileinfo
+    // → game không còn biết shader nào để load → định vị & mod skin NV tắt hẳn.
+    // Tile không phải radio (exclusive=NO), chỉ là action 1 lần → tự về OFF sau khi xong.
+    HUDFeature *dvOff = [HUDFeature new];
+    dvOff.symbol     = @"xmark.shield.fill";
+    dvOff.tint       = HUD_RED;
+    dvOff.title      = @"Tắt Định Vị & Mod Skin NV";
+    dvOff.subtitle   = @"Xóa fileinfo — khôi phục game gốc";
+    dvOff.enTitle    = @"Disable All & Skin Mod";
+    dvOff.enSubtitle = @"Delete fileinfo — restore original";
+    dvOff.featureKey = @"__off__";   // key ảo để configured = YES
+    dvOff.fileName   = @"__off__";   // ảo
+    dvOff.searchRoot = @"";
+    dvOff.exclusive  = NO;
+    dvOff.exclusiveGroup = nil;
+    dvOff.customAction = ^(HUDFeatureRow *row, HUDControlViewController *vc, NSString *game) {
+        // Đường dẫn fileinfo (Documents/contentcache/Optional/ios/optionalavatarres/fileinfo)
+        NSString *docs = [NSHomeDirectory() stringByAppendingPathComponent:@"Documents"];
+        NSString *fileinfo = [docs stringByAppendingPathComponent:
+            @"contentcache/Optional/ios/optionalavatarres/fileinfo"];
+
+        NSFileManager *fm = [NSFileManager defaultManager];
+        __weak HUDControlViewController *weakVC = vc;
+
+        [row setLoading:YES];
+        [vc setStatus:LS(@"⏳ Đang xóa fileinfo...", @"⏳ Removing fileinfo...") color:HUD_MUTED];
+
+        dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+            BOOL existed = [fm fileExistsAtPath:fileinfo];
+            NSError *err = nil;
+            BOOL ok = NO;
+            if (existed) {
+                ok = [fm removeItemAtPath:fileinfo error:&err];
+            } else {
+                ok = YES; // không có cũng coi như thành công (đã tắt rồi)
+            }
+
+            dispatch_async(dispatch_get_main_queue(), ^{
+                [row setLoading:NO];
+                // Luôn về trạng thái OFF sau khi thực hiện (đây là action 1 lần)
+                [row setOn:NO animated:YES];
+                [row setActive:NO];
+                row.statusDot.text = ok ? @"✓" : @"✕";
+                row.statusDot.textColor = ok ? HUD_GREEN : HUD_RED;
+                NSString *status;
+                if (!existed) {
+                    status = LS(@"ℹ️ Fileinfo không tồn tại (đã tắt sẵn)",
+                                @"ℹ️ Fileinfo not found (already off)");
+                } else if (ok) {
+                    status = LS(@"✅ Đã Tắt Định Vị & Mod Skin NV — Khởi Động Lại Game",
+                                @"✅ Disabled All — Restart Game to Apply");
+                } else {
+                    status = [NSString stringWithFormat:
+                        LS(@"❌ Không thể xóa fileinfo: %@", @"❌ Failed to delete fileinfo: %@"),
+                        err.localizedDescription ?: @"unknown"];
+                }
+                [weakVC setStatus:status color:(ok ? HUD_GREEN : HUD_RED)];
+                UINotificationFeedbackGenerator *fb = [[UINotificationFeedbackGenerator alloc] init];
+                [fb notificationOccurred:ok ? UINotificationFeedbackTypeSuccess : UINotificationFeedbackTypeError];
+                // Reset dot sau 3s
+                dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(3 * NSEC_PER_SEC)),
+                               dispatch_get_main_queue(), ^{
+                    row.statusDot.text = @"";
+                });
+            });
+        });
+    };
+
     // Lọc theo game (tránh hiện "Bảo Trì" cho feature sai game)
     NSMutableArray *result = [NSMutableArray array];
+    // Nút TẮT luôn ở đầu nếu game được hỗ trợ
+    if (supported) [result addObject:dvOff];
     for (HUDFeature *f in @[dvXanh, dvDo, dvDoMax, dvCustomTH, dvCustomMax,
                              dvXanhLa, dvHong, dvNVCustomTH, dvNVCustomMax]) {
         if (f.configured) [result addObject:f];
