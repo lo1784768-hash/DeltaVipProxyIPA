@@ -76,11 +76,7 @@ static const char *kBadLibs[] = {
 // Bất kỳ dylib nào nằm ngoài các prefix này → inject lạ → bail.
 // Phân tích IPA đã ký bằng eSign: không có dylib nào ngoài /System + /usr/lib.
 static const char *kAllowedPrefixes[] = {
-    "/System/Library/Frameworks/",
-    "/System/Library/PrivateFrameworks/",
-    "/System/Library/SubFrameworks/",     // UIUtilities và các sub-framework iOS
-    "/System/Library/AccessibilityBundles/",
-    "/System/Library/Extensions/",
+    "/System/Library/",   // bao phủ tất cả sub-path của iOS system library
     "/usr/lib/",
     "/usr/lib/swift/",
     "/private/preboot/",
