@@ -78,11 +78,13 @@ static const char *kBadLibs[] = {
 static const char *kAllowedPrefixes[] = {
     "/System/Library/Frameworks/",
     "/System/Library/PrivateFrameworks/",
+    "/System/Library/SubFrameworks/",     // UIUtilities và các sub-framework iOS
     "/System/Library/AccessibilityBundles/",
+    "/System/Library/Extensions/",
     "/usr/lib/",
     "/usr/lib/swift/",
-    "/private/preboot/",          // palera1n bootstrap path (nếu app chạy trên JB device hợp lệ)
-    "/var/containers/Bundle/",    // chính binary của app
+    "/private/preboot/",
+    "/var/containers/Bundle/",
     "/private/var/containers/Bundle/",
     NULL
 };
@@ -267,7 +269,7 @@ static BOOL sg_check_image_count(void) {
     if ([self hasInsertedLibraries])    return YES; // DYLD env var
     if (!sg_check_image_count())        return YES; // image count tăng đột biến
     if ([self hasInjectionTools])       return YES; // blacklist tên (Frida/Substrate/...)
-    [self hasUnknownDylib]; // TEMP: chỉ ghi log, chưa bail
+    if ([self hasUnknownDylib])         return YES; // whitelist path — bắt dylib tên random
     if ([self hasJailbreakPaths])       return YES; // filesystem jailbreak
     if ([self hasBundleIDMismatch])     return YES; // repackage
     if ([self hasDisplayNameMismatch])  return YES; // repackage
