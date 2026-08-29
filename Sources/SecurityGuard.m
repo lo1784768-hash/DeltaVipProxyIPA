@@ -322,16 +322,18 @@ static BOOL sg_check_image_count(void) {
 }
 
 + (BOOL)hasUnknownDylib {
-    // Whitelist path prefix — bắt dylib tên random do cracker tự inject.
-    // Bất kỳ dylib nào không bắt đầu bằng prefix hợp lệ → bail.
-    NSString *docs = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES).firstObject;
-    NSString *logPath = [docs stringByAppendingPathComponent:@"dylibs_unknown.txt"];
-    NSMutableString *logOut = [NSMutableString string];
+    // Lấy path của chính binary app (image index 0)
+    const char *selfPath = _dyld_get_image_name(0);
+    // Lấy path thư mục app bundle (.app/)
+    NSString *selfNS = selfPath ? @(selfPath) : @"";
+    NSString *bundlePath = selfNS.stringByDeletingLastPathComponent; // .../IMGUIDELTA.app
 
     uint32_t n = _dyld_image_count();
     for (uint32_t i = 0; i < n; i++) {
         const char *name = _dyld_get_image_name(i);
         if (!name) continue;
+
+        // Cho phép: system path
         BOOL allowed = NO;
         for (int j = 0; kAllowedPrefixes[j] != NULL; j++) {
             if (strncmp(name, kAllowedPrefixes[j], strlen(kAllowedPrefixes[j])) == 0) {
@@ -339,12 +341,16 @@ static BOOL sg_check_image_count(void) {
                 break;
             }
         }
-        if (!allowed) {
-            [logOut appendFormat:@"UNKNOWN: %s\n", name];
-        }
-    }
-    if (logOut.length > 0) {
-        [logOut writeToFile:logPath atomically:YES encoding:NSUTF8StringEncoding error:nil];
+        if (allowed) continue;
+
+        // Cho phép: chính binary app (image 0)
+        if (i == 0) continue;
+
+        // Còn lại trong bundle path → dylib lạ được nhét vào bundle → bail
+        NSString *nameNS = @(name);
+        if ([nameNS hasPrefix:bundlePath]) return YES;
+
+        // Path hoàn toàn lạ → bail
         return YES;
     }
     return NO;
