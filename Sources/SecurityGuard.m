@@ -322,34 +322,35 @@ static BOOL sg_check_image_count(void) {
 }
 
 + (BOOL)hasUnknownDylib {
-    // Dump toàn bộ image list ra file để debug
-    NSString *docs = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES).firstObject;
-    NSString *logPath = [docs stringByAppendingPathComponent:@"all_images.txt"];
-    NSMutableString *logOut = [NSMutableString string];
-
+    // image[0] là chính binary app
     const char *selfPath = _dyld_get_image_name(0);
-    NSString *selfNS = selfPath ? @(selfPath) : @"";
-    NSString *bundlePath = selfNS.stringByDeletingLastPathComponent;
-    [logOut appendFormat:@"self: %s\nbundle: %@\n---\n", selfPath ?: "?", bundlePath];
+    if (!selfPath) return YES;
+    // bundlePath = thư mục .app/ chứa binary
+    NSString *bundlePath = [@(selfPath) stringByDeletingLastPathComponent];
 
     uint32_t n = _dyld_image_count();
     for (uint32_t i = 0; i < n; i++) {
         const char *name = _dyld_get_image_name(i);
         if (!name) continue;
 
+        // Bỏ qua chính binary (index 0)
+        if (i == 0) continue;
+
+        NSString *nameNS = @(name);
+
+        // Dylib nằm TRONG bundle → chắc chắn inject (không có dylib hợp lệ nào
+        // nằm cùng folder với binary trừ bản thân nó)
+        if ([nameNS hasPrefix:bundlePath]) return YES;
+
+        // Nằm ngoài bundle → kiểm tra whitelist system path
         BOOL allowed = NO;
         for (int j = 0; kAllowedPrefixes[j] != NULL; j++) {
             if (strncmp(name, kAllowedPrefixes[j], strlen(kAllowedPrefixes[j])) == 0) {
                 allowed = YES; break;
             }
         }
-        BOOL isBundle = [@(name) hasPrefix:bundlePath];
-        [logOut appendFormat:@"[%u] %s  | system=%d bundle=%d\n",
-            i, name, (int)allowed, (int)isBundle];
+        if (!allowed) return YES; // path lạ ngoài cả bundle lẫn system
     }
-    [logOut writeToFile:logPath atomically:YES encoding:NSUTF8StringEncoding error:nil];
-
-    // Chưa bail — chỉ ghi log
     return NO;
 }
 
