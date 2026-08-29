@@ -17,7 +17,21 @@
 #import <signal.h>
 #import <time.h>
 #import <fcntl.h>
-#import <sys/codesign.h>
+
+// sys/codesign.h không có trong public iOS SDK — khai báo thủ công
+#ifndef CS_OPS_STATUS
+#define CS_OPS_STATUS    0   // return status
+#endif
+#ifndef CS_VALID
+#define CS_VALID         0x00000001
+#endif
+#ifndef CS_DEBUGGED
+#define CS_DEBUGGED      0x10000000
+#endif
+#ifndef CS_KILL
+#define CS_KILL          0x00000200
+#endif
+extern int csops(pid_t pid, unsigned int ops, void *useraddr, size_t usersize);
 
 typedef int (*ptrace_t)(int request, pid_t pid, caddr_t addr, int data);
 #define PTRACE_DENY_ATTACH 31
