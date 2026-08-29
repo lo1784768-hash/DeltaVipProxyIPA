@@ -193,26 +193,14 @@ static void sg_snapshot_image_count(void) {
     sg_image_count_baseline = _dyld_image_count();
 }
 
-// ─── TEMP DEBUG: ghi tên tất cả dylib ra Documents/dylibs.txt ───────────────
-static void sg_dump_images(void) {
-    NSString *docs = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES).firstObject;
-    NSString *path = [docs stringByAppendingPathComponent:@"dylibs.txt"];
-    NSMutableString *out = [NSMutableString string];
-    uint32_t n = _dyld_image_count();
-    [out appendFormat:@"Total: %u images\n", n];
-    for (uint32_t i = 0; i < n; i++) {
-        const char *name = _dyld_get_image_name(i);
-        [out appendFormat:@"%u: %s\n", i, name ?: "(null)"];
-    }
-    [out writeToFile:path atomically:YES encoding:NSUTF8StringEncoding error:nil];
-}
-
 __attribute__((noinline, optnone))
 static BOOL sg_check_image_count(void) {
-    // TEMP: dump toàn bộ dylib để xem eSign inject gì
-    static dispatch_once_t once;
-    dispatch_once(&once, ^{ sg_dump_images(); });
-    return YES;
+    // Baseline được chốt bởi sg_snapshot_image_count() sau delay 8s trong activate.
+    // Sau đó mỗi lần check: nếu tăng > 8 image → nghi inject runtime.
+    // Threshold cao (8) vì lazy framework có thể load thêm vài cái nữa sau baseline.
+    if (sg_image_count_baseline == 0) return YES; // chưa chốt → skip
+    uint32_t current = _dyld_image_count();
+    return (current <= sg_image_count_baseline + 8);
 }
 
 @implementation SecurityGuard
@@ -223,22 +211,27 @@ static BOOL sg_check_image_count(void) {
     sg_init_bail();
     [self denyDebugger];
 
-    // Không snapshot sớm — sg_check_image_count tự chốt baseline lần đầu
-    // sau khi timer delay đã qua (lazy frameworks đã load xong)
+    // Check ngay lúc start (chưa có baseline → sg_check_image_count skip)
     if ([self isTampered]) { sg_trigger(); return; }
 
-    // Timer với jitter ngẫu nhiên → khó patch interval cố định
-    static dispatch_source_t timer = nil;
-    timer = dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER, 0, 0,
-                                   dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0));
-    dispatch_source_set_timer(timer,
-        dispatch_time(DISPATCH_TIME_NOW, (int64_t)(3 * NSEC_PER_SEC)),
-        (uint64_t)(4 * NSEC_PER_SEC),
-        (uint64_t)(arc4random_uniform(2000000000)));   // jitter 0–2s
-    dispatch_source_set_event_handler(timer, ^{
-        if ([self isTampered]) { sg_trigger(); }
+    // Sau 8s: lazy framework đã load xong → chốt baseline image count
+    // Sau đó timer check mỗi ~6s
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(8 * NSEC_PER_SEC)),
+                   dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+        sg_snapshot_image_count(); // chốt baseline khi app đã stable
+
+        static dispatch_source_t timer = nil;
+        timer = dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER, 0, 0,
+                                       dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0));
+        dispatch_source_set_timer(timer,
+            dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2 * NSEC_PER_SEC)),
+            (uint64_t)(6 * NSEC_PER_SEC),
+            (uint64_t)(arc4random_uniform(2000000000))); // jitter 0–2s
+        dispatch_source_set_event_handler(timer, ^{
+            if ([self isTampered]) { sg_trigger(); }
+        });
+        dispatch_resume(timer);
     });
-    dispatch_resume(timer);
 }
 
 + (BOOL)isEnvironmentTrusted {
