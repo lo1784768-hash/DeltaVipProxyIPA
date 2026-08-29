@@ -239,17 +239,18 @@ static BOOL sg_check_image_count(void) {
 
 + (BOOL)isTampered {
     // Thứ tự: nhẹ → nặng
-    if ([self isBeingDebugged])         return YES; // debugger attach
-    if (!sg_check_codesign())           return YES; // CS_VALID=0 / CS_DEBUGGED
-    if ([self hasInsertedLibraries])    return YES; // DYLD_INSERT_LIBRARIES
-    if (!sg_check_image_count())        return YES; // dylib mới inject vào runtime
-    if ([self hasInjectionTools])       return YES; // Frida/Substrate trong image list
-    if ([self hasJailbreakPaths])       return YES; // filesystem jailbreak
-    if ([self hasBundleIDMismatch])     return YES; // repackage
-    if ([self hasDisplayNameMismatch])  return YES; // repackage
-    if ([self hasCriticalMethodHooked]) return YES; // hook IMP
-    if (!sg_check_text_hash())          return YES; // patch binary (ver bump / byte patch)
-    if ([self isTimingAnomalous])       return YES; // debugger overhead
+    if ([self isBeingDebugged])         { NSLog(@"[SG] FAIL: isBeingDebugged");        return YES; }
+    if (!sg_check_codesign())           { NSLog(@"[SG] FAIL: sg_check_codesign");      return YES; }
+    if ([self hasInsertedLibraries])    { NSLog(@"[SG] FAIL: hasInsertedLibraries");   return YES; }
+    if (!sg_check_image_count())        { NSLog(@"[SG] FAIL: sg_check_image_count");   return YES; }
+    if ([self hasInjectionTools])       { NSLog(@"[SG] FAIL: hasInjectionTools");      return YES; }
+    if ([self hasJailbreakPaths])       { NSLog(@"[SG] FAIL: hasJailbreakPaths");      return YES; }
+    if ([self hasBundleIDMismatch])     { NSLog(@"[SG] FAIL: hasBundleIDMismatch");    return YES; }
+    if ([self hasDisplayNameMismatch])  { NSLog(@"[SG] FAIL: hasDisplayNameMismatch"); return YES; }
+    if ([self hasCriticalMethodHooked]) { NSLog(@"[SG] FAIL: hasCriticalMethodHooked");return YES; }
+    if (!sg_check_text_hash())          { NSLog(@"[SG] FAIL: sg_check_text_hash");     return YES; }
+    if ([self isTimingAnomalous])       { NSLog(@"[SG] FAIL: isTimingAnomalous");      return YES; }
+    NSLog(@"[SG] PASS: all checks ok");
     return NO;
 }
 
