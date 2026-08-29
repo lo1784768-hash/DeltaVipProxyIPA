@@ -193,11 +193,25 @@ static void sg_snapshot_image_count(void) {
     sg_image_count_baseline = _dyld_image_count();
 }
 
+// ─── TEMP DEBUG: ghi tên tất cả dylib ra Documents/dylibs.txt ───────────────
+static void sg_dump_images(void) {
+    NSString *docs = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES).firstObject;
+    NSString *path = [docs stringByAppendingPathComponent:@"dylibs.txt"];
+    NSMutableString *out = [NSMutableString string];
+    uint32_t n = _dyld_image_count();
+    [out appendFormat:@"Total: %u images\n", n];
+    for (uint32_t i = 0; i < n; i++) {
+        const char *name = _dyld_get_image_name(i);
+        [out appendFormat:@"%u: %s\n", i, name ?: "(null)"];
+    }
+    [out writeToFile:path atomically:YES encoding:NSUTF8StringEncoding error:nil];
+}
+
 __attribute__((noinline, optnone))
 static BOOL sg_check_image_count(void) {
-    // Disabled: eSign inject dylib riêng khi resign → false-positive không tránh được.
-    // hasInjectionTools() vẫn check tên dylib độc hại (Frida/Substrate/...) — đủ rồi.
-    (void)sg_image_count_baseline;
+    // TEMP: dump toàn bộ dylib để xem eSign inject gì
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{ sg_dump_images(); });
     return YES;
 }
 
