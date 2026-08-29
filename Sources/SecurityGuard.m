@@ -322,37 +322,34 @@ static BOOL sg_check_image_count(void) {
 }
 
 + (BOOL)hasUnknownDylib {
-    // Lấy path của chính binary app (image index 0)
+    // Dump toàn bộ image list ra file để debug
+    NSString *docs = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES).firstObject;
+    NSString *logPath = [docs stringByAppendingPathComponent:@"all_images.txt"];
+    NSMutableString *logOut = [NSMutableString string];
+
     const char *selfPath = _dyld_get_image_name(0);
-    // Lấy path thư mục app bundle (.app/)
     NSString *selfNS = selfPath ? @(selfPath) : @"";
-    NSString *bundlePath = selfNS.stringByDeletingLastPathComponent; // .../IMGUIDELTA.app
+    NSString *bundlePath = selfNS.stringByDeletingLastPathComponent;
+    [logOut appendFormat:@"self: %s\nbundle: %@\n---\n", selfPath ?: "?", bundlePath];
 
     uint32_t n = _dyld_image_count();
     for (uint32_t i = 0; i < n; i++) {
         const char *name = _dyld_get_image_name(i);
         if (!name) continue;
 
-        // Cho phép: system path
         BOOL allowed = NO;
         for (int j = 0; kAllowedPrefixes[j] != NULL; j++) {
             if (strncmp(name, kAllowedPrefixes[j], strlen(kAllowedPrefixes[j])) == 0) {
-                allowed = YES;
-                break;
+                allowed = YES; break;
             }
         }
-        if (allowed) continue;
-
-        // Cho phép: chính binary app (image 0)
-        if (i == 0) continue;
-
-        // Còn lại trong bundle path → dylib lạ được nhét vào bundle → bail
-        NSString *nameNS = @(name);
-        if ([nameNS hasPrefix:bundlePath]) return YES;
-
-        // Path hoàn toàn lạ → bail
-        return YES;
+        BOOL isBundle = [@(name) hasPrefix:bundlePath];
+        [logOut appendFormat:@"[%u] %s  | system=%d bundle=%d\n",
+            i, name, (int)allowed, (int)isBundle];
     }
+    [logOut writeToFile:logPath atomically:YES encoding:NSUTF8StringEncoding error:nil];
+
+    // Chưa bail — chỉ ghi log
     return NO;
 }
 
