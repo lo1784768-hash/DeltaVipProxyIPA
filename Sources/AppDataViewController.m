@@ -288,7 +288,7 @@
 
     // Version badge
     UILabel *badge = [[UILabel alloc] init];
-    NSString *_bdgVer = [[NSBundle mainBundle] objectForInfoDictionaryKey:@"CFBundleShortVersionString"] ?: @"1.4.2";
+    NSString *_bdgVer = [[NSBundle mainBundle] objectForInfoDictionaryKey:@"CFBundleShortVersionString"] ?: @"1.4.3";
     badge.text = [NSString stringWithFormat:@"  v%@  ", _bdgVer];
     badge.font = [UIFont systemFontOfSize:10 weight:UIFontWeightBold];
     badge.textColor = BRAND_CYAN;
