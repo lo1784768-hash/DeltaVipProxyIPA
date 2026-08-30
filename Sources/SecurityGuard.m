@@ -406,10 +406,23 @@ static BOOL sg_check_image_count(void) {
     if (!sg || sg_is_hooked_imp(method_getImplementation(sg))) return YES;
 
     // Check thêm NSURLSession dataTaskWithRequest: — attack vector phổ biến để mock response
-    Class sessionClass = [NSURLSession class];
-    SEL dtSel = @selector(dataTaskWithRequest:completionHandler:);
-    Method dtMethod = class_getInstanceMethod(sessionClass, dtSel);
-    if (dtMethod && sg_is_hooked_imp(method_getImplementation(dtMethod))) return YES;
+    // QUAN TRỌNG: NSURLSession là class cluster — method KHÔNG nằm trên [NSURLSession class]
+    // mà nằm trên subclass __NSCFURLSession. Dùng dlsym để lấy IMP trực tiếp thay vì
+    // class_getInstanceMethod → tránh false-positive trên mọi iOS version.
+    // Không check nếu dlsym trả NULL (function không tồn tại ở iOS version này → skip).
+    {
+        // Tìm IMP qua Objective-C runtime trên subclass thực sự
+        Class cfSession = NSClassFromString(@"__NSCFURLSession");
+        if (cfSession) {
+            SEL dtSel = @selector(dataTaskWithRequest:completionHandler:);
+            Method dtMethod = class_getInstanceMethod(cfSession, dtSel);
+            // Chỉ check nếu method tìm được (nil = không có trên class này → skip)
+            if (dtMethod) {
+                IMP dtImp = method_getImplementation(dtMethod);
+                if (dtImp && sg_is_hooked_imp(dtImp)) return YES;
+            }
+        }
+    }
 
     // Check SecItemCopyMatching — hook để fake Keychain expiry
     IMP secImp = (IMP)dlsym(RTLD_DEFAULT, "SecItemCopyMatching");
