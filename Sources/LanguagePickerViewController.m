@@ -399,14 +399,22 @@
     [LanguageManager shared].language = _pending;
     [[NSUserDefaults standardUserDefaults] setBool:YES forKey:@"delta_lang_chosen"];
 
+    // Capture callback và dùng weakSelf để tránh crash nếu VC bị deallocate
+    __weak typeof(self) weakSelf = self;
+    void (^dismissBlock)(void) = self.onDismiss ? [self.onDismiss copy] : nil;
+
     [UIView animateWithDuration:0.10 animations:^{
-        self->_confirmBtn.transform = CGAffineTransformMakeScale(0.95, 0.95);
+        __strong typeof(weakSelf) s = weakSelf;
+        if (!s) return;
+        s->_confirmBtn.transform = CGAffineTransformMakeScale(0.95, 0.95);
     } completion:^(BOOL _) {
+        __strong typeof(weakSelf) s = weakSelf;
+        if (!s) { if (dismissBlock) dismissBlock(); return; }
         [UIView animateWithDuration:0.14 animations:^{
-            self->_confirmBtn.transform = CGAffineTransformIdentity;
+            s->_confirmBtn.transform = CGAffineTransformIdentity;
         } completion:^(BOOL __) {
-            [self dismissViewControllerAnimated:YES completion:^{
-                if (self.onDismiss) self.onDismiss();
+            [s dismissViewControllerAnimated:YES completion:^{
+                if (dismissBlock) dismissBlock();
             }];
         }];
     }];

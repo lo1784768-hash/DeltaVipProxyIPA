@@ -3182,4 +3182,8 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     self.statusLabel.textColor = HUD_MUTED;
 }
 
+- (void)dealloc {
+    [[NSNotificationCenter defaultCenter] removeObserver:self];
+}
+
 @end

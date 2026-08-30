@@ -24,10 +24,10 @@ static NSString * const kLangKey = @"app_language";
     if (_language == language) return;
     _language = language;
     [[NSUserDefaults standardUserDefaults] setInteger:language forKey:kLangKey];
-    dispatch_async(dispatch_get_main_queue(), ^{
-        [[NSNotificationCenter defaultCenter]
-            postNotificationName:LMLanguageChangedNotification object:nil];
-    });
+    // Post synchronously — setLanguage luôn được gọi từ main thread (UI action)
+    // dispatch_async ở đây gây race: VC có thể bị deallocate trước khi notification đến
+    [[NSNotificationCenter defaultCenter]
+        postNotificationName:LMLanguageChangedNotification object:nil];
 }
 
 - (NSString *)vi:(NSString *)vi en:(NSString *)en {
