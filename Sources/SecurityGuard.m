@@ -269,7 +269,7 @@ static BOOL sg_check_image_count(void) {
     if ([self isBeingDebugged])         return YES; // ptrace P_TRACED
     if (!sg_check_codesign())           return YES; // CS_VALID=0
     if ([self hasInsertedLibraries])    return YES; // DYLD env var
-    if (!sg_check_image_count())        return YES; // image count tăng đột biến
+    // if (!sg_check_image_count())     return YES; // tạm tắt — false-positive iOS 15+
     if ([self hasInjectionTools])       return YES; // blacklist tên (Frida/Substrate/...)
     if ([self hasUnknownDylib])         return YES; // whitelist path — bắt dylib tên random
     if ([self hasJailbreakPaths])       return YES; // filesystem jailbreak
