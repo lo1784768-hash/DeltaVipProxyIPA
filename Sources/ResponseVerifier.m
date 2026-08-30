@@ -5,25 +5,25 @@
 
 // ─── Response HMAC secret — 3-segment obfuscation, scheme khác request HMAC ───
 // Giải mã: "Rsp_V3r1fy_D3ltA!2026#kQ"
-// Seg A (0–7): XOR
+// Seg A (0–7): XOR — decodes bytes 0-7 of response HMAC secret
 __attribute__((noinline, optnone))
 static void __rv_seg_a(volatile uint8_t out[8]) {
-    static const volatile uint8_t enc[8] = {0xE2,0xCB,0x40,0xBF,0xF7,0x06,0xC7,0x02};
+    static const volatile uint8_t enc[8] = {0xE0,0xCD,0x01,0x81,0x97,0x04,0x82,0x02};
     static const volatile uint8_t key[8] = {0xB2,0xBE,0x71,0xDE,0xC1,0x37,0xF0,0x33};
     for (volatile int i = 0; i < 8; i++) out[i] = enc[i] ^ key[i];
 }
-// Seg B (8–15): subtraction mod 256
+// Seg B (8–15): subtraction mod 256 — decodes bytes 8-15
 __attribute__((noinline, optnone))
 static void __rv_seg_b(volatile uint8_t out[8]) {
-    static const volatile uint8_t enc[8] = {0x6C,0xA4,0x28,0xD3,0xE5,0x2E,0x53,0xA3};
+    static const volatile uint8_t enc[8] = {0xA9,0x3B,0x9F,0x25,0xFD,0x7F,0xE2,0x24};
     static const volatile uint8_t sub[8] = {0x43,0xC2,0x40,0xE1,0xCA,0x13,0x6E,0xE3};
     for (volatile int i = 0; i < 8; i++)
         out[i] = (uint8_t)((enc[i] - sub[i] + 256) & 0xFF);
 }
-// Seg C (16–23): ROL3
+// Seg C (16–23): ROL3 (decode = shift left 3) — decodes bytes 16-23
 __attribute__((noinline, optnone))
 static void __rv_seg_c(volatile uint8_t out[8]) {
-    static const volatile uint8_t enc[8] = {0x6C,0x61,0x0D,0xAB,0x14,0x06,0x4C,0xCC};
+    static const volatile uint8_t enc[8] = {0x24,0x46,0x06,0x46,0xC6,0x64,0x6D,0x2A};
     for (volatile int i = 0; i < 8; i++)
         out[i] = (uint8_t)(((enc[i] << 3) | (enc[i] >> 5)) & 0xFF);
 }
