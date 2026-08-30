@@ -456,30 +456,49 @@
     }];
 
     __weak typeof(self) weakSelf = self;
+    __weak UIAlertController *weakAlert = alert;
     [alert addAction:[UIAlertAction actionWithTitle:LS(@"Kích hoạt", @"Activate") style:UIAlertActionStyleDefault handler:^(UIAlertAction *a) {
-        NSString *key = alert.textFields.firstObject.text;
+        NSString *key = weakAlert.textFields.firstObject.text;
+        // Đặt UI loading state trước khi gọi network
         [[KeyManager shared] activateKey:key completion:^(BOOL success, NSString *message) {
+            __strong typeof(weakSelf) self = weakSelf;
+            if (!self) return;
+            [self.keyBar update];
             KeyManager *km = [KeyManager shared];
             if (!success && km.pendingConfirmKey) {
-                UIAlertController *confirm = [UIAlertController
-                    alertControllerWithTitle:LS(@"⚠️ Thông Báo Quan Trọng", @"⚠️ Important Notice")
-                                    message:km.pendingConfirmMessage
-                             preferredStyle:UIAlertControllerStyleAlert];
-                [confirm addAction:[UIAlertAction actionWithTitle:LS(@"Đồng Ý", @"Agree")
-                                                           style:UIAlertActionStyleDefault
-                                                         handler:^(UIAlertAction *ca) {
-                    [[KeyManager shared] confirmPendingActivationWithCompletion:^(BOOL ok, NSString *msg) {
-                        [weakSelf.keyBar update];
-                        [weakSelf toast:msg success:ok];
-                    }];
-                }]];
-                [confirm addAction:[UIAlertAction actionWithTitle:LS(@"Huỷ", @"Cancel")
-                                                           style:UIAlertActionStyleCancel
-                                                         handler:nil]];
-                [weakSelf presentViewController:confirm animated:YES completion:nil];
+                // Alert gốc đã dismiss (user bấm Kích hoạt) — present confirm sau 1 tick
+                // để tránh "attempt to present while a presentation is in progress" crash
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    __strong typeof(weakSelf) s = weakSelf;
+                    if (!s) return;
+                    UIAlertController *confirm = [UIAlertController
+                        alertControllerWithTitle:LS(@"⚠️ Thông Báo Quan Trọng", @"⚠️ Important Notice")
+                                        message:km.pendingConfirmMessage
+                                 preferredStyle:UIAlertControllerStyleAlert];
+                    [confirm addAction:[UIAlertAction actionWithTitle:LS(@"Đồng Ý", @"Agree")
+                                                               style:UIAlertActionStyleDefault
+                                                             handler:^(UIAlertAction *ca) {
+                        [[KeyManager shared] confirmPendingActivationWithCompletion:^(BOOL ok, NSString *msg) {
+                            __strong typeof(weakSelf) ss = weakSelf;
+                            if (!ss) return;
+                            [ss.keyBar update];
+                            [ss toast:msg success:ok];
+                        }];
+                    }]];
+                    [confirm addAction:[UIAlertAction actionWithTitle:LS(@"Huỷ", @"Cancel")
+                                                               style:UIAlertActionStyleCancel
+                                                             handler:nil]];
+                    // Nếu VC đang present cái gì đó (alert cũ đang dismiss), đợi nó xong
+                    if (s.presentedViewController) {
+                        [s.presentedViewController dismissViewControllerAnimated:NO completion:^{
+                            [weakSelf presentViewController:confirm animated:YES completion:nil];
+                        }];
+                    } else {
+                        [s presentViewController:confirm animated:YES completion:nil];
+                    }
+                });
             } else {
-                [weakSelf.keyBar update];
-                [weakSelf toast:message success:success];
+                [self toast:message success:success];
             }
         }];
     }]];
@@ -547,7 +566,14 @@
                                                               message:message
                                                        preferredStyle:UIAlertControllerStyleAlert];
     [a addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
-    [self presentViewController:a animated:YES completion:nil];
+    // Nếu đang present VC khác (alert/confirm đang dismiss), đợi nó xong rồi present
+    if (self.presentedViewController) {
+        [self.presentedViewController dismissViewControllerAnimated:NO completion:^{
+            [self presentViewController:a animated:YES completion:nil];
+        }];
+    } else {
+        [self presentViewController:a animated:YES completion:nil];
+    }
 }
 
 // Load apps immediately on first view
