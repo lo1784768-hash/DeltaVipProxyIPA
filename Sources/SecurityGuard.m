@@ -72,16 +72,20 @@ static const char *kBadLibs[] = {
 };
 
 // ─── Whitelist path prefix dylib hợp lệ ──────────────────────────────────────
-// Chỉ cho phép dylib từ các prefix system Apple hoặc chính binary của app.
-// Bất kỳ dylib nào nằm ngoài các prefix này → inject lạ → bail.
-// Phân tích IPA đã ký bằng eSign: không có dylib nào ngoài /System + /usr/lib.
+// iOS 15–17 có nhiều path hơn iOS 14: preboot, cryptexes, staged frameworks.
+// Phải whitelist đủ để tránh false-positive trên máy thật không jailbreak.
 static const char *kAllowedPrefixes[] = {
-    "/System/Library/",   // bao phủ tất cả sub-path của iOS system library
-    "/usr/lib/",
-    "/usr/lib/swift/",
-    "/private/preboot/",
-    "/var/containers/Bundle/",
-    "/private/var/containers/Bundle/",
+    "/System/Library/",             // system frameworks (iOS 14-)
+    "/usr/lib/",                    // libSystem, libdyld, libobjc, ...
+    "/usr/lib/swift/",              // Swift stdlib
+    "/private/preboot/",            // iOS 15+ preboot volume
+    "/private/var/preboot/",        // iOS 15+ preboot (private/var variant)
+    "/var/preboot/",                // iOS 15+ preboot (var variant)
+    "/private/var/containers/Bundle/",  // app container (resign tools)
+    "/var/containers/Bundle/",      // app container (eSign/AltStore)
+    "/private/var/MobileAsset/",    // iOS asset dylibs
+    "/usr/appleinternal/",          // internal (tránh false-positive trên TestFlight)
+    "/private/var/staged_system_apps/",  // staged frameworks iOS 16+
     NULL
 };
 
@@ -211,10 +215,12 @@ __attribute__((noinline, optnone))
 static BOOL sg_check_image_count(void) {
     // Baseline được chốt bởi sg_snapshot_image_count() sau delay 8s trong activate.
     // Sau đó mỗi lần check: nếu tăng > 8 image → nghi inject runtime.
-    // Threshold cao (8) vì lazy framework có thể load thêm vài cái nữa sau baseline.
+    // Threshold 20: iOS 15+ lazy-load nhiều system framework hơn iOS 14,
+    // đặc biệt sau nhận push notification / background task / in-app purchases.
+    // Frida inject thường add 10-30 images cùng lúc → threshold 20 vẫn bắt được.
     if (sg_image_count_baseline == 0) return YES; // chưa chốt → skip
     uint32_t current = _dyld_image_count();
-    return (current <= sg_image_count_baseline + 8);
+    return (current <= sg_image_count_baseline + 20);
 }
 
 @implementation SecurityGuard
@@ -420,15 +426,14 @@ static BOOL sg_check_image_count(void) {
     clock_gettime(CLOCK_MONOTONIC, &t0);
     // Busy-loop nhỏ — không thể tối ưu đi bởi compiler nhờ volatile
     volatile uint64_t acc = 0;
-    for (volatile int i = 0; i < 5000; i++) acc += (uint64_t)i * i;
+    for (volatile int i = 0; i < 2000; i++) acc += (uint64_t)i * i;
     clock_gettime(CLOCK_MONOTONIC, &t1);
     // Chênh lệch nanoseconds
     int64_t diff = ((int64_t)t1.tv_sec - t0.tv_sec) * 1000000000LL
                  + ((int64_t)t1.tv_nsec - t0.tv_nsec);
-    // Trên thiết bị thật: < 1ms (< 1_000_000 ns)
-    // Dưới debugger với tracing: thường > 5ms
-    // Ngưỡng 80ms — bảo thủ để không false-positive trên máy chậm
-    return (diff > 80000000LL);
+    // Máy cũ (iPhone 6s, SE gen1) dưới tải nặng có thể mất > 80ms → false-positive.
+    // Ngưỡng 500ms: debugger với breakpoint active vẫn >> 500ms; máy cũ bình thường << 50ms.
+    return (diff > 500000000LL);
 }
 
 @end
