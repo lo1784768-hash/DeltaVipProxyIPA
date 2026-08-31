@@ -277,40 +277,18 @@ static BOOL sIsHardwareUDID = NO;
     [self postKey:k completion:completion];
 }
 
-// ── Fallback URL: getuid.vip → www.getuid.vip ────────────────────────────────
-// Dùng khi server trả 5xx hoặc connection error
-+ (NSURL *)wwwFallbackURLFor:(NSURL *)url {
-    NSURLComponents *c = [NSURLComponents componentsWithURL:url resolvingAgainstBaseURL:NO];
-    if ([c.host isEqualToString:@"getuid.vip"]) {
-        c.host = @"www.getuid.vip";
-        return c.URL;
-    }
-    return nil; // không phải getuid.vip → không fallback
-}
-
 - (void)postKey:(NSString *)key completion:(void (^)(BOOL, NSString *))completion {
     [self postKey:key confirm:NO completion:completion];
 }
 
 - (void)postKey:(NSString *)key confirm:(BOOL)confirmed
      completion:(void (^)(BOOL, NSString *))completion {
-    [self postKey:key confirm:confirmed useFallback:NO completion:completion];
-}
-
-- (void)postKey:(NSString *)key confirm:(BOOL)confirmed useFallback:(BOOL)useFallback
-     completion:(void (^)(BOOL, NSString *))completion {
     if (![SecurityGuard isEnvironmentTrusted]) {
         if (completion) completion(NO, @"Server connection error.");
         return;
     }
-
-    NSURL *baseURL = [NSURL URLWithString:EndpointCheckKey()];
-    if (useFallback) {
-        NSURL *fb = [KeyManager wwwFallbackURLFor:baseURL];
-        if (fb) baseURL = fb;
-    }
-
-    NSMutableURLRequest *req = [NSMutableURLRequest requestWithURL:baseURL];
+    NSMutableURLRequest *req = [NSMutableURLRequest requestWithURL:
+                                [NSURL URLWithString:EndpointCheckKey()]];
     req.HTTPMethod = @"POST";
     req.timeoutInterval = 15;
     [req setValue:@"application/x-www-form-urlencoded" forHTTPHeaderField:@"Content-Type"];
@@ -335,15 +313,6 @@ static BOOL sIsHardwareUDID = NO;
         void (^finish)(BOOL, NSString *) = ^(BOOL ok, NSString *msg) {
             dispatch_async(dispatch_get_main_queue(), ^{ if (completion) completion(ok, msg); });
         };
-
-        // Fallback khi lỗi mạng hoặc server 5xx — thử 1 lần với www.getuid.vip
-        NSInteger httpCode = [(NSHTTPURLResponse *)response statusCode];
-        BOOL serverError = (error != nil) || (httpCode >= 500 && httpCode < 600);
-        if (serverError && !useFallback) {
-            [weakSelf postKey:key confirm:confirmed useFallback:YES completion:completion];
-            return;
-        }
-
         if (error || !data) { finish(NO, @"Server connection error."); return; }
 
         NSDictionary *json = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
@@ -404,25 +373,13 @@ static BOOL sIsHardwareUDID = NO;
 
 - (void)resetBindForKey:(NSString *)key adminPass:(NSString *)pass
             completion:(void (^)(BOOL, NSString *))completion {
-    [self resetBindForKey:key adminPass:pass useFallback:NO completion:completion];
-}
-
-- (void)resetBindForKey:(NSString *)key adminPass:(NSString *)pass
-           useFallback:(BOOL)useFallback
-            completion:(void (^)(BOOL, NSString *))completion {
     NSString *k = [key stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
     NSString *p = [pass stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
     if (k.length == 0 || p.length == 0) {
         if (completion) completion(NO, @"Enter key and admin password."); return;
     }
-
-    NSURL *baseURL = [NSURL URLWithString:EndpointResetBind()];
-    if (useFallback) {
-        NSURL *fb = [KeyManager wwwFallbackURLFor:baseURL];
-        if (fb) baseURL = fb;
-    }
-
-    NSMutableURLRequest *req = [NSMutableURLRequest requestWithURL:baseURL];
+    NSMutableURLRequest *req = [NSMutableURLRequest requestWithURL:
+                                [NSURL URLWithString:EndpointResetBind()]];
     req.HTTPMethod = @"POST";
     req.timeoutInterval = 15;
     [req setValue:@"application/x-www-form-urlencoded" forHTTPHeaderField:@"Content-Type"];
@@ -431,18 +388,11 @@ static BOOL sIsHardwareUDID = NO;
     NSString *signedBody = [[SecurityPinning shared] signedBody:rawBody];
     req.HTTPBody = [signedBody dataUsingEncoding:NSUTF8StringEncoding];
 
-    __weak typeof(self) weakSelf = self;
     NSURLSessionDataTask *task = [[SecurityPinning shared].pinnedSession
         dataTaskWithRequest:req completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
         void (^finish)(BOOL, NSString *) = ^(BOOL ok, NSString *msg) {
             dispatch_async(dispatch_get_main_queue(), ^{ if (completion) completion(ok, msg); });
         };
-        NSInteger httpCode = [(NSHTTPURLResponse *)response statusCode];
-        BOOL serverError = (error != nil) || (httpCode >= 500 && httpCode < 600);
-        if (serverError && !useFallback) {
-            [weakSelf resetBindForKey:key adminPass:pass useFallback:YES completion:completion];
-            return;
-        }
         if (error || !data) { finish(NO, @"Server connection error."); return; }
         NSDictionary *json = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
         if (![json isKindOfClass:[NSDictionary class]]) { finish(NO, @"Invalid response."); return; }
