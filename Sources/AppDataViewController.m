@@ -50,9 +50,11 @@
 @interface AppDataCell : UICollectionViewCell
 @property (nonatomic, strong) UIView *cardView;
 @property (nonatomic, strong) UIView *bannerView;
+@property (nonatomic, strong) CAGradientLayer *bannerDimLayer;  // dark vignette trên banner
 @property (nonatomic, strong) UIImageView *iconView;
 @property (nonatomic, strong) UILabel *nameLabel;
-@property (nonatomic, strong) UILabel *bundleLabel;
+@property (nonatomic, strong) UILabel *bundleLabel;   // kept for reuse compat, hidden
+@property (nonatomic, strong) UILabel *tagLabel;      // pill chip dưới name
 // Neon glow border shown when selected
 @property (nonatomic, strong) CAGradientLayer *glowBorder;
 @property (nonatomic, strong) CALayer *glowShadow;
@@ -76,9 +78,9 @@
     self.cardView = [[GlassView alloc] init];
     self.cardView.layer.cornerRadius = 24;
     self.cardView.layer.shadowColor = BRAND_PURPLE.CGColor;
-    self.cardView.layer.shadowOpacity = 0.30;
-    self.cardView.layer.shadowOffset = CGSizeMake(0, 8);
-    self.cardView.layer.shadowRadius = 18;
+    self.cardView.layer.shadowOpacity = 0.35;
+    self.cardView.layer.shadowOffset = CGSizeZero;
+    self.cardView.layer.shadowRadius = 20;
     self.cardView.translatesAutoresizingMaskIntoConstraints = NO;
     [self.contentView addSubview:self.cardView];
 
@@ -103,17 +105,30 @@
         [bannerView.topAnchor constraintEqualToAnchor:self.cardView.topAnchor],
         [bannerView.leadingAnchor constraintEqualToAnchor:self.cardView.leadingAnchor],
         [bannerView.trailingAnchor constraintEqualToAnchor:self.cardView.trailingAnchor],
-        [bannerView.heightAnchor constraintEqualToConstant:100]
+        [bannerView.heightAnchor constraintEqualToConstant:108]
     ]];
+
+    // Dark vignette gradient overlay trên banner (top transparent → bottom semi-dark)
+    // Giúp icon nổi hơn trên nền màu, bớt flat
+    self.bannerDimLayer = [CAGradientLayer layer];
+    self.bannerDimLayer.colors = @[
+        (id)[UIColor colorWithWhite:0 alpha:0.0].CGColor,
+        (id)[UIColor colorWithWhite:0 alpha:0.0].CGColor,
+        (id)[UIColor colorWithWhite:0 alpha:0.28].CGColor,
+    ];
+    self.bannerDimLayer.locations = @[@0.0, @0.45, @1.0];
+    self.bannerDimLayer.startPoint = CGPointMake(0.5, 0.0);
+    self.bannerDimLayer.endPoint   = CGPointMake(0.5, 1.0);
+    [bannerView.layer addSublayer:self.bannerDimLayer];
 
     // Large app icon in banner - rounded like a real app icon
     self.iconView = [[UIImageView alloc] init];
     self.iconView.contentMode = UIViewContentModeScaleAspectFill;
     self.iconView.clipsToBounds = YES;
-    self.iconView.layer.cornerRadius = 16;
+    self.iconView.layer.cornerRadius = 20;
     self.iconView.layer.cornerCurve = kCACornerCurveContinuous;
-    self.iconView.layer.borderColor = [UIColor colorWithWhite:1 alpha:0.25].CGColor;
-    self.iconView.layer.borderWidth = 1;
+    self.iconView.layer.borderColor = [UIColor colorWithWhite:1 alpha:0.35].CGColor;
+    self.iconView.layer.borderWidth = 1.5;
     self.iconView.layer.magnificationFilter = kCAFilterTrilinear;
     self.iconView.layer.minificationFilter = kCAFilterTrilinear;
     self.iconView.translatesAutoresizingMaskIntoConstraints = NO;
@@ -121,41 +136,53 @@
 
     [NSLayoutConstraint activateConstraints:@[
         [self.iconView.centerXAnchor constraintEqualToAnchor:bannerView.centerXAnchor],
-        [self.iconView.centerYAnchor constraintEqualToAnchor:bannerView.centerYAnchor],
+        [self.iconView.centerYAnchor constraintEqualToAnchor:bannerView.centerYAnchor constant:-4],
         [self.iconView.widthAnchor constraintEqualToConstant:72],
         [self.iconView.heightAnchor constraintEqualToConstant:72]
     ]];
 
-    // App name - Bold
+    // App name - Bold, compact, clean
     self.nameLabel = [[UILabel alloc] init];
-    self.nameLabel.font = [UIFont systemFontOfSize:18 weight:UIFontWeightHeavy];
+    self.nameLabel.font = [UIFont systemFontOfSize:15 weight:UIFontWeightBold];
     self.nameLabel.textColor = [UIColor colorWithRed:0.941 green:0.941 blue:0.961 alpha:1.0];
     self.nameLabel.textAlignment = NSTextAlignmentCenter;
     self.nameLabel.numberOfLines = 2;
+    self.nameLabel.adjustsFontSizeToFitWidth = YES;
+    self.nameLabel.minimumScaleFactor = 0.8;
     self.nameLabel.translatesAutoresizingMaskIntoConstraints = NO;
     [self.cardView addSubview:self.nameLabel];
 
     [NSLayoutConstraint activateConstraints:@[
-        [self.nameLabel.topAnchor constraintEqualToAnchor:bannerView.bottomAnchor constant:16],
-        [self.nameLabel.leadingAnchor constraintEqualToAnchor:self.cardView.leadingAnchor constant:12],
-        [self.nameLabel.trailingAnchor constraintEqualToAnchor:self.cardView.trailingAnchor constant:-12]
+        [self.nameLabel.topAnchor constraintEqualToAnchor:bannerView.bottomAnchor constant:12],
+        [self.nameLabel.leadingAnchor constraintEqualToAnchor:self.cardView.leadingAnchor constant:10],
+        [self.nameLabel.trailingAnchor constraintEqualToAnchor:self.cardView.trailingAnchor constant:-10]
     ]];
 
-    // Bundle ID
-    self.bundleLabel = [[UILabel alloc] init];
-    self.bundleLabel.font = [UIFont monospacedSystemFontOfSize:11 weight:UIFontWeightRegular];
-    self.bundleLabel.textColor = [UIColor colorWithRed:0.561 green:0.561 blue:0.659 alpha:1.0];
-    self.bundleLabel.textAlignment = NSTextAlignmentCenter;
-    self.bundleLabel.numberOfLines = 1;
-    self.bundleLabel.translatesAutoresizingMaskIntoConstraints = NO;
-    [self.cardView addSubview:self.bundleLabel];
+    // Tag chip (thay thế bundle ID — hiển thị tên game ngắn gọn)
+    self.tagLabel = [[UILabel alloc] init];
+    self.tagLabel.font = [UIFont systemFontOfSize:10 weight:UIFontWeightSemibold];
+    self.tagLabel.textColor = [UIColor colorWithWhite:1 alpha:0.55];
+    self.tagLabel.textAlignment = NSTextAlignmentCenter;
+    self.tagLabel.layer.cornerRadius = 6;
+    self.tagLabel.layer.masksToBounds = YES;
+    self.tagLabel.backgroundColor = [UIColor colorWithWhite:1 alpha:0.07];
+    self.tagLabel.numberOfLines = 1;
+    self.tagLabel.translatesAutoresizingMaskIntoConstraints = NO;
+    [self.cardView addSubview:self.tagLabel];
 
     [NSLayoutConstraint activateConstraints:@[
-        [self.bundleLabel.topAnchor constraintEqualToAnchor:self.nameLabel.bottomAnchor constant:6],
-        [self.bundleLabel.leadingAnchor constraintEqualToAnchor:self.cardView.leadingAnchor constant:12],
-        [self.bundleLabel.trailingAnchor constraintEqualToAnchor:self.cardView.trailingAnchor constant:-12],
-        [self.bundleLabel.bottomAnchor constraintGreaterThanOrEqualToAnchor:self.cardView.bottomAnchor constant:-16]
+        [self.tagLabel.topAnchor constraintEqualToAnchor:self.nameLabel.bottomAnchor constant:6],
+        [self.tagLabel.centerXAnchor constraintEqualToAnchor:self.cardView.centerXAnchor],
+        [self.tagLabel.bottomAnchor constraintGreaterThanOrEqualToAnchor:self.cardView.bottomAnchor constant:-14],
+        [self.tagLabel.leadingAnchor constraintGreaterThanOrEqualToAnchor:self.cardView.leadingAnchor constant:16],
+        [self.tagLabel.trailingAnchor constraintLessThanOrEqualToAnchor:self.cardView.trailingAnchor constant:-16],
     ]];
+
+    // Bundle label: hidden (kept for reuse compat)
+    self.bundleLabel = [[UILabel alloc] init];
+    self.bundleLabel.hidden = YES;
+    self.bundleLabel.translatesAutoresizingMaskIntoConstraints = NO;
+    [self.cardView addSubview:self.bundleLabel];
 
     // ── Neon glow border (shown when selected) ────────────────────────────
     // Shadow layer for card ambient glow
@@ -194,6 +221,10 @@
     UIBezierPath *path = [UIBezierPath bezierPathWithRoundedRect:
         CGRectInset(r, 1, 1) cornerRadius:self.cardView.layer.cornerRadius - 1];
     ((CAShapeLayer *)self.glowBorder.mask).path = path.CGPath;
+    // Banner dim vignette fills bannerView bounds
+    if (self.bannerDimLayer) {
+        self.bannerDimLayer.frame = self.bannerView.bounds;
+    }
 }
 
 - (void)setSelected:(BOOL)selected {
@@ -369,7 +400,7 @@
 
     // Collection view
     UICollectionViewFlowLayout *layout = [[UICollectionViewFlowLayout alloc] init];
-    layout.itemSize = CGSizeMake((self.view.bounds.size.width - 48) / 2, 210);
+    layout.itemSize = CGSizeMake((self.view.bounds.size.width - 48) / 2, 198);
     layout.minimumLineSpacing      = 16;
     layout.minimumInteritemSpacing = 16;
     layout.sectionInset = UIEdgeInsetsMake(12, 16, 16, 16);
@@ -1243,16 +1274,25 @@
 
     // Banner color + matching neon glow based on app
     UIColor *accent;
+    NSString *tagText;
     if ([appID isEqualToString:@"com.dts.freefiremax"]) {
-        accent = [UIColor colorWithRed:0.1 green:0.6 blue:1.0 alpha:1.0]; // blue
+        accent   = [UIColor colorWithRed:0.08 green:0.52 blue:0.96 alpha:1.0]; // blue
+        tagText  = @"FREE FIRE MAX";
     } else if ([appID isEqualToString:@"com.dts.freefireth"]) {
-        accent = [UIColor colorWithRed:1.0 green:0.55 blue:0.15 alpha:1.0]; // orange
+        accent   = [UIColor colorWithRed:0.98 green:0.50 blue:0.08 alpha:1.0]; // orange
+        tagText  = @"FREE FIRE";
     } else {
-        accent = [UIColor colorWithRed:0 green:0.831 blue:1 alpha:1.0]; // cyan
+        accent   = [UIColor colorWithRed:0 green:0.831 blue:1 alpha:1.0]; // cyan
+        tagText  = @"GAME";
     }
     cell.bannerView.backgroundColor = accent;
+    // Card shadow matches accent, but desaturated slightly so it's subtle
     cell.cardView.layer.shadowColor = accent.CGColor;
-    cell.cardView.layer.borderColor = [accent colorWithAlphaComponent:0.35].CGColor;
+    cell.cardView.layer.borderColor = [accent colorWithAlphaComponent:0.30].CGColor;
+    // Tag label text + subtle accent tint on background
+    cell.tagLabel.text = [NSString stringWithFormat:@"  %@  ", tagText];
+    cell.tagLabel.backgroundColor = [accent colorWithAlphaComponent:0.14];
+    cell.tagLabel.textColor = [accent colorWithAlphaComponent:0.85];
 
     // Priority order:
     // 1. Downloaded cached images (FreeFireMax.png / FreeFireTH.png)
@@ -1297,9 +1337,6 @@
     // Set app name - use custom display names
     NSString *displayName = self.appDisplayNames[appID] ?: appID;
     cell.nameLabel.text = displayName;
-
-    // Set bundle ID
-    cell.bundleLabel.text = appID;
 
     return cell;
 }
