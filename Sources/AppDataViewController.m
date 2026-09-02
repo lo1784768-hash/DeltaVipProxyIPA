@@ -17,63 +17,33 @@
 #import "PolicyViewController.h"
 #import "SettingsViewController.h"
 #import <sys/sysctl.h>
-
-// ── Quantum Aura palette ──────────────────────────────────────────────────────
-// Nền đen vũ trụ + Tím dạ quang + Cyan điện tử
-#define QA_BG      [UIColor colorWithRed:0.024 green:0.027 blue:0.035 alpha:1.0]  // #060709
-#define QA_PURPLE  [UIColor colorWithRed:0.275 green:0.0   blue:1.0   alpha:1.0]  // #7000FF
-#define QA_CYAN    [UIColor colorWithRed:0.0   green:0.941 blue:1.0   alpha:1.0]  // #00F0FF
-#define QA_SURFACE [UIColor colorWithRed:0.055 green:0.059 blue:0.078 alpha:1.0]  // #0E0F14 (surface cards)
-#define QA_TEXT    [UIColor colorWithWhite:1.0 alpha:0.92]
-#define QA_MUTED   [UIColor colorWithWhite:1.0 alpha:0.45]
-#define QA_GREEN   [UIColor colorWithRed:0.0   green:1.0   blue:0.612 alpha:1.0]  // #00FF9C
-
-// Backward-compat aliases
-#define DG_BG      QA_BG
-#define DG_CYAN    QA_CYAN
-#define DG_BORDER  [UIColor colorWithWhite:1.0 alpha:0.08]
-#define DG_TEXT    QA_TEXT
-#define DG_MUTED   QA_MUTED
-#define DG_GREEN   QA_GREEN
-#define DG_CARD_S  QA_SURFACE
-#define SW_PINK    QA_PURPLE
-#define SW_CYAN    QA_CYAN
-#define SW_YELLOW  QA_CYAN
-#define SW_CARD    QA_SURFACE
-#define SW_BG      QA_BG
-
-#pragma mark - GlassView (Dark-Glass card)
+#pragma mark - GlassView (frosted card khớp web)
 
 @interface GlassView : UIView
 @end
 @implementation GlassView {
-    UIVisualEffectView *_blurView;
+    CAGradientLayer *_sheen;
 }
 - (instancetype)initWithFrame:(CGRect)frame {
     self = [super initWithFrame:frame];
     if (self) {
-        self.backgroundColor = [UIColor clearColor];
-        self.layer.cornerRadius = 18;
-        self.layer.cornerCurve = kCACornerCurveContinuous;
-        self.layer.masksToBounds = YES;
-        self.layer.borderColor = DG_BORDER.CGColor;
+        self.backgroundColor = [UIColor colorWithRed:0.055 green:0.06 blue:0.11 alpha:0.55];
+        self.layer.borderColor = [UIColor colorWithWhite:1 alpha:0.11].CGColor;
         self.layer.borderWidth = 1;
-        // Frosted glass blur
-        _blurView = [[UIVisualEffectView alloc]
-            initWithEffect:[UIBlurEffect effectWithStyle:UIBlurEffectStyleSystemThinMaterialDark]];
-        _blurView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
-        [self addSubview:_blurView];
-        // Tint overlay rgba(22,28,42,0.55)
-        UIView *tint = [[UIView alloc] init];
-        tint.backgroundColor = [UIColor colorWithRed:0.086 green:0.110 blue:0.165 alpha:0.55];
-        tint.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
-        [self addSubview:tint];
+        self.layer.cornerCurve = kCACornerCurveContinuous;
+        _sheen = [CAGradientLayer layer];
+        _sheen.colors = @[(id)[UIColor colorWithWhite:1 alpha:0.075].CGColor,
+                          (id)[UIColor colorWithWhite:1 alpha:0.015].CGColor];
+        _sheen.startPoint = CGPointMake(0.5, 0.0);
+        _sheen.endPoint   = CGPointMake(0.5, 1.0);
+        [self.layer addSublayer:_sheen];
     }
     return self;
 }
 - (void)layoutSubviews {
     [super layoutSubviews];
-    _blurView.frame = self.bounds;
+    _sheen.frame = self.bounds;
+    _sheen.cornerRadius = self.layer.cornerRadius;
 }
 @end
 
@@ -87,8 +57,6 @@
 @property (nonatomic, strong) CAGradientLayer *glowBorder;
 @property (nonatomic, strong) CALayer *glowShadow;
 @end
-
-// (stripe pattern removed — Dark-Glass design dùng solid dark bg)
 
 @implementation AppDataCell
 
@@ -104,139 +72,128 @@
     self.backgroundColor = [UIColor clearColor];
     self.contentView.backgroundColor = [UIColor clearColor];
 
-    // ── Quantum Aura card ────────────────────────────────────────────────
-    // Outer cardView: không clip, chứa shadow aura + border mờ
-    self.cardView = [[UIView alloc] init];
-    self.cardView.backgroundColor = [UIColor clearColor];
-    self.cardView.layer.cornerRadius = 20;
-    self.cardView.layer.cornerCurve = kCACornerCurveContinuous;
-    self.cardView.layer.borderColor = [UIColor colorWithWhite:1 alpha:0.07].CGColor;
-    self.cardView.layer.borderWidth = 1;
-    // Aura shadow: tím, tỏa mềm (sẽ tint per-game trong cellForItem)
-    self.cardView.layer.shadowColor   = QA_PURPLE.CGColor;
-    self.cardView.layer.shadowOpacity = 0.45;
-    self.cardView.layer.shadowOffset  = CGSizeZero;
-    self.cardView.layer.shadowRadius  = 18;
-    self.cardView.clipsToBounds = NO;
+    // Frosted glass card (khớp web)
+    self.cardView = [[GlassView alloc] init];
+    self.cardView.layer.cornerRadius = 24;
+    self.cardView.layer.shadowColor = BRAND_PURPLE.CGColor;
+    self.cardView.layer.shadowOpacity = 0.30;
+    self.cardView.layer.shadowOffset = CGSizeMake(0, 8);
+    self.cardView.layer.shadowRadius = 18;
     self.cardView.translatesAutoresizingMaskIntoConstraints = NO;
     [self.contentView addSubview:self.cardView];
-
-    // Inner clipView: clip bo góc để ảnh không vượt biên
-    UIView *clipView = [[UIView alloc] init];
-    clipView.backgroundColor = QA_SURFACE;
-    clipView.layer.cornerRadius = 20;
-    clipView.layer.cornerCurve = kCACornerCurveContinuous;
-    clipView.clipsToBounds = YES;
-    clipView.translatesAutoresizingMaskIntoConstraints = NO;
-    [self.cardView addSubview:clipView];
 
     [NSLayoutConstraint activateConstraints:@[
         [self.cardView.topAnchor constraintEqualToAnchor:self.contentView.topAnchor],
         [self.cardView.leadingAnchor constraintEqualToAnchor:self.contentView.leadingAnchor],
         [self.cardView.trailingAnchor constraintEqualToAnchor:self.contentView.trailingAnchor],
-        [self.cardView.bottomAnchor constraintEqualToAnchor:self.contentView.bottomAnchor],
-        [clipView.topAnchor constraintEqualToAnchor:self.cardView.topAnchor],
-        [clipView.leadingAnchor constraintEqualToAnchor:self.cardView.leadingAnchor],
-        [clipView.trailingAnchor constraintEqualToAnchor:self.cardView.trailingAnchor],
-        [clipView.bottomAnchor constraintEqualToAnchor:self.cardView.bottomAnchor],
+        [self.cardView.bottomAnchor constraintEqualToAnchor:self.contentView.bottomAnchor]
     ]];
 
-    // ── Banner: ảnh fill 100% card (full-bleed poster) ────────────────────
-    // bannerView = toàn bộ clipView (ảnh là background, text đè lên)
+    // Top colored banner section
     UIView *bannerView = [[UIView alloc] init];
-    bannerView.backgroundColor = QA_SURFACE;
+    bannerView.layer.cornerRadius = 24;
+    bannerView.layer.cornerCurve = kCACornerCurveContinuous;
+    bannerView.layer.maskedCorners = kCALayerMinXMinYCorner | kCALayerMaxXMinYCorner;
+    bannerView.clipsToBounds = YES;
     bannerView.translatesAutoresizingMaskIntoConstraints = NO;
-    [clipView addSubview:bannerView];
+    [self.cardView addSubview:bannerView];
     self.bannerView = bannerView;
 
-    // Game image: fill toàn card
+    [NSLayoutConstraint activateConstraints:@[
+        [bannerView.topAnchor constraintEqualToAnchor:self.cardView.topAnchor],
+        [bannerView.leadingAnchor constraintEqualToAnchor:self.cardView.leadingAnchor],
+        [bannerView.trailingAnchor constraintEqualToAnchor:self.cardView.trailingAnchor],
+        [bannerView.heightAnchor constraintEqualToConstant:100]
+    ]];
+
+    // Large app icon in banner - rounded like a real app icon
     self.iconView = [[UIImageView alloc] init];
     self.iconView.contentMode = UIViewContentModeScaleAspectFill;
     self.iconView.clipsToBounds = YES;
+    self.iconView.layer.cornerRadius = 16;
+    self.iconView.layer.cornerCurve = kCACornerCurveContinuous;
+    self.iconView.layer.borderColor = [UIColor colorWithWhite:1 alpha:0.25].CGColor;
+    self.iconView.layer.borderWidth = 1;
+    self.iconView.layer.magnificationFilter = kCAFilterTrilinear;
+    self.iconView.layer.minificationFilter = kCAFilterTrilinear;
     self.iconView.translatesAutoresizingMaskIntoConstraints = NO;
     [bannerView addSubview:self.iconView];
 
-    // Gradient tối: transparent 0% → đen #060709 100% (phủ 50% dưới)
-    CAGradientLayer *fadeGrad = [CAGradientLayer layer];
-    fadeGrad.colors = @[
-        (id)[UIColor clearColor].CGColor,
-        (id)[UIColor colorWithRed:0.024 green:0.027 blue:0.035 alpha:0.55].CGColor,
-        (id)[UIColor colorWithRed:0.024 green:0.027 blue:0.035 alpha:0.92].CGColor,
-    ];
-    fadeGrad.locations = @[@0.35, @0.65, @1.0];
-    fadeGrad.startPoint = CGPointMake(0.5, 0.0);
-    fadeGrad.endPoint   = CGPointMake(0.5, 1.0);
-    self.glowBorder = fadeGrad;
-    [bannerView.layer addSublayer:fadeGrad];
-
-    // bannerView = full card
     [NSLayoutConstraint activateConstraints:@[
-        [bannerView.topAnchor constraintEqualToAnchor:clipView.topAnchor],
-        [bannerView.leadingAnchor constraintEqualToAnchor:clipView.leadingAnchor],
-        [bannerView.trailingAnchor constraintEqualToAnchor:clipView.trailingAnchor],
-        [bannerView.bottomAnchor constraintEqualToAnchor:clipView.bottomAnchor],
-        [self.iconView.topAnchor constraintEqualToAnchor:bannerView.topAnchor],
-        [self.iconView.leadingAnchor constraintEqualToAnchor:bannerView.leadingAnchor],
-        [self.iconView.trailingAnchor constraintEqualToAnchor:bannerView.trailingAnchor],
-        [self.iconView.bottomAnchor constraintEqualToAnchor:bannerView.bottomAnchor],
+        [self.iconView.centerXAnchor constraintEqualToAnchor:bannerView.centerXAnchor],
+        [self.iconView.centerYAnchor constraintEqualToAnchor:bannerView.centerYAnchor],
+        [self.iconView.widthAnchor constraintEqualToConstant:72],
+        [self.iconView.heightAnchor constraintEqualToConstant:72]
     ]];
 
-    // ── Game tag: glass capsule mỏng, góc trên-phải ────────────────────────
-    // bundleLabel reuse: UIVisualEffectView-style bằng background blur
-    self.bundleLabel = [[UILabel alloc] init];
-    self.bundleLabel.font = [UIFont systemFontOfSize:10 weight:UIFontWeightSemibold];
-    self.bundleLabel.textColor = [UIColor colorWithWhite:1 alpha:0.90];
-    self.bundleLabel.backgroundColor = [UIColor colorWithWhite:0 alpha:0.45];
-    self.bundleLabel.layer.cornerRadius = 10;
-    self.bundleLabel.layer.masksToBounds = YES;
-    self.bundleLabel.layer.borderColor = [UIColor colorWithWhite:1 alpha:0.20].CGColor;
-    self.bundleLabel.layer.borderWidth = 0.75;
-    self.bundleLabel.textAlignment = NSTextAlignmentCenter;
-    self.bundleLabel.translatesAutoresizingMaskIntoConstraints = NO;
-    [clipView addSubview:self.bundleLabel];
-
-    [NSLayoutConstraint activateConstraints:@[
-        [self.bundleLabel.topAnchor constraintEqualToAnchor:clipView.topAnchor constant:10],
-        [self.bundleLabel.trailingAnchor constraintEqualToAnchor:clipView.trailingAnchor constant:-10],
-        [self.bundleLabel.heightAnchor constraintEqualToConstant:22],
-    ]];
-
-    // ── App name: Heavy 17pt, trắng, đè lên gradient tối ở đáy card ────────
+    // App name - Bold
     self.nameLabel = [[UILabel alloc] init];
-    self.nameLabel.font = [UIFont systemFontOfSize:15 weight:UIFontWeightBold];
-    self.nameLabel.textColor = [UIColor whiteColor];
-    self.nameLabel.textAlignment = NSTextAlignmentLeft;
+    self.nameLabel.font = [UIFont systemFontOfSize:18 weight:UIFontWeightHeavy];
+    self.nameLabel.textColor = [UIColor colorWithRed:0.941 green:0.941 blue:0.961 alpha:1.0];
+    self.nameLabel.textAlignment = NSTextAlignmentCenter;
     self.nameLabel.numberOfLines = 2;
     self.nameLabel.translatesAutoresizingMaskIntoConstraints = NO;
-    // Chèn nhẹ shadow chữ để nổi trên ảnh
-    self.nameLabel.layer.shadowColor   = [UIColor blackColor].CGColor;
-    self.nameLabel.layer.shadowOpacity = 0.8;
-    self.nameLabel.layer.shadowRadius  = 4;
-    self.nameLabel.layer.shadowOffset  = CGSizeMake(0, 1);
-    [clipView addSubview:self.nameLabel];
+    [self.cardView addSubview:self.nameLabel];
 
     [NSLayoutConstraint activateConstraints:@[
-        [self.nameLabel.leadingAnchor constraintEqualToAnchor:clipView.leadingAnchor constant:14],
-        [self.nameLabel.trailingAnchor constraintEqualToAnchor:clipView.trailingAnchor constant:-14],
-        [self.nameLabel.bottomAnchor constraintEqualToAnchor:clipView.bottomAnchor constant:-14],
+        [self.nameLabel.topAnchor constraintEqualToAnchor:bannerView.bottomAnchor constant:16],
+        [self.nameLabel.leadingAnchor constraintEqualToAnchor:self.cardView.leadingAnchor constant:12],
+        [self.nameLabel.trailingAnchor constraintEqualToAnchor:self.cardView.trailingAnchor constant:-12]
     ]];
 
-    // ── Aura glow shadow (ambient, tint per game khi selected) ─────────────
+    // Bundle ID
+    self.bundleLabel = [[UILabel alloc] init];
+    self.bundleLabel.font = [UIFont monospacedSystemFontOfSize:11 weight:UIFontWeightRegular];
+    self.bundleLabel.textColor = [UIColor colorWithRed:0.561 green:0.561 blue:0.659 alpha:1.0];
+    self.bundleLabel.textAlignment = NSTextAlignmentCenter;
+    self.bundleLabel.numberOfLines = 1;
+    self.bundleLabel.translatesAutoresizingMaskIntoConstraints = NO;
+    [self.cardView addSubview:self.bundleLabel];
+
+    [NSLayoutConstraint activateConstraints:@[
+        [self.bundleLabel.topAnchor constraintEqualToAnchor:self.nameLabel.bottomAnchor constant:6],
+        [self.bundleLabel.leadingAnchor constraintEqualToAnchor:self.cardView.leadingAnchor constant:12],
+        [self.bundleLabel.trailingAnchor constraintEqualToAnchor:self.cardView.trailingAnchor constant:-12],
+        [self.bundleLabel.bottomAnchor constraintGreaterThanOrEqualToAnchor:self.cardView.bottomAnchor constant:-16]
+    ]];
+
+    // ── Neon glow border (shown when selected) ────────────────────────────
+    // Shadow layer for card ambient glow
     self.glowShadow = [CALayer layer];
-    self.glowShadow.shadowColor    = QA_PURPLE.CGColor;
-    self.glowShadow.shadowOpacity  = 0;
-    self.glowShadow.shadowRadius   = 22;
-    self.glowShadow.shadowOffset   = CGSizeZero;
+    self.glowShadow.shadowColor  = BRAND_CYAN.CGColor;
+    self.glowShadow.shadowOpacity = 0;
+    self.glowShadow.shadowRadius  = 20;
+    self.glowShadow.shadowOffset  = CGSizeZero;
     self.glowShadow.backgroundColor = [UIColor clearColor].CGColor;
     [self.layer insertSublayer:self.glowShadow atIndex:0];
+
+    // Gradient border stroke (purple → cyan → purple)
+    self.glowBorder = [CAGradientLayer layer];
+    self.glowBorder.colors = @[
+        (id)BRAND_PURPLE.CGColor,
+        (id)BRAND_CYAN.CGColor,
+        (id)BRAND_PURPLE.CGColor,
+    ];
+    self.glowBorder.startPoint = CGPointMake(0, 0);
+    self.glowBorder.endPoint   = CGPointMake(1, 1);
+    self.glowBorder.opacity    = 0;
+
+    CAShapeLayer *mask = [CAShapeLayer layer];
+    mask.fillColor   = [UIColor clearColor].CGColor;
+    mask.strokeColor = [UIColor whiteColor].CGColor;
+    mask.lineWidth   = 2.0;
+    self.glowBorder.mask = mask;
+    [self.cardView.layer addSublayer:self.glowBorder];
 }
 
 - (void)layoutSubviews {
     [super layoutSubviews];
+    CGRect r = self.cardView.bounds;
+    self.glowBorder.frame = r;
     self.glowShadow.frame = self.bounds;
-    // Resize fade gradient to match bannerView bounds
-    CALayer *bannerLayer = self.bannerView.layer;
-    self.glowBorder.frame = bannerLayer.bounds;
+    UIBezierPath *path = [UIBezierPath bezierPathWithRoundedRect:
+        CGRectInset(r, 1, 1) cornerRadius:self.cardView.layer.cornerRadius - 1];
+    ((CAShapeLayer *)self.glowBorder.mask).path = path.CGPath;
 }
 
 - (void)setSelected:(BOOL)selected {
@@ -246,12 +203,12 @@
 
 - (void)applyGlow:(BOOL)on animated:(BOOL)animated {
     void (^change)(void) = ^{
-        self.glowShadow.shadowOpacity  = on ? 0.70f : 0.0f;
-        self.cardView.layer.shadowOpacity = on ? 0.75f : 0.45f;
-        self.cardView.layer.shadowRadius  = on ? 28.0f : 18.0f;
-        self.cardView.layer.borderColor = on
-            ? [UIColor colorWithWhite:1 alpha:0.18].CGColor
-            : [UIColor colorWithWhite:1 alpha:0.07].CGColor;
+        self.glowBorder.opacity   = on ? 1.0f : 0.0f;
+        self.glowShadow.shadowOpacity = on ? 0.55f : 0.0f;
+        // Intensify card purple shadow while selected
+        self.cardView.layer.shadowColor   = on ? BRAND_CYAN.CGColor : BRAND_PURPLE.CGColor;
+        self.cardView.layer.shadowOpacity = on ? 0.50f : 0.30f;
+        self.cardView.layer.shadowRadius  = on ? 24.0f : 18.0f;
     };
     if (animated) {
         [CATransaction begin];
@@ -268,28 +225,26 @@
     }
 }
 
-// Arcade bounce: scale down on press, spring back on release
+// Smooth touch animation
 - (void)touchesBegan:(NSSet<UITouch *> *)touches withEvent:(UIEvent *)event {
     [super touchesBegan:touches withEvent:event];
-    [UIView animateWithDuration:0.08 delay:0
-         usingSpringWithDamping:0.85 initialSpringVelocity:4
-                        options:UIViewAnimationOptionAllowUserInteraction
-                     animations:^{ self.cardView.transform = CGAffineTransformMakeScale(0.94, 0.94); }
-                     completion:nil];
+    [UIView animateWithDuration:0.1 animations:^{
+        self.cardView.transform = CGAffineTransformMakeScale(0.95, 0.95);
+    }];
 }
 
 - (void)touchesEnded:(NSSet<UITouch *> *)touches withEvent:(UIEvent *)event {
     [super touchesEnded:touches withEvent:event];
-    [UIView animateWithDuration:0.35 delay:0
-         usingSpringWithDamping:0.5 initialSpringVelocity:6
-                        options:UIViewAnimationOptionAllowUserInteraction
-                     animations:^{ self.cardView.transform = CGAffineTransformIdentity; }
-                     completion:nil];
+    [UIView animateWithDuration:0.1 animations:^{
+        self.cardView.transform = CGAffineTransformIdentity;
+    }];
 }
 
 - (void)touchesCancelled:(NSSet<UITouch *> *)touches withEvent:(UIEvent *)event {
     [super touchesCancelled:touches withEvent:event];
-    [UIView animateWithDuration:0.2 animations:^{ self.cardView.transform = CGAffineTransformIdentity; }];
+    [UIView animateWithDuration:0.1 animations:^{
+        self.cardView.transform = CGAffineTransformIdentity;
+    }];
 }
 
 @end
@@ -313,68 +268,56 @@
 - (void)viewDidLoad {
     [super viewDidLoad];
 
-    // ── Quantum Aura title: "Delta" trắng · " IPA" tím · " VN" cyan ─────────
-    NSMutableAttributedString *titleAttr = [[NSMutableAttributedString alloc] init];
-    NSDictionary *titleBase = @{
-        NSFontAttributeName: [UIFont systemFontOfSize:17 weight:UIFontWeightBold],
-        NSForegroundColorAttributeName: [UIColor whiteColor],
-    };
-    NSDictionary *titlePurple = @{
-        NSFontAttributeName: [UIFont systemFontOfSize:17 weight:UIFontWeightBold],
-        NSForegroundColorAttributeName: QA_PURPLE,
-    };
-    NSDictionary *titleCyan = @{
-        NSFontAttributeName: [UIFont systemFontOfSize:17 weight:UIFontWeightBold],
-        NSForegroundColorAttributeName: QA_CYAN,
-    };
-    [titleAttr appendAttributedString:[[NSAttributedString alloc] initWithString:@"Delta" attributes:titleBase]];
-    [titleAttr appendAttributedString:[[NSAttributedString alloc] initWithString:@" IPA" attributes:titlePurple]];
-    [titleAttr appendAttributedString:[[NSAttributedString alloc] initWithString:@" VN" attributes:titleCyan]];
-
+    // ── Gradient title "DELTA IPA VN" ─────────────────────────────────────
     UILabel *titleLabel = [[UILabel alloc] init];
-    titleLabel.attributedText = titleAttr;
+    titleLabel.text = @"DELTA IPA VN";
+    titleLabel.font = [UIFont systemFontOfSize:17 weight:UIFontWeightHeavy];
+    titleLabel.textColor = [UIColor whiteColor];
     [titleLabel sizeToFit];
+    // Gradient mask: purple → cyan
+    CAGradientLayer *tg = [CAGradientLayer layer];
+    tg.colors = @[(id)BRAND_PURPLE.CGColor, (id)BRAND_CYAN.CGColor];
+    tg.startPoint = CGPointMake(0, 0.5);
+    tg.endPoint   = CGPointMake(1, 0.5);
+    tg.frame = titleLabel.bounds;
+    UIGraphicsBeginImageContextWithOptions(titleLabel.bounds.size, NO, 0);
+    [tg renderInContext:UIGraphicsGetCurrentContext()];
+    UIImage *gradImg = UIGraphicsGetImageFromCurrentImageContext();
+    UIGraphicsEndImageContext();
+    titleLabel.textColor = [UIColor colorWithPatternImage:gradImg];
 
-    // Version badge — tím mờ, cyan text
+    // Version badge
     UILabel *badge = [[UILabel alloc] init];
     NSString *_bdgVer = [[NSBundle mainBundle] objectForInfoDictionaryKey:@"CFBundleShortVersionString"] ?: @"1.4.3";
     badge.text = [NSString stringWithFormat:@"  v%@  ", _bdgVer];
-    badge.font = [UIFont systemFontOfSize:10 weight:UIFontWeightSemibold];
-    badge.textColor = [QA_CYAN colorWithAlphaComponent:0.85];
-    badge.backgroundColor = [QA_PURPLE colorWithAlphaComponent:0.20];
-    badge.layer.cornerRadius = 9;
+    badge.font = [UIFont systemFontOfSize:10 weight:UIFontWeightBold];
+    badge.textColor = BRAND_CYAN;
+    badge.backgroundColor = [BRAND_CYAN colorWithAlphaComponent:0.12];
+    badge.layer.cornerRadius = 7;
     badge.layer.masksToBounds = YES;
-    badge.layer.borderColor = [QA_PURPLE colorWithAlphaComponent:0.45].CGColor;
+    badge.layer.borderColor = [BRAND_CYAN colorWithAlphaComponent:0.35].CGColor;
     badge.layer.borderWidth = 1;
 
     UIStackView *titleStack = [[UIStackView alloc] initWithArrangedSubviews:@[titleLabel, badge]];
     titleStack.axis = UILayoutConstraintAxisHorizontal;
-    titleStack.spacing = 6;
+    titleStack.spacing = 7;
     titleStack.alignment = UIStackViewAlignmentCenter;
     self.navigationItem.titleView = titleStack;
 
-    // ── Settings → glass gear button (capsule, không hard-drop) ────────────
+    // ── Settings → glass gear button ────────────────────────────────────────
+    // Wrap trong UIView cố định 34×34 để iOS không auto-resize shape thành marquise
     UIView *gearContainer = [[UIView alloc] initWithFrame:CGRectMake(0, 0, 34, 34)];
-    gearContainer.backgroundColor = [UIColor colorWithWhite:1 alpha:0.06];
-    gearContainer.layer.cornerRadius = 10;
+    gearContainer.backgroundColor = [UIColor colorWithWhite:1 alpha:0.08];
+    gearContainer.layer.cornerRadius = 17;   // 34/2 → tròn hoàn toàn
     gearContainer.layer.cornerCurve = kCACornerCurveContinuous;
-    gearContainer.layer.masksToBounds = NO;
-    gearContainer.layer.borderColor = [UIColor colorWithWhite:1 alpha:0.12].CGColor;
-    gearContainer.layer.borderWidth = 1;
-    // Soft ambient shadow (không hard-drop màu)
-    gearContainer.layer.shadowColor  = [UIColor blackColor].CGColor;
-    gearContainer.layer.shadowOpacity = 0.30;
-    gearContainer.layer.shadowRadius  = 8;
-    gearContainer.layer.shadowOffset  = CGSizeMake(0, 4);
+    gearContainer.layer.masksToBounds = YES;
 
     UIButton *settingsBtn = [UIButton buttonWithType:UIButtonTypeCustom];
     settingsBtn.frame = gearContainer.bounds;
-    settingsBtn.layer.cornerRadius = 10;
-    settingsBtn.layer.masksToBounds = YES;
     UIImageSymbolConfiguration *rCfg = [UIImageSymbolConfiguration configurationWithPointSize:14 weight:UIImageSymbolWeightMedium];
     [settingsBtn setImage:[UIImage systemImageNamed:@"gearshape.fill" withConfiguration:rCfg]
                  forState:UIControlStateNormal];
-    settingsBtn.tintColor = [UIColor colorWithWhite:1 alpha:0.75];
+    settingsBtn.tintColor = BRAND_CYAN;
     settingsBtn.backgroundColor = [UIColor clearColor];
     settingsBtn.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
     [settingsBtn addTarget:self action:@selector(openSettings) forControlEvents:UIControlEventTouchUpInside];
@@ -390,45 +333,46 @@
         @"com.dts.freefiremax": @"FreeFireMax",
         @"com.dts.freefireth": @"FreeFireTH"
     };
-    // ── Quantum Aura background: #060709 + radial glow tím trên + cyan dưới ──
-    self.view.backgroundColor = QA_BG;
+    self.view.backgroundColor = BRAND_BG;
 
-    // Gradient nền: gần như đen hoàn toàn
+    // Gradient nền
     CAGradientLayer *bg = [CAGradientLayer layer];
-    bg.colors = @[
-        (id)[UIColor colorWithRed:0.024 green:0.027 blue:0.035 alpha:1.0].CGColor,  // #060709
-        (id)[UIColor colorWithRed:0.035 green:0.031 blue:0.051 alpha:1.0].CGColor,  // #09080D (tím nhạt)
-    ];
+    bg.colors = @[(id)[UIColor colorWithRed:0.032 green:0.036 blue:0.063 alpha:1.0].CGColor,
+                  (id)[UIColor colorWithRed:0.035 green:0.043 blue:0.078 alpha:1.0].CGColor];
     bg.startPoint = CGPointMake(0.5, 0.0);
     bg.endPoint   = CGPointMake(0.5, 1.0);
     bg.frame = self.view.bounds;
     [self.view.layer insertSublayer:bg atIndex:0];
     self.bgGradient = bg;
 
-    // Radial glow tím: top-left (halo mờ)
-    self.purpleGlow = BrandRadialGlow([QA_PURPLE colorWithAlphaComponent:0.12]);
-    // Radial glow cyan: bottom-right
-    self.cyanGlow = BrandRadialGlow([QA_CYAN colorWithAlphaComponent:0.08]);
+    // Glow layers
+    self.purpleGlow = BrandRadialGlow([BRAND_PURPLE colorWithAlphaComponent:0.30]);
+    self.cyanGlow   = BrandRadialGlow([BRAND_CYAN   colorWithAlphaComponent:0.20]);
     [self.view.layer insertSublayer:self.purpleGlow above:bg];
     [self.view.layer insertSublayer:self.cyanGlow above:self.purpleGlow];
 
-    // Nav bar transparent, tint cyan
+    UIView *grid = [[UIView alloc] initWithFrame:self.view.bounds];
+    grid.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+    grid.backgroundColor = BrandGridPattern();
+    grid.userInteractionEnabled = NO;
+    [self.view addSubview:grid];
+
+    // Nav bar transparent
     UINavigationBarAppearance *ap = [[UINavigationBarAppearance alloc] init];
     [ap configureWithTransparentBackground];
     self.navigationItem.standardAppearance = ap;
     self.navigationItem.scrollEdgeAppearance = ap;
-    self.navigationController.navigationBar.tintColor = QA_CYAN;
+    self.navigationController.navigationBar.tintColor = BRAND_CYAN;
 
     // Stats (device info card)
     [self createStatsView];
 
-    // Collection view — Synthwave 2-column grid
+    // Collection view
     UICollectionViewFlowLayout *layout = [[UICollectionViewFlowLayout alloc] init];
-    CGFloat cvW = self.view.bounds.size.width;
-    layout.itemSize = CGSizeMake((cvW - 44.0) / 2.0, 220);
-    layout.minimumLineSpacing      = 12;
-    layout.minimumInteritemSpacing = 12;
-    layout.sectionInset = UIEdgeInsetsMake(10, 16, 16, 16);
+    layout.itemSize = CGSizeMake((self.view.bounds.size.width - 48) / 2, 210);
+    layout.minimumLineSpacing      = 16;
+    layout.minimumInteritemSpacing = 16;
+    layout.sectionInset = UIEdgeInsetsMake(12, 16, 16, 16);
 
     self.collectionView = [[UICollectionView alloc] initWithFrame:self.view.bounds
                                               collectionViewLayout:layout];
@@ -443,10 +387,10 @@
     // ── Floating Pill KeyBar ───────────────────────────────────────────────
     self.keyBar = [[KeyBarView alloc] init];
     self.keyBar.translatesAutoresizingMaskIntoConstraints = NO;
-    self.keyBar.layer.shadowColor  = [UIColor blackColor].CGColor;
-    self.keyBar.layer.shadowOpacity = 0.45;
-    self.keyBar.layer.shadowRadius  = 20;
-    self.keyBar.layer.shadowOffset  = CGSizeMake(0, 8);
+    self.keyBar.layer.shadowColor  = BRAND_PURPLE.CGColor;
+    self.keyBar.layer.shadowOpacity = 0.40;
+    self.keyBar.layer.shadowRadius  = 18;
+    self.keyBar.layer.shadowOffset  = CGSizeZero;
     [self.view addSubview:self.keyBar];
 
     __weak typeof(self) weakSelf = self;
@@ -478,11 +422,6 @@
     [[NSNotificationCenter defaultCenter] addObserver:self
         selector:@selector(refreshLocalizedStrings)
         name:LMLanguageChangedNotification object:nil];
-
-    // Responsive layout khi xoay màn hình
-    [[NSNotificationCenter defaultCenter] addObserver:self
-        selector:@selector(_orientationDidChange:)
-        name:UIDeviceOrientationDidChangeNotification object:nil];
 }
 
 - (void)refreshLocalizedStrings {
@@ -493,10 +432,7 @@
         supportLabel.text = supported
             ? LS(@"Có Hỗ Trợ", @"Supported")
             : LS(@"Chưa Hỗ Trợ", @"Not Supported");
-        supportLabel.textColor = supported ? DG_GREEN : DG_MUTED;
     }
-    UIImageView *supIcon = (UIImageView *)[self.statsView viewWithTag:997];
-    if (supIcon) supIcon.tintColor = supported ? DG_GREEN : DG_MUTED;
     // Refresh keyBar labels
     [self.keyBar update];
 }
@@ -788,65 +724,132 @@
 }
 
 - (void)createStatsView {
-    // ── Dark-Glass: Device Info Card ──────────────────────────────────────
-    // GlassView tự handle blur — không cần sticker, không cần tag box
-    GlassView *card = [[GlassView alloc] init];
-    card.layer.cornerRadius = 18;
-    card.layer.shadowColor  = [UIColor blackColor].CGColor;
-    card.layer.shadowOpacity = 0.35;
-    card.layer.shadowRadius  = 16;
-    card.layer.shadowOffset  = CGSizeMake(0, 6);
-    card.translatesAutoresizingMaskIntoConstraints = NO;
+    // ── Glassmorphic Device Info Card ─────────────────────────────────────
+    UIVisualEffectView *glassCard = [[UIVisualEffectView alloc]
+        initWithEffect:[UIBlurEffect effectWithStyle:UIBlurEffectStyleSystemThinMaterialDark]];
+    glassCard.clipsToBounds = YES;
+    glassCard.layer.cornerRadius = 20;
+    glassCard.layer.cornerCurve  = kCACornerCurveContinuous;
+    glassCard.layer.borderColor  = [UIColor colorWithWhite:1 alpha:0.11].CGColor;
+    glassCard.layer.borderWidth  = 1;
+    glassCard.layer.shadowColor  = BRAND_PURPLE.CGColor;
+    glassCard.layer.shadowOpacity = 0.28;
+    glassCard.layer.shadowRadius  = 16;
+    glassCard.layer.shadowOffset  = CGSizeMake(0, 4);
+    glassCard.translatesAutoresizingMaskIntoConstraints = NO;
 
+    // Wrap in non-clipping container so shadow shows
     self.statsView = [[UIView alloc] init];
     self.statsView.backgroundColor = [UIColor clearColor];
     self.statsView.translatesAutoresizingMaskIntoConstraints = NO;
     [self.view addSubview:self.statsView];
-    [self.statsView addSubview:card];
+    [self.statsView addSubview:glassCard];
 
     [NSLayoutConstraint activateConstraints:@[
         [self.statsView.topAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.topAnchor constant:8],
         [self.statsView.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor constant:16],
         [self.statsView.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor constant:-16],
-        [self.statsView.heightAnchor constraintEqualToConstant:98],
-        [card.topAnchor constraintEqualToAnchor:self.statsView.topAnchor],
-        [card.leadingAnchor constraintEqualToAnchor:self.statsView.leadingAnchor],
-        [card.trailingAnchor constraintEqualToAnchor:self.statsView.trailingAnchor],
-        [card.bottomAnchor constraintEqualToAnchor:self.statsView.bottomAnchor],
+        [self.statsView.heightAnchor constraintEqualToConstant:106],
+
+        [glassCard.topAnchor constraintEqualToAnchor:self.statsView.topAnchor],
+        [glassCard.leadingAnchor constraintEqualToAnchor:self.statsView.leadingAnchor],
+        [glassCard.trailingAnchor constraintEqualToAnchor:self.statsView.trailingAnchor],
+        [glassCard.bottomAnchor constraintEqualToAnchor:self.statsView.bottomAnchor],
     ]];
 
-    // Rows: icon + text, không có tag box
-    UIView *iosRow = [self statRow:@"iphone"
-                              text:[NSString stringWithFormat:@"iOS %@",
-                                    [[UIDevice currentDevice] systemVersion]]
-                           mainTag:0];
-    UIView *devRow = [self statRow:@"laptopcomputer"
-                              text:[self deviceModelName]
-                           mainTag:0];
+    UIView *cc = glassCard.contentView;
 
+    // iOS row
+    UIView *iosRow = [self statRowText:[NSString stringWithFormat:@"iOS  %@", [[UIDevice currentDevice] systemVersion]]
+                                symbol:@"applelogo" tint:BRAND_PURPLE valueColor:BRAND_MUTED labelTag:0];
+    // Device row
+    UIView *devRow = [self statRowText:[NSString stringWithFormat:@"Device  %@", [self deviceModelName]]
+                                symbol:@"iphone" tint:BRAND_CYAN valueColor:BRAND_MUTED labelTag:0];
+
+    // Support row — pulsing dot variant
     BOOL supported = [self isIOSSupported];
-    NSString *supportText = supported
-        ? LS(@"Có Hỗ Trợ", @"Supported")
-        : LS(@"Chưa Hỗ Trợ", @"Not Supported");
-    UIView *supportRow = [self statRow:supported ? @"checkmark.circle.fill" : @"xmark.circle.fill"
-                                  text:supportText
-                               mainTag:998];
-    // Tint icon hàng support: green nếu OK
-    UIImageView *supIcon = (UIImageView *)[supportRow viewWithTag:997];
-    if (supIcon) supIcon.tintColor = supported ? DG_GREEN : DG_MUTED;
-    UILabel *supLabel = (UILabel *)[supportRow viewWithTag:998];
-    if (supLabel) supLabel.textColor = supported ? DG_GREEN : DG_MUTED;
+    UIColor *supportTint = supported
+        ? [UIColor colorWithRed:0.2 green:0.85 blue:0.4 alpha:1.0]
+        : [UIColor colorWithRed:1.0 green:0.55 blue:0.0 alpha:1.0];
 
-    UIStackView *stack = [[UIStackView alloc] initWithArrangedSubviews:@[iosRow, devRow, supportRow]];
-    stack.axis    = UILayoutConstraintAxisVertical;
-    stack.spacing = 8;
-    stack.translatesAutoresizingMaskIntoConstraints = NO;
-    [card addSubview:stack];
+    UIView *supportRow = [[UIView alloc] init];
+    supportRow.translatesAutoresizingMaskIntoConstraints = NO;
+
+    // Pulsing dot indicator
+    UIView *pulseWrap = [[UIView alloc] init];
+    pulseWrap.translatesAutoresizingMaskIntoConstraints = NO;
+    [supportRow addSubview:pulseWrap];
+
+    UIView *dotInner = [[UIView alloc] init];
+    dotInner.backgroundColor = supportTint;
+    dotInner.layer.cornerRadius  = 4;
+    dotInner.layer.shadowColor   = supportTint.CGColor;
+    dotInner.layer.shadowOpacity = 0.9;
+    dotInner.layer.shadowRadius  = 5;
+    dotInner.layer.shadowOffset  = CGSizeZero;
+    dotInner.translatesAutoresizingMaskIntoConstraints = NO;
+    [pulseWrap addSubview:dotInner];
+
+    if (supported) {
+        // Pulse ring animation
+        UIView *dotRing = [[UIView alloc] init];
+        dotRing.backgroundColor = [supportTint colorWithAlphaComponent:0.25];
+        dotRing.layer.cornerRadius = 8;
+        dotRing.layer.borderColor = [supportTint colorWithAlphaComponent:0.5].CGColor;
+        dotRing.layer.borderWidth = 1;
+        dotRing.translatesAutoresizingMaskIntoConstraints = NO;
+        [pulseWrap insertSubview:dotRing belowSubview:dotInner];
+        [NSLayoutConstraint activateConstraints:@[
+            [dotRing.centerXAnchor constraintEqualToAnchor:pulseWrap.centerXAnchor],
+            [dotRing.centerYAnchor constraintEqualToAnchor:pulseWrap.centerYAnchor],
+            [dotRing.widthAnchor constraintEqualToConstant:16],
+            [dotRing.heightAnchor constraintEqualToConstant:16],
+        ]];
+        // Infinite pulse
+        [UIView animateWithDuration:1.4 delay:0.3
+                              options:UIViewAnimationOptionRepeat|UIViewAnimationOptionCurveEaseOut
+                         animations:^{
+            dotRing.transform = CGAffineTransformMakeScale(2.2, 2.2);
+            dotRing.alpha = 0;
+        } completion:nil];
+    }
 
     [NSLayoutConstraint activateConstraints:@[
-        [stack.leadingAnchor constraintEqualToAnchor:card.leadingAnchor constant:18],
-        [stack.trailingAnchor constraintEqualToAnchor:card.trailingAnchor constant:-18],
-        [stack.centerYAnchor constraintEqualToAnchor:card.centerYAnchor],
+        [pulseWrap.widthAnchor constraintEqualToConstant:18],
+        [pulseWrap.heightAnchor constraintEqualToConstant:18],
+        [dotInner.centerXAnchor constraintEqualToAnchor:pulseWrap.centerXAnchor],
+        [dotInner.centerYAnchor constraintEqualToAnchor:pulseWrap.centerYAnchor],
+        [dotInner.widthAnchor constraintEqualToConstant:8],
+        [dotInner.heightAnchor constraintEqualToConstant:8],
+    ]];
+
+    UILabel *supportLabel = [[UILabel alloc] init];
+    supportLabel.tag = 998;
+    supportLabel.text = supported ? LS(@"Có Hỗ Trợ", @"Supported") : LS(@"Chưa Hỗ Trợ", @"Not Supported");
+    supportLabel.font = [UIFont systemFontOfSize:13 weight:UIFontWeightSemibold];
+    supportLabel.textColor = supportTint;
+    supportLabel.translatesAutoresizingMaskIntoConstraints = NO;
+    [supportRow addSubview:supportLabel];
+
+    [NSLayoutConstraint activateConstraints:@[
+        [supportRow.heightAnchor constraintEqualToConstant:18],
+        [pulseWrap.leadingAnchor constraintEqualToAnchor:supportRow.leadingAnchor],
+        [pulseWrap.centerYAnchor constraintEqualToAnchor:supportRow.centerYAnchor],
+        [supportLabel.leadingAnchor constraintEqualToAnchor:pulseWrap.trailingAnchor constant:10],
+        [supportLabel.centerYAnchor constraintEqualToAnchor:supportRow.centerYAnchor],
+        [supportLabel.trailingAnchor constraintLessThanOrEqualToAnchor:supportRow.trailingAnchor],
+    ]];
+
+    UIStackView *stack = [[UIStackView alloc] initWithArrangedSubviews:@[iosRow, devRow, supportRow]];
+    stack.axis = UILayoutConstraintAxisVertical;
+    stack.spacing = 10;
+    stack.translatesAutoresizingMaskIntoConstraints = NO;
+    [cc addSubview:stack];
+
+    [NSLayoutConstraint activateConstraints:@[
+        [stack.leadingAnchor constraintEqualToAnchor:cc.leadingAnchor constant:18],
+        [stack.trailingAnchor constraintEqualToAnchor:cc.trailingAnchor constant:-18],
+        [stack.centerYAnchor constraintEqualToAnchor:cc.centerYAnchor],
     ]];
 
     UILongPressGestureRecognizer *lp = [[UILongPressGestureRecognizer alloc]
@@ -862,45 +865,37 @@
     }
 }
 
-// Dark-Glass stat row: icon SF Symbol + text (không có tag box)
-- (UIView *)statRow:(NSString *)symbolName text:(NSString *)text mainTag:(NSInteger)ltag {
+// A stat row: [symbol] label. Returns the row container.
+- (UIView *)statRowText:(NSString *)text symbol:(NSString *)symbol tint:(UIColor *)tint
+             valueColor:(UIColor *)valueColor labelTag:(NSInteger)tag {
     UIView *row = [[UIView alloc] init];
     row.translatesAutoresizingMaskIntoConstraints = NO;
 
-    UIImageSymbolConfiguration *cfg = [UIImageSymbolConfiguration
-        configurationWithPointSize:13 weight:UIImageSymbolWeightMedium];
-    UIImageView *icon = [[UIImageView alloc] initWithImage:
-        [UIImage systemImageNamed:symbolName withConfiguration:cfg]];
-    icon.tintColor = DG_MUTED;
-    icon.contentMode = UIViewContentModeCenter;
-    icon.tag = 997;
+    UIImageSymbolConfiguration *cfg = [UIImageSymbolConfiguration configurationWithPointSize:12 weight:UIImageSymbolWeightSemibold];
+    UIImageView *icon = [[UIImageView alloc] initWithImage:[UIImage systemImageNamed:symbol withConfiguration:cfg]];
+    icon.tintColor = tint;
+    icon.contentMode = UIViewContentModeScaleAspectFit;
     icon.translatesAutoresizingMaskIntoConstraints = NO;
     [row addSubview:icon];
 
     UILabel *label = [[UILabel alloc] init];
     label.font = [UIFont systemFontOfSize:13 weight:UIFontWeightMedium];
-    label.textColor = DG_TEXT;
+    label.textColor = valueColor;
     label.text = text;
-    if (ltag) label.tag = ltag;
+    if (tag) label.tag = tag;
     label.translatesAutoresizingMaskIntoConstraints = NO;
     [row addSubview:label];
 
     [NSLayoutConstraint activateConstraints:@[
-        [row.heightAnchor constraintEqualToConstant:22],
+        [row.heightAnchor constraintEqualToConstant:18],
         [icon.leadingAnchor constraintEqualToAnchor:row.leadingAnchor],
         [icon.centerYAnchor constraintEqualToAnchor:row.centerYAnchor],
-        [icon.widthAnchor constraintEqualToConstant:20],
-        [icon.heightAnchor constraintEqualToConstant:20],
-        [label.leadingAnchor constraintEqualToAnchor:icon.trailingAnchor constant:9],
+        [icon.widthAnchor constraintEqualToConstant:18],
+        [label.leadingAnchor constraintEqualToAnchor:icon.trailingAnchor constant:10],
         [label.centerYAnchor constraintEqualToAnchor:row.centerYAnchor],
         [label.trailingAnchor constraintLessThanOrEqualToAnchor:row.trailingAnchor],
     ]];
     return row;
-}
-
-// Backward-compat: statRowText vẫn cần tồn tại nếu có chỗ nào gọi
-- (UIView *)statRowText:(NSString *)text tag:(NSString *)tagStr tint:(UIColor *)tint labelTag:(NSInteger)ltag {
-    return [self statRow:@"circle.fill" text:text mainTag:ltag];
 }
 
 // ── Chính Sách ─────────────────────────────────────────────────────────────
@@ -920,7 +915,7 @@
 
 - (void)viewWillAppear:(BOOL)animated {
     [super viewWillAppear:animated];
-    self.navigationController.navigationBar.tintColor = QA_CYAN;
+    self.navigationController.navigationBar.tintColor = BRAND_CYAN;
 
     // Refresh license key state + start countdown ticker
     [self.keyBar update];
@@ -1079,7 +1074,7 @@
     CGFloat H = self.view.bounds.size.height;
     self.bgGradient.frame = self.view.bounds;
 
-    CGFloat ps = W * 1.5;   // quầng pink trên-trái
+    CGFloat ps = W * 1.5;   // quầng tím trên-trái
     self.purpleGlow.frame = CGRectMake(0.15 * W - ps / 2, -0.05 * H - ps / 2, ps, ps);
 
     CGFloat cs = W * 1.4;   // quầng cyan dưới-phải
@@ -1129,15 +1124,15 @@
     if (self.loadingView) return;  // already shown
 
     UIView *overlay = [[UIView alloc] initWithFrame:self.view.bounds];
-    overlay.backgroundColor = SW_BG;
+    overlay.backgroundColor = BRAND_BG;
     overlay.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
     overlay.alpha = 1.0;
     self.loadingView = overlay;
 
     // Gradient nền giống app
     CAGradientLayer *grad = [CAGradientLayer layer];
-    grad.colors = @[(id)SW_BG.CGColor,
-                    (id)[UIColor colorWithRed:0.068 green:0.047 blue:0.118 alpha:1.0].CGColor];
+    grad.colors = @[(id)BRAND_BG.CGColor,
+                    (id)[UIColor colorWithRed:0.035 green:0.043 blue:0.078 alpha:1.0].CGColor];
     grad.startPoint = CGPointMake(0.5, 0.0);
     grad.endPoint   = CGPointMake(0.5, 1.0);
     grad.frame = overlay.bounds;
@@ -1245,17 +1240,19 @@
     AppDataCell *cell = [collectionView dequeueReusableCellWithReuseIdentifier:@"AppCell" forIndexPath:indexPath];
 
     NSString *appID = self.appIDs[indexPath.item];
-    BOOL isMax = [appID isEqualToString:@"com.dts.freefiremax"];
 
-    // Quantum Aura: shadow màu per-game — MAX=tím, FF=cyan
-    UIColor *auraColor = isMax ? QA_PURPLE : QA_CYAN;
-    cell.cardView.layer.shadowColor  = auraColor.CGColor;
-    cell.cardView.layer.shadowOffset = CGSizeZero;
-    cell.cardView.layer.shadowRadius = 18;
-    cell.glowShadow.shadowColor = auraColor.CGColor;
-
-    // Glass capsule tag góc trên-phải
-    cell.bundleLabel.text = isMax ? @"  MAX  " : @"  FF  ";
+    // Banner color + matching neon glow based on app
+    UIColor *accent;
+    if ([appID isEqualToString:@"com.dts.freefiremax"]) {
+        accent = [UIColor colorWithRed:0.1 green:0.6 blue:1.0 alpha:1.0]; // blue
+    } else if ([appID isEqualToString:@"com.dts.freefireth"]) {
+        accent = [UIColor colorWithRed:1.0 green:0.55 blue:0.15 alpha:1.0]; // orange
+    } else {
+        accent = [UIColor colorWithRed:0 green:0.831 blue:1 alpha:1.0]; // cyan
+    }
+    cell.bannerView.backgroundColor = accent;
+    cell.cardView.layer.shadowColor = accent.CGColor;
+    cell.cardView.layer.borderColor = [accent colorWithAlphaComponent:0.35].CGColor;
 
     // Priority order:
     // 1. Downloaded cached images (FreeFireMax.png / FreeFireTH.png)
@@ -1297,12 +1294,12 @@
         }
     }
 
-    // Tên game — giữ nguyên (không uppercase), SemiBold weight đã đủ nổi bật
+    // Set app name - use custom display names
     NSString *displayName = self.appDisplayNames[appID] ?: appID;
     cell.nameLabel.text = displayName;
 
-    // bundleLabel là sticker label — đã set ở trên ("  MAX  " / "  FF  ")
-    // KHÔNG ghi đè bằng bundle ID
+    // Set bundle ID
+    cell.bundleLabel.text = appID;
 
     return cell;
 }
@@ -1323,44 +1320,6 @@
                                                                               appName:displayName
                                                                                  icon:icon];
     [self.navigationController pushViewController:hud animated:YES];
-}
-
-// Cập nhật layout khi xoay màn hình (portrait ↔ landscape)
-// Không override viewWillTransition: trực tiếp để tránh lỗi super call
-// trên một số Xcode version — dùng notification UIDeviceOrientationDidChangeNotification thay thế
-- (void)_updateLayoutForSize:(CGSize)size {
-    UICollectionViewFlowLayout *layout = (UICollectionViewFlowLayout *)self.collectionView.collectionViewLayout;
-    if (![layout isKindOfClass:[UICollectionViewFlowLayout class]]) return;
-    BOOL isLandscape = size.width > size.height;
-    CGFloat inset   = isLandscape ? 20.0 : 16.0;
-    CGFloat spacing = 12.0;
-    CGFloat cardW   = (size.width - inset * 2 - spacing) / 2.0;
-    CGFloat cardH   = isLandscape ? size.height * 0.70 : 220.0;
-    layout.itemSize               = CGSizeMake(cardW, cardH);
-    layout.minimumLineSpacing      = spacing;
-    layout.minimumInteritemSpacing = spacing;
-    layout.sectionInset            = UIEdgeInsetsMake(10, inset, 16, inset);
-    [self.collectionView.collectionViewLayout invalidateLayout];
-    // Update bg layers
-    self.bgGradient.frame = CGRectMake(0, 0, size.width, size.height);
-    // Purple glow: top-left
-    CGFloat ps = size.width * 1.6;
-    if (self.purpleGlow) {
-        self.purpleGlow.frame = CGRectMake(-ps * 0.3, -ps * 0.3, ps, ps);
-    }
-    // Cyan glow: bottom-right
-    CGFloat cs = size.width * 1.4;
-    if (self.cyanGlow) {
-        self.cyanGlow.frame = CGRectMake(size.width - cs * 0.7, size.height - cs * 0.7, cs, cs);
-    }
-}
-
-- (void)_orientationDidChange:(NSNotification *)note {
-    dispatch_async(dispatch_get_main_queue(), ^{
-        [UIView animateWithDuration:0.25 animations:^{
-            [self _updateLayoutForSize:self.view.bounds.size];
-        }];
-    });
 }
 
 - (void)dealloc {
