@@ -118,26 +118,24 @@
     self.bannerGradient.endPoint   = CGPointMake(1.0, 1.0);
     [bannerView.layer insertSublayer:self.bannerGradient atIndex:0];
 
-    // Dark vignette: top-left radial highlight + bottom fade
+    // Subtle top-left highlight (white sheen, không làm tối)
     self.bannerDimLayer = [CAGradientLayer layer];
-    self.bannerDimLayer.type = kCAGradientLayerRadial;
     self.bannerDimLayer.colors = @[
-        (id)[UIColor colorWithWhite:1 alpha:0.10].CGColor,
-        (id)[UIColor colorWithWhite:0 alpha:0.00].CGColor,
+        (id)[UIColor colorWithWhite:1 alpha:0.18].CGColor,
+        (id)[UIColor colorWithWhite:1 alpha:0.00].CGColor,
     ];
     self.bannerDimLayer.startPoint = CGPointMake(0.0, 0.0);
-    self.bannerDimLayer.endPoint   = CGPointMake(0.85, 0.85);
+    self.bannerDimLayer.endPoint   = CGPointMake(1.0, 1.0);
     [bannerView.layer addSublayer:self.bannerDimLayer];
 
-    // Bottom fade: blend banner into card body
+    // Bottom fade nhẹ: blend vào card body (giảm alpha)
     CAGradientLayer *bottomFade = [CAGradientLayer layer];
     bottomFade.colors = @[
-        (id)[UIColor colorWithWhite:0 alpha:0.0].CGColor,
-        (id)[UIColor colorWithWhite:0 alpha:0.32].CGColor,
+        (id)[UIColor colorWithWhite:0 alpha:0.00].CGColor,
+        (id)[UIColor colorWithWhite:0 alpha:0.18].CGColor,
     ];
-    bottomFade.startPoint = CGPointMake(0.5, 0.5);
+    bottomFade.startPoint = CGPointMake(0.5, 0.6);
     bottomFade.endPoint   = CGPointMake(0.5, 1.0);
-    // store tag so layoutSubviews can resize
     bottomFade.name = @"bottomFade";
     [bannerView.layer addSublayer:bottomFade];
 
@@ -1374,18 +1372,18 @@
     UIColor *gradTop;
     UIColor *gradBot;
     if ([appID isEqualToString:@"com.dts.freefiremax"]) {
-        // Deep ocean blue → midnight blue
-        gradTop = [UIColor colorWithRed:0.08 green:0.38 blue:0.82 alpha:1.0];
-        gradBot = [UIColor colorWithRed:0.02 green:0.10 blue:0.38 alpha:1.0];
+        // Bright ocean blue → cobalt
+        gradTop = [UIColor colorWithRed:0.18 green:0.56 blue:1.00 alpha:1.0];
+        gradBot = [UIColor colorWithRed:0.06 green:0.28 blue:0.78 alpha:1.0];
         accent  = [UIColor colorWithRed:0.20 green:0.55 blue:1.00 alpha:1.0];
     } else if ([appID isEqualToString:@"com.dts.freefireth"]) {
-        // Amber fire → deep crimson
-        gradTop = [UIColor colorWithRed:0.90 green:0.42 blue:0.04 alpha:1.0];
-        gradBot = [UIColor colorWithRed:0.38 green:0.08 blue:0.02 alpha:1.0];
+        // Vivid amber → burnt orange
+        gradTop = [UIColor colorWithRed:1.00 green:0.60 blue:0.08 alpha:1.0];
+        gradBot = [UIColor colorWithRed:0.82 green:0.28 blue:0.02 alpha:1.0];
         accent  = [UIColor colorWithRed:1.00 green:0.58 blue:0.15 alpha:1.0];
     } else {
-        gradTop = [UIColor colorWithRed:0.00 green:0.60 blue:0.70 alpha:1.0];
-        gradBot = [UIColor colorWithRed:0.00 green:0.20 blue:0.35 alpha:1.0];
+        gradTop = [UIColor colorWithRed:0.00 green:0.82 blue:0.90 alpha:1.0];
+        gradBot = [UIColor colorWithRed:0.00 green:0.50 blue:0.65 alpha:1.0];
         accent  = BRAND_CYAN;
     }
     cell.bannerGradient.colors = @[(id)gradTop.CGColor, (id)gradBot.CGColor];
