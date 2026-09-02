@@ -3065,6 +3065,7 @@ static UIColor *_aimTintFromString(NSString *tint) {
             else [panelsStack addArrangedSubview:newPanel];
             [panelsStack removeArrangedSubview:old]; [old removeFromSuperview];
             self.panelProxy = newPanel;
+            [panelsStack setCustomSpacing:14 afterView:newPanel];
 
             // Cập nhật tabFeatures[0]
             NSMutableArray *tabs = [self.tabFeatures mutableCopy];
@@ -3085,6 +3086,7 @@ static UIColor *_aimTintFromString(NSString *tint) {
             newPanel.alpha  = old.isHidden ? 0.0 : 1.0;
             if (idx != NSNotFound) [panelsStack insertArrangedSubview:newPanel atIndex:idx];
             else [panelsStack addArrangedSubview:newPanel];
+            [panelsStack setCustomSpacing:14 afterView:newPanel];
             [panelsStack removeArrangedSubview:old]; [old removeFromSuperview];
             self.panelDrag = newPanel;
         }
