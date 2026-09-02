@@ -17,6 +17,15 @@
 #import "PolicyViewController.h"
 #import "SettingsViewController.h"
 #import <sys/sysctl.h>
+
+// ── Synthwave Arcade palette ───────────────────────────────────────────────────
+// Defines phải đặt TRƯỚC mọi @implementation dùng chúng
+#define SW_PINK   [UIColor colorWithRed:1.0   green:0.0   blue:0.498 alpha:1.0]  // #FF007F
+#define SW_CYAN   [UIColor colorWithRed:0.0   green:0.941 blue:1.0   alpha:1.0]  // #00F0FF
+#define SW_YELLOW [UIColor colorWithRed:1.0   green:0.902 blue:0.0   alpha:1.0]  // #FFE600
+#define SW_CARD   [UIColor colorWithRed:0.106 green:0.082 blue:0.157 alpha:1.0]  // #1B1528
+#define SW_BG     [UIColor colorWithRed:0.055 green:0.043 blue:0.086 alpha:1.0]  // #0E0B16
+
 #pragma mark - GlassView (frosted card khớp web)
 
 @interface GlassView : UIView
@@ -58,14 +67,6 @@
 @property (nonatomic, strong) CAGradientLayer *glowBorder;
 @property (nonatomic, strong) CALayer *glowShadow;
 @end
-
-// ── Synthwave Arcade card colors ───────────────────────────────────────────────
-// MAX = Neon Pink #FF007F · FF = Electric Cyan #00F0FF
-#define SW_PINK   [UIColor colorWithRed:1.0  green:0.0   blue:0.498 alpha:1.0]
-#define SW_CYAN   [UIColor colorWithRed:0.0  green:0.941 blue:1.0   alpha:1.0]
-#define SW_YELLOW [UIColor colorWithRed:1.0  green:0.902 blue:0.0   alpha:1.0]
-#define SW_CARD   [UIColor colorWithRed:0.106 green:0.082 blue:0.157 alpha:1.0]  // #1B1528
-#define SW_BG     [UIColor colorWithRed:0.055 green:0.043 blue:0.086 alpha:1.0]  // #0E0B16
 
 // Diagonal stripe pattern for Synthwave bg
 static UIColor *SWStripePattern(void) {
@@ -467,6 +468,11 @@ static UIColor *SWStripePattern(void) {
     [[NSNotificationCenter defaultCenter] addObserver:self
         selector:@selector(refreshLocalizedStrings)
         name:LMLanguageChangedNotification object:nil];
+
+    // Responsive layout khi xoay màn hình
+    [[NSNotificationCenter defaultCenter] addObserver:self
+        selector:@selector(_orientationDidChange:)
+        name:UIDeviceOrientationDidChangeNotification object:nil];
 }
 
 - (void)refreshLocalizedStrings {
@@ -1323,29 +1329,36 @@ static UIColor *SWStripePattern(void) {
     [self.navigationController pushViewController:hud animated:YES];
 }
 
-- (void)viewWillTransition:(CGSize)size withTransitionCoordinator:(id<UIViewControllerTransitionCoordinator>)coordinator {
-    [super viewWillTransition:size withTransitionCoordinator:coordinator];
-    [coordinator animateAlongsideTransition:^(id<UIViewControllerTransitionCoordinatorContext> ctx) {
-        UICollectionViewFlowLayout *layout = (UICollectionViewFlowLayout *)self.collectionView.collectionViewLayout;
-        BOOL isLandscape = size.width > size.height;
-        CGFloat inset = isLandscape ? 20.0 : 16.0;
-        CGFloat cols  = isLandscape ? 2.0   : 2.0;   // always 2 columns
-        CGFloat spacing = 12.0;
-        CGFloat cardW = (size.width - inset * 2 - spacing * (cols - 1)) / cols;
-        CGFloat cardH = isLandscape ? size.height * 0.72 : 210.0;
-        layout.itemSize = CGSizeMake(cardW, cardH);
-        layout.minimumLineSpacing = spacing;
-        layout.minimumInteritemSpacing = spacing;
-        layout.sectionInset = UIEdgeInsetsMake(10, inset, 16, inset);
-        [self.collectionView.collectionViewLayout invalidateLayout];
-        // Update bg gradient frame
-        self.bgGradient.frame = CGRectMake(0, 0, size.width, size.height);
-        // Reposition glow layers
-        CGFloat ps = size.width * 1.5;
-        self.purpleGlow.frame = CGRectMake(0.15 * size.width - ps / 2, -0.05 * size.height - ps / 2, ps, ps);
-        CGFloat cs = size.width * 1.4;
-        self.cyanGlow.frame = CGRectMake(0.9 * size.width - cs / 2, 1.02 * size.height - cs / 2, cs, cs);
-    } completion:nil];
+// Cập nhật layout khi xoay màn hình (portrait ↔ landscape)
+// Không override viewWillTransition: trực tiếp để tránh lỗi super call
+// trên một số Xcode version — dùng notification UIDeviceOrientationDidChangeNotification thay thế
+- (void)_updateLayoutForSize:(CGSize)size {
+    UICollectionViewFlowLayout *layout = (UICollectionViewFlowLayout *)self.collectionView.collectionViewLayout;
+    if (![layout isKindOfClass:[UICollectionViewFlowLayout class]]) return;
+    BOOL isLandscape = size.width > size.height;
+    CGFloat inset   = isLandscape ? 20.0 : 16.0;
+    CGFloat spacing = 12.0;
+    CGFloat cardW   = (size.width - inset * 2 - spacing) / 2.0;
+    CGFloat cardH   = isLandscape ? size.height * 0.72 : 210.0;
+    layout.itemSize               = CGSizeMake(cardW, cardH);
+    layout.minimumLineSpacing      = spacing;
+    layout.minimumInteritemSpacing = spacing;
+    layout.sectionInset            = UIEdgeInsetsMake(10, inset, 16, inset);
+    [self.collectionView.collectionViewLayout invalidateLayout];
+    // Update bg layers
+    self.bgGradient.frame = CGRectMake(0, 0, size.width, size.height);
+    CGFloat ps = size.width * 1.5;
+    self.purpleGlow.frame = CGRectMake(0.15 * size.width - ps / 2, -0.05 * size.height - ps / 2, ps, ps);
+    CGFloat cs = size.width * 1.4;
+    self.cyanGlow.frame = CGRectMake(0.9 * size.width - cs / 2, 1.02 * size.height - cs / 2, cs, cs);
+}
+
+- (void)_orientationDidChange:(NSNotification *)note {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [UIView animateWithDuration:0.25 animations:^{
+            [self _updateLayoutForSize:self.view.bounds.size];
+        }];
+    });
 }
 
 - (void)dealloc {
