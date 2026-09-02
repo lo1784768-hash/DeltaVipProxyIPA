@@ -243,7 +243,7 @@ static NSString *const kShareURL = @"https://getuid.vip/proxy-delta.html";
     titleLbl.translatesAutoresizingMaskIntoConstraints = NO;
     [root addSubview:titleLbl];
 
-    NSString *appVer = [NSBundle mainBundle].infoDictionary[@"CFBundleShortVersionString"] ?: @"1.4.3";
+    NSString *appVer = [NSBundle mainBundle].infoDictionary[@"CFBundleShortVersionString"] ?: @"1.4.5";
     UILabel *verLbl = [[UILabel alloc] init];
     verLbl.text      = [NSString stringWithFormat:@"DELTA IPA VN  v%@", appVer];
     verLbl.font      = [UIFont systemFontOfSize:12 weight:UIFontWeightMedium];
@@ -425,7 +425,7 @@ static NSString *const kShareURL = @"https://getuid.vip/proxy-delta.html";
             }
             NSDictionary *j = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
             NSString *latest  = j[@"version_latest"] ?: j[@"version"];
-            NSString *current = [NSBundle mainBundle].infoDictionary[@"CFBundleShortVersionString"] ?: @"1.4.3";
+            NSString *current = [NSBundle mainBundle].infoDictionary[@"CFBundleShortVersionString"] ?: @"1.4.5";
             if (latest.length && ![latest isEqualToString:current]) {
                 [weakSelf showAlert:LS(@"Có Bản Mới! 🎉", @"New Version Available! 🎉")
                             message:[NSString stringWithFormat:
@@ -496,7 +496,7 @@ static NSString *const kShareURL = @"https://getuid.vip/proxy-delta.html";
 
 - (void)showAppInfo {
     NSDictionary *info = [NSBundle mainBundle].infoDictionary;
-    NSString *ver    = info[@"CFBundleShortVersionString"] ?: @"1.4.3";
+    NSString *ver    = info[@"CFBundleShortVersionString"] ?: @"1.4.5";
     NSString *build  = info[@"CFBundleVersion"] ?: @"1";
     NSString *ios    = [[UIDevice currentDevice] systemVersion];
     NSString *device = [self deviceModelIdentifier];
