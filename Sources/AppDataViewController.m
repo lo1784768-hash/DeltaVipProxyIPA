@@ -50,14 +50,18 @@
 @interface AppDataCell : UICollectionViewCell
 @property (nonatomic, strong) UIView *cardView;
 @property (nonatomic, strong) UIView *bannerView;
-@property (nonatomic, strong) CAGradientLayer *bannerDimLayer;  // dark vignette trên banner
+@property (nonatomic, strong) CAGradientLayer *bannerGradient; // banner gradient (replaces flat color)
+@property (nonatomic, strong) CAGradientLayer *bannerDimLayer; // dark vignette
+@property (nonatomic, strong) CAGradientLayer *shimmerLayer;   // shimmer sweep animation
 @property (nonatomic, strong) UIImageView *iconView;
 @property (nonatomic, strong) UILabel *nameLabel;
-@property (nonatomic, strong) UILabel *bundleLabel;   // kept for reuse compat, hidden
-@property (nonatomic, strong) UILabel *tagLabel;      // pill chip dưới name
+@property (nonatomic, strong) UILabel *bundleLabel;
 // Neon glow border shown when selected
 @property (nonatomic, strong) CAGradientLayer *glowBorder;
 @property (nonatomic, strong) CALayer *glowShadow;
+// Breathing glow border (idle animation)
+@property (nonatomic, strong) CALayer *breathLayer;
+@property (nonatomic, strong) UIColor *accentColor;  // stored for animations
 @end
 
 @implementation AppDataCell
@@ -74,7 +78,7 @@
     self.backgroundColor = [UIColor clearColor];
     self.contentView.backgroundColor = [UIColor clearColor];
 
-    // Frosted glass card (khớp web)
+    // Frosted glass card
     self.cardView = [[GlassView alloc] init];
     self.cardView.layer.cornerRadius = 24;
     self.cardView.layer.shadowColor = BRAND_PURPLE.CGColor;
@@ -91,7 +95,7 @@
         [self.cardView.bottomAnchor constraintEqualToAnchor:self.contentView.bottomAnchor]
     ]];
 
-    // Top colored banner section
+    // ── Banner (gradient, không flat) ──────────────────────────────────────
     UIView *bannerView = [[UIView alloc] init];
     bannerView.layer.cornerRadius = 24;
     bannerView.layer.cornerCurve = kCACornerCurveContinuous;
@@ -108,20 +112,49 @@
         [bannerView.heightAnchor constraintEqualToConstant:108]
     ]];
 
-    // Dark vignette gradient overlay trên banner (top transparent → bottom semi-dark)
-    // Giúp icon nổi hơn trên nền màu, bớt flat
+    // Gradient layer — màu set trong cellForItem theo từng app
+    self.bannerGradient = [CAGradientLayer layer];
+    self.bannerGradient.startPoint = CGPointMake(0.0, 0.0);
+    self.bannerGradient.endPoint   = CGPointMake(1.0, 1.0);
+    [bannerView.layer insertSublayer:self.bannerGradient atIndex:0];
+
+    // Dark vignette: top-left radial highlight + bottom fade
     self.bannerDimLayer = [CAGradientLayer layer];
+    self.bannerDimLayer.type = kCAGradientLayerRadial;
     self.bannerDimLayer.colors = @[
-        (id)[UIColor colorWithWhite:0 alpha:0.0].CGColor,
-        (id)[UIColor colorWithWhite:0 alpha:0.0].CGColor,
-        (id)[UIColor colorWithWhite:0 alpha:0.28].CGColor,
+        (id)[UIColor colorWithWhite:1 alpha:0.10].CGColor,
+        (id)[UIColor colorWithWhite:0 alpha:0.00].CGColor,
     ];
-    self.bannerDimLayer.locations = @[@0.0, @0.45, @1.0];
-    self.bannerDimLayer.startPoint = CGPointMake(0.5, 0.0);
-    self.bannerDimLayer.endPoint   = CGPointMake(0.5, 1.0);
+    self.bannerDimLayer.startPoint = CGPointMake(0.0, 0.0);
+    self.bannerDimLayer.endPoint   = CGPointMake(0.85, 0.85);
     [bannerView.layer addSublayer:self.bannerDimLayer];
 
-    // Large app icon in banner - rounded like a real app icon
+    // Bottom fade: blend banner into card body
+    CAGradientLayer *bottomFade = [CAGradientLayer layer];
+    bottomFade.colors = @[
+        (id)[UIColor colorWithWhite:0 alpha:0.0].CGColor,
+        (id)[UIColor colorWithWhite:0 alpha:0.32].CGColor,
+    ];
+    bottomFade.startPoint = CGPointMake(0.5, 0.5);
+    bottomFade.endPoint   = CGPointMake(0.5, 1.0);
+    // store tag so layoutSubviews can resize
+    bottomFade.name = @"bottomFade";
+    [bannerView.layer addSublayer:bottomFade];
+
+    // ── Shimmer sweep layer ────────────────────────────────────────────────
+    // Diagonal white glint that sweeps across banner every few seconds
+    self.shimmerLayer = [CAGradientLayer layer];
+    self.shimmerLayer.colors = @[
+        (id)[UIColor colorWithWhite:1 alpha:0.00].CGColor,
+        (id)[UIColor colorWithWhite:1 alpha:0.18].CGColor,
+        (id)[UIColor colorWithWhite:1 alpha:0.00].CGColor,
+    ];
+    self.shimmerLayer.locations = @[@0.35, @0.50, @0.65];
+    self.shimmerLayer.startPoint = CGPointMake(-1.0, 0.5);
+    self.shimmerLayer.endPoint   = CGPointMake( 0.0, 0.5);
+    [bannerView.layer addSublayer:self.shimmerLayer];
+
+    // ── App icon ───────────────────────────────────────────────────────────
     self.iconView = [[UIImageView alloc] init];
     self.iconView.contentMode = UIViewContentModeScaleAspectFill;
     self.iconView.clipsToBounds = YES;
@@ -131,6 +164,11 @@
     self.iconView.layer.borderWidth = 1.5;
     self.iconView.layer.magnificationFilter = kCAFilterTrilinear;
     self.iconView.layer.minificationFilter = kCAFilterTrilinear;
+    // Subtle drop shadow so icon lifts off banner
+    self.iconView.layer.shadowColor  = [UIColor blackColor].CGColor;
+    self.iconView.layer.shadowOpacity = 0.40;
+    self.iconView.layer.shadowRadius  = 10;
+    self.iconView.layer.shadowOffset  = CGSizeMake(0, 4);
     self.iconView.translatesAutoresizingMaskIntoConstraints = NO;
     [bannerView addSubview:self.iconView];
 
@@ -141,7 +179,7 @@
         [self.iconView.heightAnchor constraintEqualToConstant:72]
     ]];
 
-    // App name - Bold, compact, clean
+    // ── App name ───────────────────────────────────────────────────────────
     self.nameLabel = [[UILabel alloc] init];
     self.nameLabel.font = [UIFont systemFontOfSize:15 weight:UIFontWeightBold];
     self.nameLabel.textColor = [UIColor colorWithRed:0.941 green:0.941 blue:0.961 alpha:1.0];
@@ -158,39 +196,38 @@
         [self.nameLabel.trailingAnchor constraintEqualToAnchor:self.cardView.trailingAnchor constant:-10]
     ]];
 
-    // Tag chip (thay thế bundle ID — hiển thị tên game ngắn gọn)
-    self.tagLabel = [[UILabel alloc] init];
-    self.tagLabel.font = [UIFont systemFontOfSize:10 weight:UIFontWeightSemibold];
-    self.tagLabel.textColor = [UIColor colorWithWhite:1 alpha:0.55];
-    self.tagLabel.textAlignment = NSTextAlignmentCenter;
-    self.tagLabel.layer.cornerRadius = 6;
-    self.tagLabel.layer.masksToBounds = YES;
-    self.tagLabel.backgroundColor = [UIColor colorWithWhite:1 alpha:0.07];
-    self.tagLabel.numberOfLines = 1;
-    self.tagLabel.translatesAutoresizingMaskIntoConstraints = NO;
-    [self.cardView addSubview:self.tagLabel];
-
-    [NSLayoutConstraint activateConstraints:@[
-        [self.tagLabel.topAnchor constraintEqualToAnchor:self.nameLabel.bottomAnchor constant:6],
-        [self.tagLabel.centerXAnchor constraintEqualToAnchor:self.cardView.centerXAnchor],
-        [self.tagLabel.bottomAnchor constraintGreaterThanOrEqualToAnchor:self.cardView.bottomAnchor constant:-14],
-        [self.tagLabel.leadingAnchor constraintGreaterThanOrEqualToAnchor:self.cardView.leadingAnchor constant:16],
-        [self.tagLabel.trailingAnchor constraintLessThanOrEqualToAnchor:self.cardView.trailingAnchor constant:-16],
-    ]];
-
-    // Bundle label: hidden (kept for reuse compat)
+    // ── Bundle ID ──────────────────────────────────────────────────────────
     self.bundleLabel = [[UILabel alloc] init];
-    self.bundleLabel.hidden = YES;
+    self.bundleLabel.font = [UIFont monospacedSystemFontOfSize:9.5 weight:UIFontWeightRegular];
+    self.bundleLabel.textColor = [UIColor colorWithRed:0.50 green:0.50 blue:0.60 alpha:1.0];
+    self.bundleLabel.textAlignment = NSTextAlignmentCenter;
+    self.bundleLabel.numberOfLines = 1;
+    self.bundleLabel.adjustsFontSizeToFitWidth = YES;
+    self.bundleLabel.minimumScaleFactor = 0.75;
     self.bundleLabel.translatesAutoresizingMaskIntoConstraints = NO;
     [self.cardView addSubview:self.bundleLabel];
 
-    // ── Neon glow border (shown when selected) ────────────────────────────
-    // Shadow layer for card ambient glow
+    [NSLayoutConstraint activateConstraints:@[
+        [self.bundleLabel.topAnchor constraintEqualToAnchor:self.nameLabel.bottomAnchor constant:5],
+        [self.bundleLabel.leadingAnchor constraintEqualToAnchor:self.cardView.leadingAnchor constant:10],
+        [self.bundleLabel.trailingAnchor constraintEqualToAnchor:self.cardView.trailingAnchor constant:-10],
+        [self.bundleLabel.bottomAnchor constraintGreaterThanOrEqualToAnchor:self.cardView.bottomAnchor constant:-14]
+    ]];
+
+    // ── Breathing glow border (idle) ──────────────────────────────────────
+    self.breathLayer = [CALayer layer];
+    self.breathLayer.backgroundColor = [UIColor clearColor].CGColor;
+    self.breathLayer.shadowOpacity = 0;
+    self.breathLayer.shadowRadius  = 14;
+    self.breathLayer.shadowOffset  = CGSizeZero;
+    [self.layer insertSublayer:self.breathLayer atIndex:0];
+
+    // ── Selected neon glow shadow ──────────────────────────────────────────
     self.glowShadow = [CALayer layer];
-    self.glowShadow.shadowColor  = BRAND_CYAN.CGColor;
-    self.glowShadow.shadowOpacity = 0;
-    self.glowShadow.shadowRadius  = 20;
-    self.glowShadow.shadowOffset  = CGSizeZero;
+    self.glowShadow.shadowColor    = BRAND_CYAN.CGColor;
+    self.glowShadow.shadowOpacity  = 0;
+    self.glowShadow.shadowRadius   = 20;
+    self.glowShadow.shadowOffset   = CGSizeZero;
     self.glowShadow.backgroundColor = [UIColor clearColor].CGColor;
     [self.layer insertSublayer:self.glowShadow atIndex:0];
 
@@ -213,17 +250,70 @@
     [self.cardView.layer addSublayer:self.glowBorder];
 }
 
+// ── Shimmer + breathing animations ────────────────────────────────────────────
+- (void)startIdleAnimations {
+    [self runShimmer];
+    [self runBreath];
+}
+
+- (void)runShimmer {
+    // Sweep từ trái sang phải, lặp mỗi 4 giây
+    CABasicAnimation *anim = [CABasicAnimation animationWithKeyPath:@"position.x"];
+    CGFloat w = self.bannerView.bounds.size.width;
+    if (w == 0) w = 200; // fallback trước layout
+    self.shimmerLayer.bounds = CGRectMake(0, 0, w * 2.5, self.bannerView.bounds.size.height ?: 108);
+    anim.fromValue = @(-w * 1.25);
+    anim.toValue   = @( w * 1.25);
+    anim.duration  = 1.2;
+    anim.timingFunction = [CAMediaTimingFunction functionWithName:kCAMediaTimingFunctionEaseInEaseOut];
+    anim.beginTime = CACurrentMediaTime() + 1.5;
+    anim.repeatCount = HUGE_VALF;
+    anim.repeatDuration = 4.0; // 1.2s sweep + 2.8s pause per cycle
+    [self.shimmerLayer addAnimation:anim forKey:@"shimmer"];
+}
+
+- (void)runBreath {
+    if (!self.accentColor) return;
+    self.breathLayer.shadowColor = self.accentColor.CGColor;
+    CABasicAnimation *anim = [CABasicAnimation animationWithKeyPath:@"shadowOpacity"];
+    anim.fromValue  = @(0.12);
+    anim.toValue    = @(0.32);
+    anim.duration   = 2.2;
+    anim.autoreverses = YES;
+    anim.repeatCount  = HUGE_VALF;
+    anim.timingFunction = [CAMediaTimingFunction functionWithName:kCAMediaTimingFunctionEaseInEaseOut];
+    [self.breathLayer addAnimation:anim forKey:@"breath"];
+}
+
+- (void)stopIdleAnimations {
+    [self.shimmerLayer removeAnimationForKey:@"shimmer"];
+    [self.breathLayer  removeAnimationForKey:@"breath"];
+}
+
 - (void)layoutSubviews {
     [super layoutSubviews];
-    CGRect r = self.cardView.bounds;
-    self.glowBorder.frame = r;
-    self.glowShadow.frame = self.bounds;
+    CGRect r  = self.cardView.bounds;
+    CGRect br = self.bannerView.bounds;
+
+    self.glowBorder.frame  = r;
+    self.glowShadow.frame  = self.bounds;
+    self.breathLayer.frame = self.bounds;
+
     UIBezierPath *path = [UIBezierPath bezierPathWithRoundedRect:
         CGRectInset(r, 1, 1) cornerRadius:self.cardView.layer.cornerRadius - 1];
     ((CAShapeLayer *)self.glowBorder.mask).path = path.CGPath;
-    // Banner dim vignette fills bannerView bounds
-    if (self.bannerDimLayer) {
-        self.bannerDimLayer.frame = self.bannerView.bounds;
+
+    // Banner sublayers
+    self.bannerGradient.frame  = br;
+    self.bannerDimLayer.frame  = br;
+    self.shimmerLayer.position = CGPointMake(-br.size.width, br.size.height / 2.0);
+
+    // Resize bottomFade (named layer)
+    for (CALayer *sub in self.bannerView.layer.sublayers) {
+        if ([sub.name isEqualToString:@"bottomFade"]) {
+            sub.frame = br;
+            break;
+        }
     }
 }
 
@@ -233,13 +323,20 @@
 }
 
 - (void)applyGlow:(BOOL)on animated:(BOOL)animated {
+    UIColor *accent = self.accentColor ?: BRAND_CYAN;
     void (^change)(void) = ^{
-        self.glowBorder.opacity   = on ? 1.0f : 0.0f;
+        self.glowBorder.opacity       = on ? 1.0f : 0.0f;
         self.glowShadow.shadowOpacity = on ? 0.55f : 0.0f;
-        // Intensify card purple shadow while selected
-        self.cardView.layer.shadowColor   = on ? BRAND_CYAN.CGColor : BRAND_PURPLE.CGColor;
-        self.cardView.layer.shadowOpacity = on ? 0.50f : 0.30f;
-        self.cardView.layer.shadowRadius  = on ? 24.0f : 18.0f;
+        self.glowShadow.shadowColor   = accent.CGColor;
+        self.cardView.layer.shadowColor   = on ? accent.CGColor : BRAND_PURPLE.CGColor;
+        self.cardView.layer.shadowOpacity = on ? 0.55f : 0.30f;
+        self.cardView.layer.shadowRadius  = on ? 26.0f : 20.0f;
+        // Pause breathing while selected, resume on deselect
+        if (on) {
+            [self stopIdleAnimations];
+        } else {
+            [self startIdleAnimations];
+        }
     };
     if (animated) {
         [CATransaction begin];
@@ -1272,27 +1369,29 @@
 
     NSString *appID = self.appIDs[indexPath.item];
 
-    // Banner color + matching neon glow based on app
+    // ── Banner gradient + accent per app ──────────────────────────────────
     UIColor *accent;
-    NSString *tagText;
+    UIColor *gradTop;
+    UIColor *gradBot;
     if ([appID isEqualToString:@"com.dts.freefiremax"]) {
-        accent   = [UIColor colorWithRed:0.08 green:0.52 blue:0.96 alpha:1.0]; // blue
-        tagText  = @"FREE FIRE MAX";
+        // Deep ocean blue → midnight blue
+        gradTop = [UIColor colorWithRed:0.08 green:0.38 blue:0.82 alpha:1.0];
+        gradBot = [UIColor colorWithRed:0.02 green:0.10 blue:0.38 alpha:1.0];
+        accent  = [UIColor colorWithRed:0.20 green:0.55 blue:1.00 alpha:1.0];
     } else if ([appID isEqualToString:@"com.dts.freefireth"]) {
-        accent   = [UIColor colorWithRed:0.98 green:0.50 blue:0.08 alpha:1.0]; // orange
-        tagText  = @"FREE FIRE";
+        // Amber fire → deep crimson
+        gradTop = [UIColor colorWithRed:0.90 green:0.42 blue:0.04 alpha:1.0];
+        gradBot = [UIColor colorWithRed:0.38 green:0.08 blue:0.02 alpha:1.0];
+        accent  = [UIColor colorWithRed:1.00 green:0.58 blue:0.15 alpha:1.0];
     } else {
-        accent   = [UIColor colorWithRed:0 green:0.831 blue:1 alpha:1.0]; // cyan
-        tagText  = @"GAME";
+        gradTop = [UIColor colorWithRed:0.00 green:0.60 blue:0.70 alpha:1.0];
+        gradBot = [UIColor colorWithRed:0.00 green:0.20 blue:0.35 alpha:1.0];
+        accent  = BRAND_CYAN;
     }
-    cell.bannerView.backgroundColor = accent;
-    // Card shadow matches accent, but desaturated slightly so it's subtle
+    cell.bannerGradient.colors = @[(id)gradTop.CGColor, (id)gradBot.CGColor];
+    cell.accentColor = accent;
     cell.cardView.layer.shadowColor = accent.CGColor;
-    cell.cardView.layer.borderColor = [accent colorWithAlphaComponent:0.30].CGColor;
-    // Tag label text + subtle accent tint on background
-    cell.tagLabel.text = [NSString stringWithFormat:@"  %@  ", tagText];
-    cell.tagLabel.backgroundColor = [accent colorWithAlphaComponent:0.14];
-    cell.tagLabel.textColor = [accent colorWithAlphaComponent:0.85];
+    cell.cardView.layer.borderColor = [accent colorWithAlphaComponent:0.28].CGColor;
 
     // Priority order:
     // 1. Downloaded cached images (FreeFireMax.png / FreeFireTH.png)
@@ -1336,7 +1435,12 @@
 
     // Set app name - use custom display names
     NSString *displayName = self.appDisplayNames[appID] ?: appID;
-    cell.nameLabel.text = displayName;
+    cell.nameLabel.text   = displayName;
+    cell.bundleLabel.text = appID;
+
+    // Start idle animations (shimmer + breathing glow)
+    [cell stopIdleAnimations];
+    [cell startIdleAnimations];
 
     return cell;
 }
