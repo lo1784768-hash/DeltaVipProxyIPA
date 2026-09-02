@@ -3,14 +3,14 @@
 #import "BrandTheme.h"
 #import "LanguageManager.h"
 
-// ── Dark-Glass palette (matches AppDataViewController) ───────────────────────
-#define KB_GREEN  [UIColor colorWithRed:0.204 green:0.780 blue:0.349 alpha:1.0]
+// ── Quantum Aura palette (matches AppDataViewController) ─────────────────────
+#define KB_GREEN  [UIColor colorWithRed:0.0   green:1.0   blue:0.612 alpha:1.0]  // #00FF9C
 #define KB_RED    [UIColor colorWithRed:1.000 green:0.231 blue:0.322 alpha:1.0]
 #define KB_ORANGE [UIColor colorWithRed:1.000 green:0.58  blue:0.0   alpha:1.0]
-#define KB_CYAN   [UIColor colorWithRed:0.0   green:0.949 blue:0.996 alpha:1.0]  // #00F2FE
-#define KB_PURPLE [UIColor colorWithRed:0.345 green:0.227 blue:0.745 alpha:1.0]  // #583BBE
+#define KB_CYAN   [UIColor colorWithRed:0.0   green:0.941 blue:1.0   alpha:1.0]  // #00F0FF
+#define KB_PURPLE [UIColor colorWithRed:0.275 green:0.0   blue:1.0   alpha:1.0]  // #7000FF
 #define KB_MUTED  [UIColor colorWithWhite:1.0 alpha:0.45]
-#define KB_TEXT   [UIColor colorWithWhite:1.0 alpha:0.90]
+#define KB_TEXT   [UIColor colorWithWhite:1.0 alpha:0.92]
 #define KB_BORDER [UIColor colorWithWhite:1.0 alpha:0.08]
 
 // ── Pulsing dot (live status) ────────────────────────────────────────────────
@@ -120,22 +120,21 @@
 - (void)onLanguageChanged { [self update]; }
 
 - (void)build {
-    // ── Dark-Glass floating bar ──────────────────────────────────────────────
+    // ── Quantum Aura floating bar ─────────────────────────────────────────────
     self.backgroundColor = [UIColor clearColor];
-    self.layer.cornerRadius = 20;
+    self.layer.cornerRadius = 22;
     self.layer.cornerCurve  = kCACornerCurveContinuous;
     self.layer.masksToBounds = NO;
-    self.layer.borderColor  = KB_BORDER.CGColor;
-    self.layer.borderWidth  = 1;
-    // Ambient shadow — no hard-drop, no color
-    self.layer.shadowColor   = [UIColor blackColor].CGColor;
-    self.layer.shadowOpacity = 0.45;
-    self.layer.shadowRadius  = 20;
-    self.layer.shadowOffset  = CGSizeMake(0, 8);
+    self.layer.borderWidth  = 0;  // border do gradient CAShapeLayer xử lý
+    // Shadow: tím ambient
+    self.layer.shadowColor   = KB_PURPLE.CGColor;
+    self.layer.shadowOpacity = 0.35;
+    self.layer.shadowRadius  = 22;
+    self.layer.shadowOffset  = CGSizeMake(0, 6);
 
-    // Frosted glass background (inside clip)
+    // Frosted glass background (inside clip, radius matching)
     UIView *glassContainer = [[UIView alloc] init];
-    glassContainer.layer.cornerRadius = 20;
+    glassContainer.layer.cornerRadius = 22;
     glassContainer.layer.cornerCurve  = kCACornerCurveContinuous;
     glassContainer.layer.masksToBounds = YES;
     glassContainer.translatesAutoresizingMaskIntoConstraints = NO;
@@ -146,8 +145,9 @@
     blurBg.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
     [glassContainer addSubview:blurBg];
 
+    // Tint đen vũ trụ
     UIView *tintBg = [[UIView alloc] init];
-    tintBg.backgroundColor = [UIColor colorWithRed:0.071 green:0.086 blue:0.129 alpha:0.65];
+    tintBg.backgroundColor = [UIColor colorWithRed:0.024 green:0.027 blue:0.035 alpha:0.72];
     tintBg.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
     [glassContainer addSubview:tintBg];
 
@@ -158,11 +158,22 @@
         [glassContainer.bottomAnchor constraintEqualToAnchor:self.bottomAnchor],
     ]];
 
-    // _topLine: không dùng nữa — đặt hidden view để constraint không crash
+    // Gradient border tím→cyan: dùng CAGradientLayer + CAShapeLayer mask
+    // Sẽ frame trong layoutSubviews
+    _lineGradient = [CAGradientLayer layer];
+    _lineGradient.colors = @[
+        (id)KB_PURPLE.CGColor,
+        (id)KB_CYAN.CGColor,
+    ];
+    _lineGradient.startPoint = CGPointMake(0, 0.5);
+    _lineGradient.endPoint   = CGPointMake(1, 0.5);
+    // _lineGradient được dùng như border; mask bằng stroke path trong layoutSubviews
+    [self.layer addSublayer:_lineGradient];
+
+    // _topLine: hidden placeholder
     _topLine = [[UIView alloc] init];
     _topLine.hidden = YES;
     [self addSubview:_topLine];
-    _lineGradient = nil;
 
     // Pulsing dot
     _dot = [[PulsingDot alloc] init];
@@ -278,7 +289,20 @@
 - (void)layoutSubviews {
     [super layoutSubviews];
     if (_addGradient) _addGradient.frame = _addButton.bounds;
-    if (_lineGradient) _lineGradient.frame = _topLine.bounds;
+
+    // Gradient border: stroke path dạng capsule quanh bar
+    if (_lineGradient) {
+        _lineGradient.frame = self.bounds;
+        CGFloat r = self.layer.cornerRadius;
+        UIBezierPath *path = [UIBezierPath bezierPathWithRoundedRect:
+            CGRectInset(self.bounds, 0.5, 0.5) cornerRadius:r - 0.5];
+        CAShapeLayer *mask = [CAShapeLayer layer];
+        mask.path        = path.CGPath;
+        mask.fillColor   = [UIColor clearColor].CGColor;
+        mask.strokeColor = [UIColor whiteColor].CGColor;
+        mask.lineWidth   = 1.0;
+        _lineGradient.mask = mask;
+    }
 }
 
 - (void)update {

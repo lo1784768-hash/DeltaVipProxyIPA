@@ -18,23 +18,29 @@
 #import "SettingsViewController.h"
 #import <sys/sysctl.h>
 
-// ── Dark-Glass palette — 1 accent (Cyber Cyan) ────────────────────────────────
-// Bộ màu tối giản: nền tối + 1 cyan duy nhất làm điểm nhấn
-#define DG_BG      [UIColor colorWithRed:0.039 green:0.051 blue:0.078 alpha:1.0]  // #0A0D14
-#define DG_CARD    [UIColor colorWithRed:0.086 green:0.110 blue:0.165 alpha:0.65] // rgba(22,28,42,0.65)
-#define DG_CARD_S  [UIColor colorWithRed:0.071 green:0.086 blue:0.129 alpha:1.0]  // solid #12161F (cho shadow)
-#define DG_CYAN    [UIColor colorWithRed:0.0   green:0.949 blue:0.996 alpha:1.0]  // #00F2FE
-#define DG_BORDER  [UIColor colorWithWhite:1.0 alpha:0.08]                        // 8% white border
-#define DG_TEXT    [UIColor colorWithWhite:1.0 alpha:0.90]
-#define DG_MUTED   [UIColor colorWithWhite:1.0 alpha:0.45]
-#define DG_GREEN   [UIColor colorWithRed:0.204 green:0.780 blue:0.349 alpha:1.0]  // trạng thái OK
+// ── Quantum Aura palette ──────────────────────────────────────────────────────
+// Nền đen vũ trụ + Tím dạ quang + Cyan điện tử
+#define QA_BG      [UIColor colorWithRed:0.024 green:0.027 blue:0.035 alpha:1.0]  // #060709
+#define QA_PURPLE  [UIColor colorWithRed:0.275 green:0.0   blue:1.0   alpha:1.0]  // #7000FF
+#define QA_CYAN    [UIColor colorWithRed:0.0   green:0.941 blue:1.0   alpha:1.0]  // #00F0FF
+#define QA_SURFACE [UIColor colorWithRed:0.055 green:0.059 blue:0.078 alpha:1.0]  // #0E0F14 (surface cards)
+#define QA_TEXT    [UIColor colorWithWhite:1.0 alpha:0.92]
+#define QA_MUTED   [UIColor colorWithWhite:1.0 alpha:0.45]
+#define QA_GREEN   [UIColor colorWithRed:0.0   green:1.0   blue:0.612 alpha:1.0]  // #00FF9C
 
-// Backward-compat aliases (các chỗ khác vẫn dùng SW_PINK cho navBar tint)
-#define SW_PINK   DG_CYAN
-#define SW_CYAN   DG_CYAN
-#define SW_YELLOW DG_CYAN
-#define SW_CARD   DG_CARD_S
-#define SW_BG     DG_BG
+// Backward-compat aliases
+#define DG_BG      QA_BG
+#define DG_CYAN    QA_CYAN
+#define DG_BORDER  [UIColor colorWithWhite:1.0 alpha:0.08]
+#define DG_TEXT    QA_TEXT
+#define DG_MUTED   QA_MUTED
+#define DG_GREEN   QA_GREEN
+#define DG_CARD_S  QA_SURFACE
+#define SW_PINK    QA_PURPLE
+#define SW_CYAN    QA_CYAN
+#define SW_YELLOW  QA_CYAN
+#define SW_CARD    QA_SURFACE
+#define SW_BG      QA_BG
 
 #pragma mark - GlassView (Dark-Glass card)
 
@@ -98,44 +104,31 @@
     self.backgroundColor = [UIColor clearColor];
     self.contentView.backgroundColor = [UIColor clearColor];
 
-    // ── Dark-Glass card: glassmorphic + soft shadow ──────────────────────
+    // ── Quantum Aura card ────────────────────────────────────────────────
+    // Outer cardView: không clip, chứa shadow aura + border mờ
     self.cardView = [[UIView alloc] init];
     self.cardView.backgroundColor = [UIColor clearColor];
     self.cardView.layer.cornerRadius = 20;
     self.cardView.layer.cornerCurve = kCACornerCurveContinuous;
-    // Soft ambient shadow (no hard-drop, no color pop)
-    self.cardView.layer.shadowColor  = [UIColor blackColor].CGColor;
+    self.cardView.layer.borderColor = [UIColor colorWithWhite:1 alpha:0.07].CGColor;
+    self.cardView.layer.borderWidth = 1;
+    // Aura shadow: tím, tỏa mềm (sẽ tint per-game trong cellForItem)
+    self.cardView.layer.shadowColor   = QA_PURPLE.CGColor;
     self.cardView.layer.shadowOpacity = 0.45;
-    self.cardView.layer.shadowOffset  = CGSizeMake(0, 8);
-    self.cardView.layer.shadowRadius  = 20;
+    self.cardView.layer.shadowOffset  = CGSizeZero;
+    self.cardView.layer.shadowRadius  = 18;
     self.cardView.clipsToBounds = NO;
     self.cardView.translatesAutoresizingMaskIntoConstraints = NO;
     [self.contentView addSubview:self.cardView];
 
-    // Inner clip view — clips corners on blur + image
+    // Inner clipView: clip bo góc để ảnh không vượt biên
     UIView *clipView = [[UIView alloc] init];
-    clipView.backgroundColor = [UIColor clearColor];
+    clipView.backgroundColor = QA_SURFACE;
     clipView.layer.cornerRadius = 20;
     clipView.layer.cornerCurve = kCACornerCurveContinuous;
     clipView.clipsToBounds = YES;
     clipView.translatesAutoresizingMaskIntoConstraints = NO;
     [self.cardView addSubview:clipView];
-
-    // Glass blur background
-    UIVisualEffectView *blurBg = [[UIVisualEffectView alloc]
-        initWithEffect:[UIBlurEffect effectWithStyle:UIBlurEffectStyleSystemThinMaterialDark]];
-    blurBg.translatesAutoresizingMaskIntoConstraints = NO;
-    [clipView addSubview:blurBg];
-
-    // Dark tint overlay
-    UIView *tintBg = [[UIView alloc] init];
-    tintBg.backgroundColor = [UIColor colorWithRed:0.071 green:0.086 blue:0.129 alpha:0.70];
-    tintBg.translatesAutoresizingMaskIntoConstraints = NO;
-    [clipView addSubview:tintBg];
-
-    // Glass border (on cardView, outside clip)
-    self.cardView.layer.borderColor = DG_BORDER.CGColor;
-    self.cardView.layer.borderWidth = 1;
 
     [NSLayoutConstraint activateConstraints:@[
         [self.cardView.topAnchor constraintEqualToAnchor:self.contentView.topAnchor],
@@ -146,94 +139,93 @@
         [clipView.leadingAnchor constraintEqualToAnchor:self.cardView.leadingAnchor],
         [clipView.trailingAnchor constraintEqualToAnchor:self.cardView.trailingAnchor],
         [clipView.bottomAnchor constraintEqualToAnchor:self.cardView.bottomAnchor],
-        [blurBg.topAnchor constraintEqualToAnchor:clipView.topAnchor],
-        [blurBg.leadingAnchor constraintEqualToAnchor:clipView.leadingAnchor],
-        [blurBg.trailingAnchor constraintEqualToAnchor:clipView.trailingAnchor],
-        [blurBg.bottomAnchor constraintEqualToAnchor:clipView.bottomAnchor],
-        [tintBg.topAnchor constraintEqualToAnchor:clipView.topAnchor],
-        [tintBg.leadingAnchor constraintEqualToAnchor:clipView.leadingAnchor],
-        [tintBg.trailingAnchor constraintEqualToAnchor:clipView.trailingAnchor],
-        [tintBg.bottomAnchor constraintEqualToAnchor:clipView.bottomAnchor],
     ]];
 
-    // ── Banner: game image phủ full nửa trên ──────────────────────────────
+    // ── Banner: ảnh fill 100% card (full-bleed poster) ────────────────────
+    // bannerView = toàn bộ clipView (ảnh là background, text đè lên)
     UIView *bannerView = [[UIView alloc] init];
-    bannerView.backgroundColor = [UIColor colorWithRed:0.071 green:0.086 blue:0.129 alpha:1.0];
+    bannerView.backgroundColor = QA_SURFACE;
     bannerView.translatesAutoresizingMaskIntoConstraints = NO;
     [clipView addSubview:bannerView];
     self.bannerView = bannerView;
 
+    // Game image: fill toàn card
     self.iconView = [[UIImageView alloc] init];
     self.iconView.contentMode = UIViewContentModeScaleAspectFill;
     self.iconView.clipsToBounds = YES;
     self.iconView.translatesAutoresizingMaskIntoConstraints = NO;
     [bannerView addSubview:self.iconView];
 
-    // Gradient fade mạnh: transparent 30% → dark card bg 100%
+    // Gradient tối: transparent 0% → đen #060709 100% (phủ 50% dưới)
     CAGradientLayer *fadeGrad = [CAGradientLayer layer];
     fadeGrad.colors = @[
         (id)[UIColor clearColor].CGColor,
-        (id)[UIColor colorWithRed:0.071 green:0.086 blue:0.129 alpha:0.5].CGColor,
-        (id)[UIColor colorWithRed:0.071 green:0.086 blue:0.129 alpha:1.0].CGColor,
+        (id)[UIColor colorWithRed:0.024 green:0.027 blue:0.035 alpha:0.55].CGColor,
+        (id)[UIColor colorWithRed:0.024 green:0.027 blue:0.035 alpha:0.92].CGColor,
     ];
-    fadeGrad.locations = @[@0.30, @0.65, @1.0];
+    fadeGrad.locations = @[@0.35, @0.65, @1.0];
     fadeGrad.startPoint = CGPointMake(0.5, 0.0);
     fadeGrad.endPoint   = CGPointMake(0.5, 1.0);
     self.glowBorder = fadeGrad;
     [bannerView.layer addSublayer:fadeGrad];
 
+    // bannerView = full card
     [NSLayoutConstraint activateConstraints:@[
         [bannerView.topAnchor constraintEqualToAnchor:clipView.topAnchor],
         [bannerView.leadingAnchor constraintEqualToAnchor:clipView.leadingAnchor],
         [bannerView.trailingAnchor constraintEqualToAnchor:clipView.trailingAnchor],
-        [bannerView.heightAnchor constraintEqualToConstant:112],
+        [bannerView.bottomAnchor constraintEqualToAnchor:clipView.bottomAnchor],
         [self.iconView.topAnchor constraintEqualToAnchor:bannerView.topAnchor],
         [self.iconView.leadingAnchor constraintEqualToAnchor:bannerView.leadingAnchor],
         [self.iconView.trailingAnchor constraintEqualToAnchor:bannerView.trailingAnchor],
         [self.iconView.bottomAnchor constraintEqualToAnchor:bannerView.bottomAnchor],
     ]];
 
-    // ── Game tag — capsule kính mờ ở dưới-phải banner ──────────────────────
-    // bundleLabel reuse làm capsule tag (MAX / FF)
+    // ── Game tag: glass capsule mỏng, góc trên-phải ────────────────────────
+    // bundleLabel reuse: UIVisualEffectView-style bằng background blur
     self.bundleLabel = [[UILabel alloc] init];
-    self.bundleLabel.font = [UIFont systemFontOfSize:9 weight:UIFontWeightSemibold];
-    self.bundleLabel.textColor = [UIColor colorWithWhite:1 alpha:0.85];
-    self.bundleLabel.backgroundColor = [UIColor colorWithWhite:1 alpha:0.12];
-    self.bundleLabel.layer.cornerRadius = 8;
+    self.bundleLabel.font = [UIFont systemFontOfSize:10 weight:UIFontWeightSemibold];
+    self.bundleLabel.textColor = [UIColor colorWithWhite:1 alpha:0.90];
+    self.bundleLabel.backgroundColor = [UIColor colorWithWhite:0 alpha:0.45];
+    self.bundleLabel.layer.cornerRadius = 10;
     self.bundleLabel.layer.masksToBounds = YES;
-    self.bundleLabel.layer.borderColor = [UIColor colorWithWhite:1 alpha:0.18].CGColor;
-    self.bundleLabel.layer.borderWidth = 0.5;
+    self.bundleLabel.layer.borderColor = [UIColor colorWithWhite:1 alpha:0.20].CGColor;
+    self.bundleLabel.layer.borderWidth = 0.75;
     self.bundleLabel.textAlignment = NSTextAlignmentCenter;
     self.bundleLabel.translatesAutoresizingMaskIntoConstraints = NO;
     [clipView addSubview:self.bundleLabel];
 
     [NSLayoutConstraint activateConstraints:@[
-        [self.bundleLabel.bottomAnchor constraintEqualToAnchor:bannerView.bottomAnchor constant:-8],
+        [self.bundleLabel.topAnchor constraintEqualToAnchor:clipView.topAnchor constant:10],
         [self.bundleLabel.trailingAnchor constraintEqualToAnchor:clipView.trailingAnchor constant:-10],
-        [self.bundleLabel.heightAnchor constraintEqualToConstant:18],
+        [self.bundleLabel.heightAnchor constraintEqualToConstant:22],
     ]];
 
-    // ── App name — SemiBold, căn giữa, khoảng thở ─────────────────────────
+    // ── App name: Heavy 17pt, trắng, đè lên gradient tối ở đáy card ────────
     self.nameLabel = [[UILabel alloc] init];
-    self.nameLabel.font = [UIFont systemFontOfSize:13 weight:UIFontWeightSemibold];
-    self.nameLabel.textColor = DG_TEXT;
-    self.nameLabel.textAlignment = NSTextAlignmentCenter;
+    self.nameLabel.font = [UIFont systemFontOfSize:15 weight:UIFontWeightBold];
+    self.nameLabel.textColor = [UIColor whiteColor];
+    self.nameLabel.textAlignment = NSTextAlignmentLeft;
     self.nameLabel.numberOfLines = 2;
     self.nameLabel.translatesAutoresizingMaskIntoConstraints = NO;
+    // Chèn nhẹ shadow chữ để nổi trên ảnh
+    self.nameLabel.layer.shadowColor   = [UIColor blackColor].CGColor;
+    self.nameLabel.layer.shadowOpacity = 0.8;
+    self.nameLabel.layer.shadowRadius  = 4;
+    self.nameLabel.layer.shadowOffset  = CGSizeMake(0, 1);
     [clipView addSubview:self.nameLabel];
 
     [NSLayoutConstraint activateConstraints:@[
-        [self.nameLabel.topAnchor constraintEqualToAnchor:bannerView.bottomAnchor constant:10],
-        [self.nameLabel.leadingAnchor constraintEqualToAnchor:clipView.leadingAnchor constant:12],
-        [self.nameLabel.trailingAnchor constraintEqualToAnchor:clipView.trailingAnchor constant:-12],
-        [self.nameLabel.bottomAnchor constraintEqualToAnchor:clipView.bottomAnchor constant:-10],
+        [self.nameLabel.leadingAnchor constraintEqualToAnchor:clipView.leadingAnchor constant:14],
+        [self.nameLabel.trailingAnchor constraintEqualToAnchor:clipView.trailingAnchor constant:-14],
+        [self.nameLabel.bottomAnchor constraintEqualToAnchor:clipView.bottomAnchor constant:-14],
     ]];
 
-    // ── Selection glow (cyan, ambient) ────────────────────────────────────
+    // ── Aura glow shadow (ambient, tint per game khi selected) ─────────────
     self.glowShadow = [CALayer layer];
-    self.glowShadow.shadowColor    = DG_CYAN.CGColor;
+    self.glowShadow.shadowColor    = QA_PURPLE.CGColor;
     self.glowShadow.shadowOpacity  = 0;
-    self.glowShadow.shadowRadius   = 14;
+    self.glowShadow.shadowRadius   = 22;
     self.glowShadow.shadowOffset   = CGSizeZero;
     self.glowShadow.backgroundColor = [UIColor clearColor].CGColor;
     [self.layer insertSublayer:self.glowShadow atIndex:0];
@@ -254,11 +246,12 @@
 
 - (void)applyGlow:(BOOL)on animated:(BOOL)animated {
     void (^change)(void) = ^{
-        self.glowShadow.shadowOpacity = on ? 0.55f : 0.0f;
+        self.glowShadow.shadowOpacity  = on ? 0.70f : 0.0f;
+        self.cardView.layer.shadowOpacity = on ? 0.75f : 0.45f;
+        self.cardView.layer.shadowRadius  = on ? 28.0f : 18.0f;
         self.cardView.layer.borderColor = on
-            ? [DG_CYAN colorWithAlphaComponent:0.50].CGColor
-            : DG_BORDER.CGColor;
-        self.cardView.layer.shadowOpacity = on ? 0.65f : 0.45f;
+            ? [UIColor colorWithWhite:1 alpha:0.18].CGColor
+            : [UIColor colorWithWhite:1 alpha:0.07].CGColor;
     };
     if (animated) {
         [CATransaction begin];
@@ -320,33 +313,38 @@
 - (void)viewDidLoad {
     [super viewDidLoad];
 
-    // ── Dark-Glass title: "Delta IPA" semi-bold, " VN" cyan ──────────────────
+    // ── Quantum Aura title: "Delta" trắng · " IPA" tím · " VN" cyan ─────────
     NSMutableAttributedString *titleAttr = [[NSMutableAttributedString alloc] init];
     NSDictionary *titleBase = @{
-        NSFontAttributeName: [UIFont systemFontOfSize:16 weight:UIFontWeightSemibold],
-        NSForegroundColorAttributeName: DG_TEXT,
+        NSFontAttributeName: [UIFont systemFontOfSize:17 weight:UIFontWeightBold],
+        NSForegroundColorAttributeName: [UIColor whiteColor],
+    };
+    NSDictionary *titlePurple = @{
+        NSFontAttributeName: [UIFont systemFontOfSize:17 weight:UIFontWeightBold],
+        NSForegroundColorAttributeName: QA_PURPLE,
     };
     NSDictionary *titleCyan = @{
-        NSFontAttributeName: [UIFont systemFontOfSize:16 weight:UIFontWeightSemibold],
-        NSForegroundColorAttributeName: DG_CYAN,
+        NSFontAttributeName: [UIFont systemFontOfSize:17 weight:UIFontWeightBold],
+        NSForegroundColorAttributeName: QA_CYAN,
     };
-    [titleAttr appendAttributedString:[[NSAttributedString alloc] initWithString:@"Delta IPA" attributes:titleBase]];
+    [titleAttr appendAttributedString:[[NSAttributedString alloc] initWithString:@"Delta" attributes:titleBase]];
+    [titleAttr appendAttributedString:[[NSAttributedString alloc] initWithString:@" IPA" attributes:titlePurple]];
     [titleAttr appendAttributedString:[[NSAttributedString alloc] initWithString:@" VN" attributes:titleCyan]];
 
     UILabel *titleLabel = [[UILabel alloc] init];
     titleLabel.attributedText = titleAttr;
     [titleLabel sizeToFit];
 
-    // Version badge — glass pill, cyan border mờ
+    // Version badge — tím mờ, cyan text
     UILabel *badge = [[UILabel alloc] init];
     NSString *_bdgVer = [[NSBundle mainBundle] objectForInfoDictionaryKey:@"CFBundleShortVersionString"] ?: @"1.4.3";
     badge.text = [NSString stringWithFormat:@"  v%@  ", _bdgVer];
-    badge.font = [UIFont systemFontOfSize:9 weight:UIFontWeightMedium];
-    badge.textColor = [DG_CYAN colorWithAlphaComponent:0.80];
-    badge.backgroundColor = [DG_CYAN colorWithAlphaComponent:0.07];
-    badge.layer.cornerRadius = 8;
+    badge.font = [UIFont systemFontOfSize:10 weight:UIFontWeightSemibold];
+    badge.textColor = [QA_CYAN colorWithAlphaComponent:0.85];
+    badge.backgroundColor = [QA_PURPLE colorWithAlphaComponent:0.20];
+    badge.layer.cornerRadius = 9;
     badge.layer.masksToBounds = YES;
-    badge.layer.borderColor = [DG_CYAN colorWithAlphaComponent:0.25].CGColor;
+    badge.layer.borderColor = [QA_PURPLE colorWithAlphaComponent:0.45].CGColor;
     badge.layer.borderWidth = 1;
 
     UIStackView *titleStack = [[UIStackView alloc] initWithArrangedSubviews:@[titleLabel, badge]];
@@ -392,14 +390,14 @@
         @"com.dts.freefiremax": @"FreeFireMax",
         @"com.dts.freefireth": @"FreeFireTH"
     };
-    // ── Dark-Glass background: #0A0D14 + subtle cyan radial top ─────────────
-    self.view.backgroundColor = DG_BG;
+    // ── Quantum Aura background: #060709 + radial glow tím trên + cyan dưới ──
+    self.view.backgroundColor = QA_BG;
 
-    // Gradient bg: très légèrement plus clair vers le bas
+    // Gradient nền: gần như đen hoàn toàn
     CAGradientLayer *bg = [CAGradientLayer layer];
     bg.colors = @[
-        (id)[UIColor colorWithRed:0.039 green:0.051 blue:0.078 alpha:1.0].CGColor,  // #0A0D14
-        (id)[UIColor colorWithRed:0.055 green:0.071 blue:0.110 alpha:1.0].CGColor,  // #0E121C
+        (id)[UIColor colorWithRed:0.024 green:0.027 blue:0.035 alpha:1.0].CGColor,  // #060709
+        (id)[UIColor colorWithRed:0.035 green:0.031 blue:0.051 alpha:1.0].CGColor,  // #09080D (tím nhạt)
     ];
     bg.startPoint = CGPointMake(0.5, 0.0);
     bg.endPoint   = CGPointMake(0.5, 1.0);
@@ -407,17 +405,19 @@
     [self.view.layer insertSublayer:bg atIndex:0];
     self.bgGradient = bg;
 
-    // Cyan glow rất nhạt ở top-center (tạo chiều sâu, không chói)
-    self.purpleGlow = BrandRadialGlow([DG_CYAN colorWithAlphaComponent:0.05]);
-    self.cyanGlow   = nil;  // không cần glow thứ 2
+    // Radial glow tím: top-left (halo mờ)
+    self.purpleGlow = BrandRadialGlow([QA_PURPLE colorWithAlphaComponent:0.12]);
+    // Radial glow cyan: bottom-right
+    self.cyanGlow = BrandRadialGlow([QA_CYAN colorWithAlphaComponent:0.08]);
     [self.view.layer insertSublayer:self.purpleGlow above:bg];
+    [self.view.layer insertSublayer:self.cyanGlow above:self.purpleGlow];
 
     // Nav bar transparent, tint cyan
     UINavigationBarAppearance *ap = [[UINavigationBarAppearance alloc] init];
     [ap configureWithTransparentBackground];
     self.navigationItem.standardAppearance = ap;
     self.navigationItem.scrollEdgeAppearance = ap;
-    self.navigationController.navigationBar.tintColor = DG_CYAN;
+    self.navigationController.navigationBar.tintColor = QA_CYAN;
 
     // Stats (device info card)
     [self createStatsView];
@@ -425,7 +425,7 @@
     // Collection view — Synthwave 2-column grid
     UICollectionViewFlowLayout *layout = [[UICollectionViewFlowLayout alloc] init];
     CGFloat cvW = self.view.bounds.size.width;
-    layout.itemSize = CGSizeMake((cvW - 44.0) / 2.0, 160);
+    layout.itemSize = CGSizeMake((cvW - 44.0) / 2.0, 220);
     layout.minimumLineSpacing      = 12;
     layout.minimumInteritemSpacing = 12;
     layout.sectionInset = UIEdgeInsetsMake(10, 16, 16, 16);
@@ -920,7 +920,7 @@
 
 - (void)viewWillAppear:(BOOL)animated {
     [super viewWillAppear:animated];
-    self.navigationController.navigationBar.tintColor = DG_CYAN;
+    self.navigationController.navigationBar.tintColor = QA_CYAN;
 
     // Refresh license key state + start countdown ticker
     [self.keyBar update];
@@ -1247,15 +1247,15 @@
     NSString *appID = self.appIDs[indexPath.item];
     BOOL isMax = [appID isEqualToString:@"com.dts.freefiremax"];
 
-    // Dark-Glass: tất cả card đều dùng soft black shadow, không hard-drop màu
-    cell.cardView.layer.shadowColor  = [UIColor blackColor].CGColor;
-    cell.cardView.layer.shadowOffset = CGSizeMake(0, 8);
-    cell.cardView.layer.shadowRadius = 20;
+    // Quantum Aura: shadow màu per-game — MAX=tím, FF=cyan
+    UIColor *auraColor = isMax ? QA_PURPLE : QA_CYAN;
+    cell.cardView.layer.shadowColor  = auraColor.CGColor;
+    cell.cardView.layer.shadowOffset = CGSizeZero;
+    cell.cardView.layer.shadowRadius = 18;
+    cell.glowShadow.shadowColor = auraColor.CGColor;
 
-    // Capsule tag kính mờ ở dưới-phải banner
+    // Glass capsule tag góc trên-phải
     cell.bundleLabel.text = isMax ? @"  MAX  " : @"  FF  ";
-    // bundleLabel style đã set trong setupUI (kính mờ) — không override màu
-    cell.glowShadow.shadowColor = DG_CYAN.CGColor;
 
     // Priority order:
     // 1. Downloaded cached images (FreeFireMax.png / FreeFireTH.png)
@@ -1335,7 +1335,7 @@
     CGFloat inset   = isLandscape ? 20.0 : 16.0;
     CGFloat spacing = 12.0;
     CGFloat cardW   = (size.width - inset * 2 - spacing) / 2.0;
-    CGFloat cardH   = isLandscape ? size.height * 0.60 : 160.0;
+    CGFloat cardH   = isLandscape ? size.height * 0.70 : 220.0;
     layout.itemSize               = CGSizeMake(cardW, cardH);
     layout.minimumLineSpacing      = spacing;
     layout.minimumInteritemSpacing = spacing;
@@ -1343,12 +1343,16 @@
     [self.collectionView.collectionViewLayout invalidateLayout];
     // Update bg layers
     self.bgGradient.frame = CGRectMake(0, 0, size.width, size.height);
-    // Cyan glow nhạt ở top-center
-    CGFloat ps = size.width * 1.8;
+    // Purple glow: top-left
+    CGFloat ps = size.width * 1.6;
     if (self.purpleGlow) {
-        self.purpleGlow.frame = CGRectMake(size.width / 2.0 - ps / 2, -ps * 0.3, ps, ps);
+        self.purpleGlow.frame = CGRectMake(-ps * 0.3, -ps * 0.3, ps, ps);
     }
-    // cyanGlow = nil trong Dark-Glass mode
+    // Cyan glow: bottom-right
+    CGFloat cs = size.width * 1.4;
+    if (self.cyanGlow) {
+        self.cyanGlow.frame = CGRectMake(size.width - cs * 0.7, size.height - cs * 0.7, cs, cs);
+    }
 }
 
 - (void)_orientationDidChange:(NSNotification *)note {
