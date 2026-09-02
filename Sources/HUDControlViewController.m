@@ -2287,7 +2287,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
         }
 
         gridBottomAnchor = sep.topAnchor;
-        gridBottomConst  = 0;
+        gridBottomConst  = -10;
     }
 
     [NSLayoutConstraint activateConstraints:@[
