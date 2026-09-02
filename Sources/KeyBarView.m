@@ -3,16 +3,15 @@
 #import "BrandTheme.h"
 #import "LanguageManager.h"
 
-// ── Synthwave Arcade palette ─────────────────────────────────────────────────
+// ── Dark-Glass palette (matches AppDataViewController) ───────────────────────
 #define KB_GREEN  [UIColor colorWithRed:0.204 green:0.780 blue:0.349 alpha:1.0]
 #define KB_RED    [UIColor colorWithRed:1.000 green:0.231 blue:0.322 alpha:1.0]
 #define KB_ORANGE [UIColor colorWithRed:1.000 green:0.58  blue:0.0   alpha:1.0]
-#define KB_PINK   [UIColor colorWithRed:1.0   green:0.0   blue:0.498 alpha:1.0]
-#define KB_CYAN   [UIColor colorWithRed:0.0   green:0.941 blue:1.0   alpha:1.0]
-#define KB_YELLOW [UIColor colorWithRed:1.0   green:0.902 blue:0.0   alpha:1.0]
-#define KB_CARD   [UIColor colorWithRed:0.106 green:0.082 blue:0.157 alpha:1.0]
+#define KB_CYAN   [UIColor colorWithRed:0.0   green:0.949 blue:0.996 alpha:1.0]  // #00F2FE
+#define KB_PURPLE [UIColor colorWithRed:0.345 green:0.227 blue:0.745 alpha:1.0]  // #583BBE
 #define KB_MUTED  [UIColor colorWithWhite:1.0 alpha:0.45]
-#define KB_TEXT   [UIColor whiteColor]
+#define KB_TEXT   [UIColor colorWithWhite:1.0 alpha:0.90]
+#define KB_BORDER [UIColor colorWithWhite:1.0 alpha:0.08]
 
 // ── Pulsing dot (live status) ────────────────────────────────────────────────
 @interface PulsingDot : UIView
@@ -121,26 +120,48 @@
 - (void)onLanguageChanged { [self update]; }
 
 - (void)build {
-    // ── Synthwave Arcade card: solid dark bg + pink hard shadow ────────────
-    self.backgroundColor = KB_CARD;
-    self.layer.cornerRadius = 14;
+    // ── Dark-Glass floating bar ──────────────────────────────────────────────
+    self.backgroundColor = [UIColor clearColor];
+    self.layer.cornerRadius = 20;
     self.layer.cornerCurve  = kCACornerCurveContinuous;
-    self.layer.borderColor  = [UIColor colorWithWhite:1 alpha:0.12].CGColor;
-    self.layer.borderWidth  = 1.5;
-    self.layer.masksToBounds = NO;  // allow shadow
-    // Hard arcade drop-shadow
-    self.layer.shadowColor   = KB_PINK.CGColor;
+    self.layer.masksToBounds = NO;
+    self.layer.borderColor  = KB_BORDER.CGColor;
+    self.layer.borderWidth  = 1;
+    // Ambient shadow — no hard-drop, no color
+    self.layer.shadowColor   = [UIColor blackColor].CGColor;
     self.layer.shadowOpacity = 0.45;
-    self.layer.shadowOffset  = CGSizeMake(3, 3);
-    self.layer.shadowRadius  = 0;
+    self.layer.shadowRadius  = 20;
+    self.layer.shadowOffset  = CGSizeMake(0, 8);
 
-    // Top accent line: SW_PINK solid strip
+    // Frosted glass background (inside clip)
+    UIView *glassContainer = [[UIView alloc] init];
+    glassContainer.layer.cornerRadius = 20;
+    glassContainer.layer.cornerCurve  = kCACornerCurveContinuous;
+    glassContainer.layer.masksToBounds = YES;
+    glassContainer.translatesAutoresizingMaskIntoConstraints = NO;
+    [self addSubview:glassContainer];
+
+    UIVisualEffectView *blurBg = [[UIVisualEffectView alloc]
+        initWithEffect:[UIBlurEffect effectWithStyle:UIBlurEffectStyleSystemThinMaterialDark]];
+    blurBg.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+    [glassContainer addSubview:blurBg];
+
+    UIView *tintBg = [[UIView alloc] init];
+    tintBg.backgroundColor = [UIColor colorWithRed:0.071 green:0.086 blue:0.129 alpha:0.65];
+    tintBg.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+    [glassContainer addSubview:tintBg];
+
+    [NSLayoutConstraint activateConstraints:@[
+        [glassContainer.topAnchor constraintEqualToAnchor:self.topAnchor],
+        [glassContainer.leadingAnchor constraintEqualToAnchor:self.leadingAnchor],
+        [glassContainer.trailingAnchor constraintEqualToAnchor:self.trailingAnchor],
+        [glassContainer.bottomAnchor constraintEqualToAnchor:self.bottomAnchor],
+    ]];
+
+    // _topLine: không dùng nữa — đặt hidden view để constraint không crash
     _topLine = [[UIView alloc] init];
-    _topLine.backgroundColor = KB_PINK;
-    _topLine.translatesAutoresizingMaskIntoConstraints = NO;
-    _topLine.layer.cornerRadius = 1;
+    _topLine.hidden = YES;
     [self addSubview:_topLine];
-    // _lineGradient kept as nil — layoutSubviews guard: frame set only if non-nil
     _lineGradient = nil;
 
     // Pulsing dot
@@ -148,62 +169,68 @@
     _dot.translatesAutoresizingMaskIntoConstraints = NO;
     [self addSubview:_dot];
 
-    // Key code: monospaced, cyan
+    // Key label: medium weight (không monospaced)
     _titleLabel = [[UILabel alloc] init];
-    _titleLabel.font = [UIFont monospacedSystemFontOfSize:12 weight:UIFontWeightBold];
-    _titleLabel.textColor = KB_CYAN;
+    _titleLabel.font = [UIFont systemFontOfSize:13 weight:UIFontWeightSemibold];
+    _titleLabel.textColor = KB_TEXT;
     _titleLabel.translatesAutoresizingMaskIntoConstraints = NO;
     [self addSubview:_titleLabel];
 
-    // Subtitle: small muted
+    // Subtitle
     _subLabel = [[UILabel alloc] init];
-    _subLabel.font = [UIFont systemFontOfSize:10 weight:UIFontWeightMedium];
+    _subLabel.font = [UIFont systemFontOfSize:11 weight:UIFontWeightRegular];
     _subLabel.textColor = KB_MUTED;
     _subLabel.translatesAutoresizingMaskIntoConstraints = NO;
     [self addSubview:_subLabel];
 
-    // Policy button: cyan outline, circular
+    // Policy button: glass circle
     _policyButton = [UIButton buttonWithType:UIButtonTypeSystem];
     UIImageSymbolConfiguration *shCfg = [UIImageSymbolConfiguration
         configurationWithPointSize:15 weight:UIImageSymbolWeightMedium];
     [_policyButton setImage:[UIImage systemImageNamed:@"shield.lefthalf.filled"
                                     withConfiguration:shCfg]
                    forState:UIControlStateNormal];
-    _policyButton.tintColor = KB_CYAN;
-    _policyButton.backgroundColor = [KB_CYAN colorWithAlphaComponent:0.08];
+    _policyButton.tintColor = KB_MUTED;
+    _policyButton.backgroundColor = [UIColor colorWithWhite:1 alpha:0.07];
     _policyButton.layer.cornerRadius = 14;
     _policyButton.layer.cornerCurve = kCACornerCurveContinuous;
-    _policyButton.layer.borderColor = [KB_CYAN colorWithAlphaComponent:0.35].CGColor;
-    _policyButton.layer.borderWidth = 1.5;
+    _policyButton.layer.borderColor = [UIColor colorWithWhite:1 alpha:0.12].CGColor;
+    _policyButton.layer.borderWidth = 1;
     _policyButton.layer.masksToBounds = YES;
     _policyButton.translatesAutoresizingMaskIntoConstraints = NO;
     [_policyButton addTarget:self action:@selector(policyTapped)
             forControlEvents:UIControlEventTouchUpInside];
     [self addSubview:_policyButton];
 
-    // Add/Change key button: solid SW_PINK, square Arcade style
+    // Add button: gradient capsule Cyan→Purple
     _addButton = [UIButton buttonWithType:UIButtonTypeCustom];
-    _addButton.titleLabel.font = [UIFont systemFontOfSize:12 weight:UIFontWeightHeavy];
-    [_addButton setTitleColor:[UIColor colorWithRed:0.06 green:0.04 blue:0.10 alpha:1.0]
-                     forState:UIControlStateNormal];
-    _addButton.backgroundColor = KB_PINK;
-    _addButton.layer.cornerRadius = 8;
+    _addButton.titleLabel.font = [UIFont systemFontOfSize:12 weight:UIFontWeightSemibold];
+    [_addButton setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal];
+    _addButton.layer.cornerRadius = 16;   // full capsule
     _addButton.layer.cornerCurve = kCACornerCurveContinuous;
     _addButton.layer.masksToBounds = YES;
-    _addButton.contentEdgeInsets = UIEdgeInsetsMake(0, 12, 0, 12);
+    _addButton.contentEdgeInsets = UIEdgeInsetsMake(0, 16, 0, 16);
     _addButton.translatesAutoresizingMaskIntoConstraints = NO;
     [_addButton addTarget:self action:@selector(addTapped)
             forControlEvents:UIControlEventTouchUpInside];
     [self addSubview:_addButton];
-    // No gradient needed — solid pink
-    _addGradient = nil;
+
+    // Gradient layer cyan→purple for the capsule button
+    _addGradient = [CAGradientLayer layer];
+    _addGradient.colors = @[
+        (id)[UIColor colorWithRed:0.0 green:0.949 blue:0.996 alpha:1.0].CGColor,  // #00F2FE cyan
+        (id)[UIColor colorWithRed:0.278 green:0.173 blue:0.655 alpha:1.0].CGColor, // #4732A7 purple
+    ];
+    _addGradient.startPoint = CGPointMake(0, 0.5);
+    _addGradient.endPoint   = CGPointMake(1, 0.5);
+    _addGradient.cornerRadius = 16;
+    [_addButton.layer insertSublayer:_addGradient atIndex:0];
 
     // Info button
     UIButton *infoBtn = [UIButton buttonWithType:UIButtonTypeSystem];
     UIImageSymbolConfiguration *iCfg = [UIImageSymbolConfiguration
         configurationWithPointSize:14 weight:UIImageSymbolWeightMedium];
-    [infoBtn setImage:[UIImage systemImageNamed:@"info.circle"
-                             withConfiguration:iCfg]
+    [infoBtn setImage:[UIImage systemImageNamed:@"info.circle" withConfiguration:iCfg]
              forState:UIControlStateNormal];
     infoBtn.tintColor = KB_MUTED;
     infoBtn.translatesAutoresizingMaskIntoConstraints = NO;
@@ -212,12 +239,6 @@
     [self addSubview:infoBtn];
 
     [NSLayoutConstraint activateConstraints:@[
-        // Top accent stripe
-        [_topLine.topAnchor constraintEqualToAnchor:self.topAnchor],
-        [_topLine.leadingAnchor constraintEqualToAnchor:self.leadingAnchor],
-        [_topLine.trailingAnchor constraintEqualToAnchor:self.trailingAnchor],
-        [_topLine.heightAnchor constraintEqualToConstant:2],
-
         // Dot
         [_dot.leadingAnchor constraintEqualToAnchor:self.leadingAnchor constant:16],
         [_dot.centerYAnchor constraintEqualToAnchor:self.centerYAnchor],
@@ -230,14 +251,14 @@
         [_subLabel.leadingAnchor constraintEqualToAnchor:_titleLabel.leadingAnchor],
         [_subLabel.topAnchor constraintEqualToAnchor:self.centerYAnchor constant:2],
 
-        // Add button
-        [_addButton.trailingAnchor constraintEqualToAnchor:self.trailingAnchor constant:-12],
+        // Add button (capsule)
+        [_addButton.trailingAnchor constraintEqualToAnchor:self.trailingAnchor constant:-14],
         [_addButton.centerYAnchor constraintEqualToAnchor:self.centerYAnchor],
-        [_addButton.heightAnchor constraintEqualToConstant:32],
-        [_addButton.widthAnchor constraintGreaterThanOrEqualToConstant:76],
+        [_addButton.heightAnchor constraintEqualToConstant:34],
+        [_addButton.widthAnchor constraintGreaterThanOrEqualToConstant:82],
 
         // Info button
-        [infoBtn.trailingAnchor constraintEqualToAnchor:_addButton.leadingAnchor constant:-4],
+        [infoBtn.trailingAnchor constraintEqualToAnchor:_addButton.leadingAnchor constant:-6],
         [infoBtn.centerYAnchor constraintEqualToAnchor:_addButton.centerYAnchor],
         [infoBtn.widthAnchor constraintEqualToConstant:26],
         [infoBtn.heightAnchor constraintEqualToConstant:26],
@@ -266,10 +287,10 @@
         case KeyStateActive:
             [_dot startPulsingWithColor:KB_GREEN];
             _titleLabel.text      = [NSString stringWithFormat:@"KEY  %@", [self maskKey:km.keyCode]];
-            _titleLabel.textColor = KB_CYAN;
+            _titleLabel.textColor = KB_TEXT;
             _subLabel.text        = km.formattedRemaining;
             _subLabel.textColor   = KB_GREEN;
-            _addButton.backgroundColor = KB_PINK;
+            // Gradient button: cyan→purple (gradient đã cố định, chỉ cần ensure title đúng)
             [_addButton setTitle:LS(@"Đổi Key", @"Change Key") forState:UIControlStateNormal];
             break;
         case KeyStateExpired:
@@ -278,7 +299,6 @@
             _titleLabel.textColor = KB_RED;
             _subLabel.text        = LS(@"Đã hết hạn — vui lòng gia hạn", @"Expired — please renew");
             _subLabel.textColor   = KB_RED;
-            _addButton.backgroundColor = KB_ORANGE;
             [_addButton setTitle:LS(@"Gia hạn", @"Renew") forState:UIControlStateNormal];
             break;
         default:
@@ -287,7 +307,6 @@
             _titleLabel.textColor = KB_MUTED;
             _subLabel.text        = LS(@"Chưa kích hoạt — nhấn Thêm Key", @"Not activated — tap Add Key");
             _subLabel.textColor   = KB_MUTED;
-            _addButton.backgroundColor = KB_PINK;
             [_addButton setTitle:LS(@"Thêm Key", @"Add Key") forState:UIControlStateNormal];
             break;
     }
