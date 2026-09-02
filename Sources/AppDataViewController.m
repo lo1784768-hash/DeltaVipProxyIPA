@@ -351,6 +351,29 @@
     }
 }
 
+// Set banner gradient + force frame update ngay lập tức (tránh CGRectZero lúc đầu)
+- (void)applyBannerGradientTop:(UIColor *)top bottom:(UIColor *)bot {
+    self.bannerGradient.colors = @[(id)top.CGColor, (id)bot.CGColor];
+    // Force layout nếu bannerView chưa có bounds thật
+    [self.bannerView layoutIfNeeded];
+    CGRect br = self.bannerView.bounds;
+    if (br.size.width < 1) {
+        // bounds chưa sẵn sàng → dùng card width ước tính
+        CGFloat cardW = self.contentView.bounds.size.width;
+        if (cardW < 1) cardW = (UIScreen.mainScreen.bounds.size.width - 48.0) / 2.0;
+        br = CGRectMake(0, 0, cardW, 108);
+    }
+    [CATransaction begin];
+    [CATransaction setDisableActions:YES];
+    self.bannerGradient.frame = br;
+    self.bannerDimLayer.frame = br;
+    self.shimmerLayer.position = CGPointMake(-br.size.width, br.size.height / 2.0);
+    for (CALayer *sub in self.bannerView.layer.sublayers) {
+        if ([sub.name isEqualToString:@"bottomFade"]) { sub.frame = br; break; }
+    }
+    [CATransaction commit];
+}
+
 // Smooth touch animation
 - (void)touchesBegan:(NSSet<UITouch *> *)touches withEvent:(UIEvent *)event {
     [super touchesBegan:touches withEvent:event];
@@ -1386,8 +1409,8 @@
         gradBot = [UIColor colorWithRed:0.00 green:0.50 blue:0.65 alpha:1.0];
         accent  = BRAND_CYAN;
     }
-    cell.bannerGradient.colors = @[(id)gradTop.CGColor, (id)gradBot.CGColor];
     cell.accentColor = accent;
+    [cell applyBannerGradientTop:gradTop bottom:gradBot];
     cell.cardView.layer.shadowColor = accent.CGColor;
     cell.cardView.layer.borderColor = [accent colorWithAlphaComponent:0.28].CGColor;
 
