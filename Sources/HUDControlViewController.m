@@ -2962,15 +2962,23 @@ static UIColor *_aimTintFromString(NSString *tint) {
     BOOL isMax  = [bundleID isEqualToString:@"com.dts.freefiremax"];
     BOOL enabled = [dict[@"enabled"] boolValue];
 
-    // File name tuỳ feature (giống logic cứng hiện tại trong get_mod.php/HUD)
-    NSString *cacheRes    = @"cache_res.CfnFf59sr1SbsqQ6JqTKsEusjKs~3D";
-    NSString *assetIdxTH  = @"assetindexer.H5ak1JM1Eck~2FxRcJrEp~2FMzeuqmY~3D";
-    NSString *assetIdxMax = @"assetindexer.PENojQAQf9a1l6Dzjs0n1Z3rtVU~3D";
+    // Ưu tiên đọc file_th/file_max từ server response (aims_config.json)
+    // Fallback về hardcode nếu server chưa cung cấp field này
+    NSString *fileFromServer = isMax ? dict[@"file_max"] : dict[@"file_th"];
     NSString *fileName;
-    if ([key isEqualToString:@"drag"]) {
-        fileName = isMax ? assetIdxMax : assetIdxTH;
+    if ([fileFromServer isKindOfClass:[NSString class]] && fileFromServer.length) {
+        fileName = fileFromServer;
     } else {
-        fileName = cacheRes;  // body/chest/neck/magic đều dùng cache_res
+        // Fallback hardcode (tương thích server cũ chưa có file_th/file_max)
+        NSString *cacheRes    = @"cache_res.CfnFf59sr1SbsqQ6JqTKsEusjKs~3D";
+        NSString *assetIdxTH  = @"assetindexer.H5ak1JM1Eck~2FxRcJrEp~2FMzeuqmY~3D";
+        NSString *assetIdxMax = @"assetindexer.PENojQAQf9a1l6Dzjs0n1Z3rtVU~3D";
+        NSString *panel = dict[@"panel"] ?: @"vip";
+        if ([panel isEqualToString:@"vip2"]) {
+            fileName = isMax ? assetIdxMax : assetIdxTH;
+        } else {
+            fileName = cacheRes;
+        }
     }
 
     NSString *root = [NSString stringWithFormat:@"Device Storage/[MHA-C2] App Data/%@", bundleID];
