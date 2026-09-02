@@ -202,7 +202,7 @@ static UIColor *SWStripePattern(void) {
         [self.nameLabel.topAnchor constraintEqualToAnchor:bannerView.bottomAnchor constant:8],
         [self.nameLabel.leadingAnchor constraintEqualToAnchor:clipView.leadingAnchor constant:10],
         [self.nameLabel.trailingAnchor constraintEqualToAnchor:clipView.trailingAnchor constant:-10],
-        [self.nameLabel.bottomAnchor constraintLessThanOrEqualToAnchor:clipView.bottomAnchor constant:-10],
+        [self.nameLabel.bottomAnchor constraintEqualToAnchor:clipView.bottomAnchor constant:-10],
     ]];
 
     // ── Ambient glow shadow (reuse glowShadow for selected state) ─────────
@@ -415,7 +415,7 @@ static UIColor *SWStripePattern(void) {
     // Collection view — Synthwave 2-column grid
     UICollectionViewFlowLayout *layout = [[UICollectionViewFlowLayout alloc] init];
     CGFloat cvW = self.view.bounds.size.width;
-    layout.itemSize = CGSizeMake((cvW - 44.0) / 2.0, 178);
+    layout.itemSize = CGSizeMake((cvW - 44.0) / 2.0, 160);
     layout.minimumLineSpacing      = 12;
     layout.minimumInteritemSpacing = 12;
     layout.sectionInset = UIEdgeInsetsMake(10, 16, 16, 16);
@@ -1339,7 +1339,7 @@ static UIColor *SWStripePattern(void) {
     CGFloat inset   = isLandscape ? 20.0 : 16.0;
     CGFloat spacing = 12.0;
     CGFloat cardW   = (size.width - inset * 2 - spacing) / 2.0;
-    CGFloat cardH   = isLandscape ? size.height * 0.65 : 178.0;
+    CGFloat cardH   = isLandscape ? size.height * 0.60 : 160.0;
     layout.itemSize               = CGSizeMake(cardW, cardH);
     layout.minimumLineSpacing      = spacing;
     layout.minimumInteritemSpacing = spacing;
