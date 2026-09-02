@@ -165,7 +165,7 @@ static UIColor *SWStripePattern(void) {
         [bannerView.topAnchor constraintEqualToAnchor:clipView.topAnchor],
         [bannerView.leadingAnchor constraintEqualToAnchor:clipView.leadingAnchor],
         [bannerView.trailingAnchor constraintEqualToAnchor:clipView.trailingAnchor],
-        [bannerView.heightAnchor constraintEqualToConstant:120],
+        [bannerView.heightAnchor constraintEqualToConstant:108],
         [self.iconView.topAnchor constraintEqualToAnchor:bannerView.topAnchor],
         [self.iconView.leadingAnchor constraintEqualToAnchor:bannerView.leadingAnchor],
         [self.iconView.trailingAnchor constraintEqualToAnchor:bannerView.trailingAnchor],
@@ -415,7 +415,7 @@ static UIColor *SWStripePattern(void) {
     // Collection view — Synthwave 2-column grid
     UICollectionViewFlowLayout *layout = [[UICollectionViewFlowLayout alloc] init];
     CGFloat cvW = self.view.bounds.size.width;
-    layout.itemSize = CGSizeMake((cvW - 44.0) / 2.0, 210);
+    layout.itemSize = CGSizeMake((cvW - 44.0) / 2.0, 178);
     layout.minimumLineSpacing      = 12;
     layout.minimumInteritemSpacing = 12;
     layout.sectionInset = UIEdgeInsetsMake(10, 16, 16, 16);
@@ -1305,8 +1305,8 @@ static UIColor *SWStripePattern(void) {
     NSString *displayName = self.appDisplayNames[appID] ?: appID;
     cell.nameLabel.text = [displayName uppercaseString];
 
-    // Set bundle ID
-    cell.bundleLabel.text = appID;
+    // bundleLabel là sticker label — đã set ở trên ("  MAX  " / "  FF  ")
+    // KHÔNG ghi đè bằng bundle ID
 
     return cell;
 }
@@ -1339,7 +1339,7 @@ static UIColor *SWStripePattern(void) {
     CGFloat inset   = isLandscape ? 20.0 : 16.0;
     CGFloat spacing = 12.0;
     CGFloat cardW   = (size.width - inset * 2 - spacing) / 2.0;
-    CGFloat cardH   = isLandscape ? size.height * 0.72 : 210.0;
+    CGFloat cardH   = isLandscape ? size.height * 0.65 : 178.0;
     layout.itemSize               = CGSizeMake(cardW, cardH);
     layout.minimumLineSpacing      = spacing;
     layout.minimumInteritemSpacing = spacing;
