@@ -1930,7 +1930,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     self.panelProxy  = [self buildPanelWithTitle:@"PROXY DELTA VIP"
                                           symbol:@"bolt.fill"     tint:HUD_CYAN   badge:@"AUTO"
                                         features:proxyFeats
-                                     tutorialURL:kTutorialProxyURL ?: @""
+                                     tutorialURL:kTutorialProxyURL
                                   outTitleLabel:nil];
     self.panelDinhVi = [self buildPanelWithTitle:LS(@"ĐỊNH VỊ SÚNG", @"AIM BOT")
                                           symbol:@"location.fill" tint:HUD_GREEN  badge:@"LIVE"
@@ -1945,7 +1945,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     self.panelDrag   = [self buildPanelWithTitle:@"PROXY DELTA VIP V2"
                                           symbol:@"hand.draw.fill" tint:HUD_ORANGE badge:@"V2"
                                         features:dragFeats
-                                     tutorialURL:kTutorialDragURL ?: @""
+                                     tutorialURL:kTutorialDragURL
                                   outTitleLabel:nil];
 
     self.panelDinhVi.hidden = YES;
@@ -3001,8 +3001,10 @@ static UIColor *_aimTintFromString(NSString *tint) {
         NSString *tutVip2 = kTutorialDragURL;
         for (NSDictionary *d in aims) {
             if ([@"_meta" isEqualToString:d[@"key"]]) {
-                if (d[@"video_vip"].length)  tutVip  = d[@"video_vip"];
-                if (d[@"video_vip2"].length) tutVip2 = d[@"video_vip2"];
+                NSString *vv  = d[@"video_vip"];
+                NSString *vv2 = d[@"video_vip2"];
+                if ([vv  isKindOfClass:[NSString class]] && vv.length)  tutVip  = vv;
+                if ([vv2 isKindOfClass:[NSString class]] && vv2.length) tutVip2 = vv2;
                 break;
             }
         }
