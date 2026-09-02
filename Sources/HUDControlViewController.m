@@ -2521,7 +2521,14 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     drag.enTitle    = @"Aim Drag";
     drag.enSubtitle = @"Soft Pull — Aim Rises to Head";
 
-    return @[drag];
+    HUDFeature *coditat = [self featureWithSymbol:@"scope" tint:HUD_ORANGE
+        title:LS(@"Proxy Cổ Dị Tật", @"Proxy Neck Abnormal")
+        subtitle:LS(@"Tâm Súng Được Ghim Thẳng Vào Cổ", @"Crosshair locked onto the neck")
+        featureKey:k(@"coditat") fileName:fn searchRoot:rt];
+    coditat.enTitle    = @"Proxy Neck Abnormal";
+    coditat.enSubtitle = @"Crosshair locked onto the neck";
+
+    return @[drag, coditat];
 }
 
 // ── Tab 2: Định Vị Súng ─────────────────────────────────────
