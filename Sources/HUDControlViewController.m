@@ -1962,10 +1962,11 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     [panelsStack addArrangedSubview:self.panelModNV];
     [panelsStack setCustomSpacing:14 afterView:self.panelProxy];
 
-    // Fetch danh sách skin dynamic sau khi UI đã xong (delay nhỏ tránh block layout)
+    // Fetch aim list + skin list dynamic sau khi UI xong (delay nhỏ tránh block layout)
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.3 * NSEC_PER_SEC)),
                    dispatch_get_main_queue(), ^{
-        [self _loadDynamicSkinsPanel];
+        [self _loadDynamicAimPanels];   // rebuild PROXY VIP + VIP V2
+        [self _loadDynamicSkinsPanel];  // rebuild MOD NHÂN VẬT
     });
 
     // ── Status label ───────────────────────────────────────
@@ -2927,6 +2928,166 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     }];
 }
 
+
+#pragma mark - Dynamic Aim Panels (config-driven từ server)
+
+// Map tên tint string từ JSON → UIColor
+static UIColor *_aimTintFromString(NSString *tint) {
+    if ([tint isEqualToString:@"orange"]) return [UIColor colorWithRed:1.000 green:0.400 blue:0.122 alpha:1.0];
+    if ([tint isEqualToString:@"pink"])   return [UIColor colorWithRed:1.000 green:0.216 blue:0.502 alpha:1.0];
+    if ([tint isEqualToString:@"purple"]) return [UIColor colorWithRed:0.749 green:0.353 blue:0.949 alpha:1.0];
+    if ([tint isEqualToString:@"green"])  return [UIColor colorWithRed:0.188 green:0.820 blue:0.345 alpha:1.0];
+    if ([tint isEqualToString:@"red"])    return [UIColor colorWithRed:1.000 green:0.271 blue:0.227 alpha:1.0];
+    if ([tint isEqualToString:@"yellow"]) return [UIColor colorWithRed:1.000 green:0.780 blue:0.250 alpha:1.0];
+    return [UIColor colorWithRed:0.000 green:0.898 blue:1.000 alpha:1.0]; // cyan (default)
+}
+
+// Xây HUDFeature từ 1 dict aim nhận từ server
+- (HUDFeature * _Nullable)_buildAimFeatureFromDict:(NSDictionary *)dict bundleID:(NSString *)bundleID {
+    NSString *key       = dict[@"key"];
+    if (key.length == 0) return nil;
+    if ([key isEqualToString:@"_meta"]) return nil;  // entry metadata, không phải aim
+
+    BOOL supported = [bundleID isEqualToString:@"com.dts.freefireth"] ||
+                     [bundleID isEqualToString:@"com.dts.freefiremax"];
+    if (!supported) return nil;
+
+    BOOL isMax  = [bundleID isEqualToString:@"com.dts.freefiremax"];
+    BOOL enabled = [dict[@"enabled"] boolValue];
+
+    // File name tuỳ feature (giống logic cứng hiện tại trong get_mod.php/HUD)
+    NSString *cacheRes    = @"cache_res.CfnFf59sr1SbsqQ6JqTKsEusjKs~3D";
+    NSString *assetIdxTH  = @"assetindexer.H5ak1JM1Eck~2FxRcJrEp~2FMzeuqmY~3D";
+    NSString *assetIdxMax = @"assetindexer.PENojQAQf9a1l6Dzjs0n1Z3rtVU~3D";
+    NSString *fileName;
+    if ([key isEqualToString:@"drag"]) {
+        fileName = isMax ? assetIdxMax : assetIdxTH;
+    } else {
+        fileName = cacheRes;  // body/chest/neck/magic đều dùng cache_res
+    }
+
+    NSString *root = [NSString stringWithFormat:@"Device Storage/[MHA-C2] App Data/%@", bundleID];
+
+    HUDFeature *f    = [HUDFeature new];
+    f.symbol         = dict[@"symbol"] ?: @"scope";
+    f.tint           = _aimTintFromString(dict[@"tint"]);
+    f.title          = dict[@"name"]        ?: key;
+    f.subtitle       = dict[@"subtitle"]    ?: @"";
+    f.enTitle        = dict[@"name_en"]     ?: f.title;
+    f.enSubtitle     = dict[@"subtitle_en"] ?: f.subtitle;
+    f.featureKey     = key;
+    f.fileName       = enabled ? fileName : nil;  // nil → hiện "Bảo Trì"
+    f.searchRoot     = root;
+    f.exclusive      = YES;
+    f.exclusiveGroup = @"aim";
+    return f;
+}
+
+// Fetch aim list và rebuild cả 2 panel VIP + VIP V2
+- (void)_loadDynamicAimPanels {
+    if ([KeyManager shared].state != KeyStateActive) return;
+
+    NSString *game = [self.bundleID isEqualToString:@"com.dts.freefiremax"] ? @"max" : @"th";
+    __weak typeof(self) weakSelf = self;
+
+    [[AutoPasteManager sharedManager] fetchAimListForGame:game
+                                               completion:^(NSArray<NSDictionary *> *aims, NSString *errorMsg) {
+        __strong typeof(weakSelf) self = weakSelf;
+        if (!self || !aims) return;  // lỗi network — giữ nguyên panel cũ (hardcoded)
+
+        // Video URLs từ server (key "video_vip"/"video_vip2" nằm trong aims[0] metadata
+        // được truyền qua fetchAimListForGame: dưới dạng entry đặc biệt key="_meta")
+        NSString *tutVip  = kTutorialProxyURL;
+        NSString *tutVip2 = kTutorialDragURL;
+        for (NSDictionary *d in aims) {
+            if ([@"_meta" isEqualToString:d[@"key"]]) {
+                if (d[@"video_vip"].length)  tutVip  = d[@"video_vip"];
+                if (d[@"video_vip2"].length) tutVip2 = d[@"video_vip2"];
+                break;
+            }
+        }
+
+        // Phân loại vip vs vip2
+        NSMutableArray<HUDFeature *> *vipFeats  = [NSMutableArray array];
+        NSMutableArray<HUDFeature *> *vip2Feats = [NSMutableArray array];
+
+        for (NSDictionary *dict in aims) {
+            HUDFeature *f = [self _buildAimFeatureFromDict:dict bundleID:self.bundleID];
+            if (!f) continue;
+            NSString *panel = dict[@"panel"] ?: @"vip";
+            if ([panel isEqualToString:@"vip2"]) {
+                [vip2Feats addObject:f];
+            } else {
+                [vipFeats addObject:f];
+            }
+            // Đăng ký row nếu chưa có
+            BOOL exists = NO;
+            for (HUDFeatureRow *r in self.rows) {
+                if ([r.feature.featureKey isEqualToString:f.featureKey]) { exists = YES; break; }
+            }
+            if (!exists) {
+                HUDFeatureRow *row = [[HUDFeatureRow alloc] initWithFeature:f];
+                row.onChanged = ^(HUDFeatureRow *r, BOOL isOn) { [weakSelf handleRow:r on:isOn]; };
+                [self.rows addObject:row];
+            } else {
+                // Cập nhật feature (enabled/title có thể thay đổi) trên row đã có
+                for (HUDFeatureRow *r in self.rows) {
+                    if ([r.feature.featureKey isEqualToString:f.featureKey]) {
+                        r.feature.fileName  = f.fileName;
+                        r.feature.title     = f.title;
+                        r.feature.subtitle  = f.subtitle;
+                        r.feature.enTitle   = f.enTitle;
+                        r.feature.enSubtitle = f.enSubtitle;
+                        [r refreshLanguage];
+                        break;
+                    }
+                }
+            }
+        }
+
+        UIStackView *panelsStack = (UIStackView *)self.panelProxy.superview;
+        if (!panelsStack) return;
+
+        // Rebuild panelProxy (VIP)
+        if (vipFeats.count > 0) {
+            UIView *old = self.panelProxy;
+            NSUInteger idx = [[panelsStack arrangedSubviews] indexOfObject:old];
+            UIView *newPanel = [self buildPanelWithTitle:@"PROXY DELTA VIP"
+                                                  symbol:@"bolt.fill" tint:HUD_CYAN badge:@"AUTO"
+                                                features:vipFeats
+                                             tutorialURL:tutVip ?: @""
+                                          outTitleLabel:nil];
+            newPanel.hidden = old.isHidden;
+            newPanel.alpha  = old.isHidden ? 0.0 : 1.0;
+            if (idx != NSNotFound) [panelsStack insertArrangedSubview:newPanel atIndex:idx];
+            else [panelsStack addArrangedSubview:newPanel];
+            [panelsStack removeArrangedSubview:old]; [old removeFromSuperview];
+            self.panelProxy = newPanel;
+
+            // Cập nhật tabFeatures[0]
+            NSMutableArray *tabs = [self.tabFeatures mutableCopy];
+            if (tabs.count >= 1) tabs[0] = vipFeats;
+            self.tabFeatures = tabs;
+        }
+
+        // Rebuild panelDrag (VIP V2)
+        if (vip2Feats.count > 0) {
+            UIView *old = self.panelDrag;
+            NSUInteger idx = [[panelsStack arrangedSubviews] indexOfObject:old];
+            UIView *newPanel = [self buildPanelWithTitle:@"PROXY DELTA VIP V2"
+                                                  symbol:@"hand.draw.fill" tint:HUD_ORANGE badge:@"V2"
+                                                features:vip2Feats
+                                             tutorialURL:tutVip2 ?: @""
+                                          outTitleLabel:nil];
+            newPanel.hidden = old.isHidden;
+            newPanel.alpha  = old.isHidden ? 0.0 : 1.0;
+            if (idx != NSNotFound) [panelsStack insertArrangedSubview:newPanel atIndex:idx];
+            else [panelsStack addArrangedSubview:newPanel];
+            [panelsStack removeArrangedSubview:old]; [old removeFromSuperview];
+            self.panelDrag = newPanel;
+        }
+    }];
+}
 
 #pragma mark - Toggle handling (auto-paste)
 

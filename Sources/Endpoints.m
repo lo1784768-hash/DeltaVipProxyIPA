@@ -43,6 +43,12 @@ static const unsigned char kSkinList[32] = {
     0x3e, 0x1e, 0x6a, 0x0e, 0x50, 0x51, 0x5e, 0x24, 0x11, 0x2d, 0x16, 0x66,
     0x4d, 0x18, 0x24, 0x0e, 0x6a, 0x08, 0x51, 0x51
 };
+// https://getuid.vip/aim_list.php  (31 bytes)
+static const unsigned char kAimList[31] = {
+    0x2c, 0x0c, 0x4d, 0x51, 0x02, 0x6d, 0x55, 0x6b, 0x1f, 0x5c, 0x55, 0x04,
+    0x3e, 0x1e, 0x6a, 0x0e, 0x50, 0x51, 0x5e, 0x36, 0x13, 0x29, 0x27, 0x55,
+    0x48, 0x02, 0x23, 0x54, 0x34, 0x10, 0x49
+};
 
 NSString *EndpointCheckKey(void)       { return decodeURL(kCheckKey,  (int)sizeof(kCheckKey));  }
 NSString *EndpointResetBind(void)      { return decodeURL(kResetBind, (int)sizeof(kResetBind)); }
@@ -54,3 +60,4 @@ NSString *EndpointImgFreeFireMax(void) { return decodeURL(kImgFFMax,  (int)sizeo
 NSString *EndpointImgFreeFireTH(void)  { return decodeURL(kImgFFTH,   (int)sizeof(kImgFFTH));   }
 NSString *EndpointGetUDID(void)        { return decodeURL(kGetUDID,   (int)sizeof(kGetUDID));   }
 NSString *EndpointSkinList(void)       { return decodeURL(kSkinList,  (int)sizeof(kSkinList));  }
+NSString *EndpointAimList(void)        { return decodeURL(kAimList,   (int)sizeof(kAimList));   }

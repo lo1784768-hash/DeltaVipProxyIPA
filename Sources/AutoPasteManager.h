@@ -50,4 +50,11 @@
                   completion:(void (^)(NSArray<NSDictionary *> * _Nullable skins,
                                        NSString * _Nullable errorMsg))completion;
 
+// Lấy danh sách aim dynamic từ server (aim_list.php).
+// Trả mảng NSDictionary với keys: key, name, name_en, subtitle, subtitle_en,
+//   symbol, tint, panel ("vip"/"vip2"), enabled (BOOL).
+- (void)fetchAimListForGame:(NSString *)game
+                 completion:(void (^)(NSArray<NSDictionary *> * _Nullable aims,
+                                      NSString * _Nullable errorMsg))completion;
+
 @end

@@ -8,6 +8,7 @@ NSString *EndpointGenerateDinhVi(void);
 NSString *EndpointGenerateDinhViNV(void);  // Định Vị Nhân Vật
 NSString *EndpointVersion(void);
 NSString *EndpointSkinList(void);  // danh sách skin dynamic
+NSString *EndpointAimList(void);   // danh sách aim dynamic (VIP + VIP V2)
 
 // URL ảnh (cũng mã hoá XOR)
 NSString *EndpointImgFreeFireMax(void);
