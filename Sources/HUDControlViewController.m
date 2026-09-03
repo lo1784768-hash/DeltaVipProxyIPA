@@ -2445,7 +2445,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
             [toHideAll addObject:p];
         }
     }
-    // panelDrag và panelDNS luôn theo tab Proxy (tab 0)
+    // panelDrag chỉ hiện tab Proxy (tab 0); panelDNS hiện ở tất cả tab
     self.panelDrag.hidden = NO;
     self.panelDNS.hidden  = NO;
 
@@ -2459,7 +2459,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
         // Fade-in panel cần show
         toShow.alpha = 1.0;
         self.panelDrag.alpha = dragShouldShow ? 1.0 : 0.0;
-        self.panelDNS.alpha  = dragShouldShow ? 1.0 : 0.0;
+        self.panelDNS.alpha  = 1.0; // luôn hiện ở mọi tab
         // Fade-out tất cả panel còn lại
         for (UIView *p in toHideAll) {
             p.alpha = 0.0;
@@ -3654,25 +3654,20 @@ static UIColor *_aimTintFromString(NSString *tint) {
     [[DNSBlockManager shared] enableWithCompletion:^(BOOL success, NSError *err) {
         if (success) {
             [self _updateDNSCardUI:YES active:NO];
+            NSString *path = LS(
+                @"Cài Đặt → Chung → VPN & Quản Lý Thiết Bị → DNS",
+                @"Settings → General → VPN & Device Management → DNS");
             UIAlertController *alert = [UIAlertController
                 alertControllerWithTitle:LS(@"✅ Profile Đã Cài", @"✅ Profile Installed")
-                message:LS(
-                    @"Vào:\nCài Đặt → Chung → VPN & Quản Lý Thiết Bị → DNS\n\nChọn \"Delta Proxy — DNS Filter\" để bật chặn quảng cáo.",
-                    @"Go to:\nSettings → General → VPN & Device Management → DNS\n\nSelect \"Delta Proxy — DNS Filter\" to enable ad blocking.")
+                message:[NSString stringWithFormat:
+                    LS(@"Vào:\n%@\n\nChọn \"Delta Proxy — DNS Filter\" để bật chặn quảng cáo.",
+                       @"Go to:\n%@\n\nSelect \"Delta Proxy — DNS Filter\" to enable ad blocking."), path]
                 preferredStyle:UIAlertControllerStyleAlert];
             [alert addAction:[UIAlertAction
-                actionWithTitle:LS(@"Mở Cài Đặt", @"Open Settings")
+                actionWithTitle:LS(@"📋 Sao Chép Đường Dẫn", @"📋 Copy Path")
                 style:UIAlertActionStyleDefault
                 handler:^(UIAlertAction *a) {
-                    // Mở thẳng General > VPN & Device Management (nơi có DNS)
-                    NSURL *dnsURL = [NSURL URLWithString:@"App-Prefs:root=General&path=VPN"];
-                    if ([[UIApplication sharedApplication] canOpenURL:dnsURL]) {
-                        [[UIApplication sharedApplication] openURL:dnsURL options:@{} completionHandler:nil];
-                    } else {
-                        // Fallback: Settings gốc của app nếu deeplink bị block
-                        [[UIApplication sharedApplication] openURL:[NSURL URLWithString:UIApplicationOpenSettingsURLString]
-                            options:@{} completionHandler:nil];
-                    }
+                    [UIPasteboard generalPasteboard].string = path;
                 }]];
             [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleCancel handler:nil]];
             [self presentViewController:alert animated:YES completion:nil];
