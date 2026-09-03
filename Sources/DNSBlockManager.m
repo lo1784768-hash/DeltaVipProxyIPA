@@ -20,21 +20,23 @@ static NSString *const kNextDNSDoTHost     = @"1a48d7.dns.nextdns.io";
 }
 
 // ── Refresh trạng thái từ hệ thống ───────────────────────────────────────────
+// isEnabled = profile đã cài VÀ đang được chọn trong Settings > DNS
 
-- (void)refreshStatusWithCompletion:(void(^)(BOOL enabled))completion {
+- (void)refreshStatusWithCompletion:(void(^)(BOOL installed, BOOL active))completion {
     if (@available(iOS 14.0, *)) {
         [NEDNSSettingsManager.sharedManager loadFromPreferencesWithCompletionHandler:^(NSError *err) {
-            BOOL on = (NEDNSSettingsManager.sharedManager.dnsSettings != nil)
-                   && NEDNSSettingsManager.sharedManager.isEnabled;
-            self.isEnabled = on;
-            if (completion) dispatch_async(dispatch_get_main_queue(), ^{ completion(on); });
+            NEDNSSettingsManager *mgr = NEDNSSettingsManager.sharedManager;
+            BOOL installed = (mgr.dnsSettings != nil);
+            BOOL active    = installed && mgr.isEnabled;
+            self.isEnabled = active;
+            if (completion) dispatch_async(dispatch_get_main_queue(), ^{ completion(installed, active); });
         }];
     } else {
-        if (completion) dispatch_async(dispatch_get_main_queue(), ^{ completion(NO); });
+        if (completion) dispatch_async(dispatch_get_main_queue(), ^{ completion(NO, NO); });
     }
 }
 
-// ── Bật DNS profile ───────────────────────────────────────────────────────────
+// ── Cài DNS profile (chưa tự bật — user phải vào Settings chọn) ──────────────
 
 - (void)enableWithCompletion:(DNSBlock)completion {
     if (@available(iOS 14.0, *)) {
@@ -49,7 +51,7 @@ static NSString *const kNextDNSDoTHost     = @"1a48d7.dns.nextdns.io";
             NEDNSOverHTTPSSettings *doh = [[NEDNSOverHTTPSSettings alloc] init];
             doh.serverURL = [NSURL URLWithString:kNextDNSDoHURL];
 
-            mgr.dnsSettings  = doh;
+            mgr.dnsSettings          = doh;
             mgr.localizedDescription = kNextDNSProfileName;
 
             [mgr saveToPreferencesWithCompletionHandler:^(NSError *saveErr) {
@@ -57,11 +59,10 @@ static NSString *const kNextDNSDoTHost     = @"1a48d7.dns.nextdns.io";
                     if (completion) dispatch_async(dispatch_get_main_queue(), ^{ completion(NO, saveErr); });
                     return;
                 }
-                // Sau khi save, bật lên
-                [mgr loadFromPreferencesWithCompletionHandler:^(NSError *e2) {
-                    self.isEnabled = YES;
-                    if (completion) dispatch_async(dispatch_get_main_queue(), ^{ completion(YES, nil); });
-                }];
+                // Profile đã cài — trả success để UI hiện hướng dẫn
+                // isEnabled vẫn NO cho đến khi user chọn trong Settings
+                self.isEnabled = NO;
+                if (completion) dispatch_async(dispatch_get_main_queue(), ^{ completion(YES, nil); });
             }];
         }];
     } else {

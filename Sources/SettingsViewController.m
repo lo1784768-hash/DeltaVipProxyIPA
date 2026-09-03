@@ -320,11 +320,15 @@ static NSString *const kShareURL = @"https://getuid.vip/proxy-delta.html";
     [super viewDidLoad];
     [self buildUI];
     // Load trạng thái DNS hiện tại
-    [[DNSBlockManager shared] refreshStatusWithCompletion:^(BOOL enabled) {
-        [self.dnsRow setOn:enabled animated:NO];
-        self.dnsRow.subtitleLbl.text = enabled
-            ? LS(@"NextDNS · Đang chặn", @"NextDNS · Active")
-            : LS(@"Nhấn để bật lọc DNS", @"Tap to enable DNS filter");
+    [[DNSBlockManager shared] refreshStatusWithCompletion:^(BOOL installed, BOOL active) {
+        [self.dnsRow setOn:active animated:NO];
+        if (active) {
+            self.dnsRow.subtitleLbl.text = LS(@"NextDNS · Đang chặn", @"NextDNS · Active");
+        } else if (installed) {
+            self.dnsRow.subtitleLbl.text = LS(@"Đã cài · Chưa chọn trong Cài Đặt", @"Installed · Not selected in Settings");
+        } else {
+            self.dnsRow.subtitleLbl.text = LS(@"Nhấn để cài DNS filter", @"Tap to install DNS filter");
+        }
     }];
 }
 
@@ -453,10 +457,28 @@ static NSString *const kShareURL = @"https://getuid.vip/proxy-delta.html";
                 [weakSelf.dnsRow.spinner stopAnimating];
                 weakSelf.dnsRow.toggle.enabled = YES;
                 if (success) {
-                    [weakSelf.dnsRow setOn:YES animated:YES];
+                    // Profile đã cài — nhưng user phải vào Settings chọn thủ công
+                    [weakSelf.dnsRow setOn:NO animated:YES];
+                    weakSelf.dnsRow.subtitleLbl.text = LS(@"Đã cài · Chưa chọn trong Cài Đặt", @"Installed · Not selected in Settings");
+
+                    UIAlertController *alert = [UIAlertController
+                        alertControllerWithTitle:LS(@"✅ Profile Đã Cài", @"✅ Profile Installed")
+                        message:LS(
+                            @"Vào:\n Cài Đặt → Chung → VPN & Quản Lý Thiết Bị → DNS\n\nChọn \"Delta Proxy — DNS Filter\" để bật chặn quảng cáo.",
+                            @"Go to:\n Settings → General → VPN & Device Management → DNS\n\nSelect \"Delta Proxy — DNS Filter\" to enable ad blocking.")
+                        preferredStyle:UIAlertControllerStyleAlert];
+                    [alert addAction:[UIAlertAction
+                        actionWithTitle:LS(@"Mở Cài Đặt", @"Open Settings")
+                        style:UIAlertActionStyleDefault
+                        handler:^(UIAlertAction *a) {
+                            [[UIApplication sharedApplication] openURL:[NSURL URLWithString:UIApplicationOpenSettingsURLString]
+                                options:@{} completionHandler:nil];
+                        }]];
+                    [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleCancel handler:nil]];
+                    [weakSelf presentViewController:alert animated:YES completion:nil];
                 } else {
                     [weakSelf.dnsRow setOn:NO animated:YES];
-                    NSString *msg = err.localizedDescription ?: LS(@"Không thể bật DNS filter.", @"Could not enable DNS filter.");
+                    NSString *msg = err.localizedDescription ?: LS(@"Không thể cài DNS filter.", @"Could not install DNS filter.");
                     [weakSelf showAlert:LS(@"Lỗi DNS", @"DNS Error") message:msg];
                 }
             }];

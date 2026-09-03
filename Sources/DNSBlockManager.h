@@ -18,7 +18,8 @@ typedef void(^DNSBlock)(BOOL success, NSError * _Nullable error);
 - (void)disableWithCompletion:(DNSBlock)completion;
 
 /// Load trạng thái từ hệ thống (gọi khi app mở)
-- (void)refreshStatusWithCompletion:(void(^)(BOOL enabled))completion;
+/// installed = profile đã cài, active = đang được chọn trong Settings > DNS
+- (void)refreshStatusWithCompletion:(void(^)(BOOL installed, BOOL active))completion;
 
 @end
 
