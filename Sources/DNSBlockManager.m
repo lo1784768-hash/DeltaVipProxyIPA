@@ -60,7 +60,9 @@ static NSString *const kNextDNSDoTHost     = @"1a48d7.dns.nextdns.io";
     req.timeoutInterval = 4.0;
     req.cachePolicy = NSURLRequestReloadIgnoringLocalCacheData;
 
-    NSURLSessionDataTask *task = [[NSURLSession sharedSession]
+    // Dùng ephemeral session để tránh cache — kết quả phải reflect DNS hiện tại
+    NSURLSession *session = [NSURLSession sessionWithConfiguration:[NSURLSessionConfiguration ephemeralSessionConfiguration]];
+    NSURLSessionDataTask *task = [session
         dataTaskWithRequest:req
         completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
             if (error || !data) { if (completion) completion(NO); return; }
