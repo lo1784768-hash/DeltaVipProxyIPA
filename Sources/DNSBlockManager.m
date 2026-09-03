@@ -21,6 +21,8 @@ static NSString *const kNextDNSDoTHost     = @"1a48d7.dns.nextdns.io";
 
 // ── Refresh trạng thái từ hệ thống ───────────────────────────────────────────
 // isEnabled = profile đã cài VÀ đang được chọn trong Settings > DNS
+// Fallback: nếu NEDNSSettingsManager không detect được (IPC failed, beta iOS, cert issue...)
+// thì query test.nextdns.io để xác nhận DNS thật sự đang active
 
 - (void)refreshStatusWithCompletion:(void(^)(BOOL installed, BOOL active))completion {
     if (@available(iOS 14.0, *)) {
@@ -28,12 +30,48 @@ static NSString *const kNextDNSDoTHost     = @"1a48d7.dns.nextdns.io";
             NEDNSSettingsManager *mgr = NEDNSSettingsManager.sharedManager;
             BOOL installed = (mgr.dnsSettings != nil);
             BOOL active    = installed && mgr.isEnabled;
-            self.isEnabled = active;
-            if (completion) dispatch_async(dispatch_get_main_queue(), ^{ completion(installed, active); });
+
+            if (active) {
+                // NEDNSSettingsManager xác nhận active → dùng luôn
+                self.isEnabled = YES;
+                if (completion) dispatch_async(dispatch_get_main_queue(), ^{ completion(YES, YES); });
+            } else {
+                // Fallback: query test.nextdns.io để detect DNS cài thủ công qua mobileconfig
+                [self _checkNextDNSActiveWithCompletion:^(BOOL nextdnsActive) {
+                    BOOL finalInstalled = installed || nextdnsActive;
+                    BOOL finalActive    = active    || nextdnsActive;
+                    self.isEnabled = finalActive;
+                    if (completion) dispatch_async(dispatch_get_main_queue(), ^{
+                        completion(finalInstalled, finalActive);
+                    });
+                }];
+            }
         }];
     } else {
         if (completion) dispatch_async(dispatch_get_main_queue(), ^{ completion(NO, NO); });
     }
+}
+
+// ── Query test.nextdns.io — trả YES nếu device đang dùng NextDNS profile 1a48d7 ──
+- (void)_checkNextDNSActiveWithCompletion:(void(^)(BOOL active))completion {
+    NSURL *url = [NSURL URLWithString:@"https://test.nextdns.io"];
+    NSMutableURLRequest *req = [NSMutableURLRequest requestWithURL:url];
+    req.timeoutInterval = 4.0;
+    req.cachePolicy = NSURLRequestReloadIgnoringLocalCacheData;
+
+    NSURLSessionDataTask *task = [[NSURLSession sharedSession]
+        dataTaskWithRequest:req
+        completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
+            if (error || !data) { if (completion) completion(NO); return; }
+            NSDictionary *json = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
+            if (![json isKindOfClass:[NSDictionary class]]) { if (completion) completion(NO); return; }
+            NSString *status  = json[@"status"];
+            NSString *profile = json[@"profile"];
+            // active nếu status = "ok" VÀ profile khớp NextDNS ID của app
+            BOOL active = [status isEqualToString:@"ok"] && [profile isEqualToString:@"1a48d7"];
+            if (completion) completion(active);
+        }];
+    [task resume];
 }
 
 // ── Cài DNS profile (chưa tự bật — user phải vào Settings chọn) ──────────────
