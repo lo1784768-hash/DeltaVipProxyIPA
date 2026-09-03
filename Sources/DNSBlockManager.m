@@ -2,7 +2,7 @@
 #import <NetworkExtension/NetworkExtension.h>
 
 // ── NextDNS config của bạn ────────────────────────────────────────────────────
-static NSString *const kNextDNSProfileName = @"Delta Proxy — DNS Filter";
+static NSString *const kNextDNSProfileName = @"IPA Delta Antiband 4.0";
 static NSString *const kNextDNSDoHURL      = @"https://dns.nextdns.io/1a48d7";
 static NSString *const kNextDNSDoTHost     = @"1a48d7.dns.nextdns.io";
 

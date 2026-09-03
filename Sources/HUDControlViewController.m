@@ -3173,6 +3173,20 @@ static UIColor *_aimTintFromString(NSString *tint) {
         return;
     }
 
+    // Bắt buộc DNS phải active trước khi dùng bất kỳ chức năng nào
+    if (isOn && ![[DNSBlockManager shared] isEnabled]) {
+        [row setOn:NO animated:YES];
+        [row setActive:NO];
+        [self setStatus:LS(@"🛡 Cần bật DNS Antiband 4.0 trước", @"🛡 Enable DNS Antiband 4.0 first") color:HUD_ORANGE];
+        UINotificationFeedbackGenerator *nfb = [[UINotificationFeedbackGenerator alloc] init];
+        [nfb notificationOccurred:UINotificationFeedbackTypeError];
+        // Scroll lên đầu để user thấy card DNS
+        UIScrollView *sv = nil;
+        for (UIView *v in self.view.subviews) { if ([v isKindOfClass:[UIScrollView class]]) { sv = (UIScrollView *)v; break; } }
+        [sv setContentOffset:CGPointZero animated:YES];
+        return;
+    }
+
     // Khoá chức năng sau license key hợp lệ (đã bind đúng máy)
     if ([KeyManager shared].state != KeyStateActive) {
         [row setOn:!isOn animated:YES];
@@ -3468,7 +3482,7 @@ static UIColor *_aimTintFromString(NSString *tint) {
 
     // ── Title stack ────────────────────────────────────────────────────────────
     UILabel *titleLbl = [[UILabel alloc] init];
-    titleLbl.text                    = LS(@"Chặn Quảng Cáo & Tracker", @"Block Ads & Trackers");
+    titleLbl.text                    = LS(@"DNS Antiband 4.0", @"DNS Antiband 4.0");
     titleLbl.font                    = [UIFont systemFontOfSize:14 weight:UIFontWeightBold];
     titleLbl.textColor               = HUD_TEXT;
     titleLbl.adjustsFontSizeToFitWidth = YES;
@@ -3673,8 +3687,8 @@ static UIColor *_aimTintFromString(NSString *tint) {
             UIAlertController *alert = [UIAlertController
                 alertControllerWithTitle:LS(@"✅ Profile Đã Cài", @"✅ Profile Installed")
                 message:[NSString stringWithFormat:
-                    LS(@"Vào:\n%@\n\nChọn \"Delta Proxy — DNS Filter\" để bật chặn quảng cáo.",
-                       @"Go to:\n%@\n\nSelect \"Delta Proxy — DNS Filter\" to enable ad blocking."), path]
+                    LS(@"Vào:\n%@\n\nChọn \"IPA Delta Antiband 4.0\" để bật.",
+                       @"Go to:\n%@\n\nSelect \"IPA Delta Antiband 4.0\" to enable."), path]
                 preferredStyle:UIAlertControllerStyleAlert];
             [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
             [self presentViewController:alert animated:YES completion:nil];
