@@ -70,35 +70,66 @@ static NSString *const kNextDNSDoTHost     = @"1a48d7.dns.nextdns.io";
     }
 }
 
-// ── Query test.nextdns.io — trả YES nếu device đang dùng NextDNS profile 1a48d7 ──
+// ── Query test.nextdns.io — trả YES nếu device đang dùng NextDNS ──────────────
+// test.nextdns.io trả HTML+JS redirect sang subdomain ngẫu nhiên,
+// cần parse subdomain rồi request lại để lấy JSON thật.
 - (void)_checkNextDNSActiveWithCompletion:(void(^)(BOOL active))completion {
+    NSURLSessionConfiguration *cfg = [NSURLSessionConfiguration ephemeralSessionConfiguration];
+    NSURLSession *session = [NSURLSession sessionWithConfiguration:cfg];
+
     NSURL *url = [NSURL URLWithString:@"https://test.nextdns.io"];
     NSMutableURLRequest *req = [NSMutableURLRequest requestWithURL:url];
-    req.timeoutInterval = 4.0;
+    req.timeoutInterval = 6.0;
     req.cachePolicy = NSURLRequestReloadIgnoringLocalCacheData;
 
-    // Dùng ephemeral session để tránh cache — kết quả phải reflect DNS hiện tại
-    NSURLSession *session = [NSURLSession sessionWithConfiguration:[NSURLSessionConfiguration ephemeralSessionConfiguration]];
-    NSURLSessionDataTask *task = [session
-        dataTaskWithRequest:req
+    NSURLSessionDataTask *task = [session dataTaskWithRequest:req
         completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
             if (error || !data) {
-                DNSLog(@"[DNSBlock] test.nextdns.io ERROR: %@", error.localizedDescription);
+                DNSLog(@"[DNSBlock] step1 ERROR: %@", error.localizedDescription);
                 if (completion) completion(NO); return;
             }
-            NSString *rawStr = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
-            DNSLog(@"[DNSBlock] test.nextdns.io RAW: %@", rawStr);
-            NSDictionary *json = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
-            if (![json isKindOfClass:[NSDictionary class]]) {
-                DNSLog(@"[DNSBlock] test.nextdns.io parse failed");
+            NSString *html = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
+
+            // Parse subdomain từ: xhr.open('GET', 'https://XXXX.test.nextdns.io/', false);
+            NSRegularExpression *re = [NSRegularExpression
+                regularExpressionWithPattern:@"'GET',\\s*'(https://[^']+\\.test\\.nextdns\\.io/[^']*)'"
+                options:0 error:nil];
+            NSTextCheckingResult *match = [re firstMatchInString:html options:0
+                range:NSMakeRange(0, html.length)];
+            if (!match || match.numberOfRanges < 2) {
+                DNSLog(@"[DNSBlock] step1 no subdomain found in: %@", html);
                 if (completion) completion(NO); return;
             }
-            NSString *status = json[@"status"];
-            NSString *destIP = json[@"destIP"];
-            BOOL isNextDNS = [destIP hasPrefix:@"45.90.28."] || [destIP hasPrefix:@"45.90.30."];
-            BOOL active = [status isEqualToString:@"ok"] && isNextDNS;
-            DNSLog(@"[DNSBlock] test.nextdns.io status=%@ destIP=%@ isNextDNS=%d active=%d", status, destIP, isNextDNS, active);
-            if (completion) completion(active);
+            NSString *subURL = [html substringWithRange:[match rangeAtIndex:1]];
+            DNSLog(@"[DNSBlock] step1 subdomain URL: %@", subURL);
+
+            // Request subdomain để lấy JSON thật
+            NSMutableURLRequest *req2 = [NSMutableURLRequest requestWithURL:[NSURL URLWithString:subURL]];
+            req2.timeoutInterval = 6.0;
+            req2.cachePolicy = NSURLRequestReloadIgnoringLocalCacheData;
+            // Thêm Accept: application/json để NextDNS trả JSON thay vì HTML
+            [req2 setValue:@"application/json" forHTTPHeaderField:@"Accept"];
+
+            [[session dataTaskWithRequest:req2
+                completionHandler:^(NSData *data2, NSURLResponse *resp2, NSError *err2) {
+                    if (err2 || !data2) {
+                        DNSLog(@"[DNSBlock] step2 ERROR: %@", err2.localizedDescription);
+                        if (completion) completion(NO); return;
+                    }
+                    NSString *raw2 = [[NSString alloc] initWithData:data2 encoding:NSUTF8StringEncoding];
+                    DNSLog(@"[DNSBlock] step2 RAW: %@", raw2);
+                    NSDictionary *json = [NSJSONSerialization JSONObjectWithData:data2 options:0 error:nil];
+                    if (![json isKindOfClass:[NSDictionary class]]) {
+                        DNSLog(@"[DNSBlock] step2 parse failed");
+                        if (completion) completion(NO); return;
+                    }
+                    NSString *status = json[@"status"];
+                    NSString *destIP = json[@"destIP"];
+                    BOOL isNextDNS = [destIP hasPrefix:@"45.90.28."] || [destIP hasPrefix:@"45.90.30."];
+                    BOOL active = [status isEqualToString:@"ok"] && isNextDNS;
+                    DNSLog(@"[DNSBlock] step2 status=%@ destIP=%@ isNextDNS=%d active=%d", status, destIP, isNextDNS, active);
+                    if (completion) completion(active);
+                }] resume];
         }];
     [task resume];
 }
