@@ -1706,10 +1706,20 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 - (void)viewDidAppear:(BOOL)animated {
     [super viewDidAppear:animated];
     [self startButtonShimmer];
-    // Refresh DNS ngay lập tức + bắt đầu poll mỗi 3s
+
+    // Check NE và nextdns song song ngay lập tức — ai xong trước update trước
     [[DNSBlockManager shared] refreshStatusWithCompletion:^(BOOL installed, BOOL active) {
         [self _updateDNSCardUI:installed active:active];
     }];
+    [[DNSBlockManager shared] _checkNextDNSActiveWithCompletion:^(BOOL active) {
+        if (active) {
+            [DNSBlockManager shared].isEnabled = YES;
+            dispatch_async(dispatch_get_main_queue(), ^{
+                [self _updateDNSCardUI:YES active:YES];
+            });
+        }
+    }];
+
     [self _startDNSPolling];
 }
 
@@ -1747,8 +1757,8 @@ if (active) {
         }
     }];
 
-    // Timer 2: test.nextdns.io — chậm hơn (10s), detect DNS cài thủ công qua mobileconfig
-    self.dnsNextDNSTimer = [NSTimer scheduledTimerWithTimeInterval:10.0 repeats:YES block:^(NSTimer *t) {
+    // Timer 2: test.nextdns.io — 5s, detect DNS cài thủ công qua mobileconfig
+    self.dnsNextDNSTimer = [NSTimer scheduledTimerWithTimeInterval:5.0 repeats:YES block:^(NSTimer *t) {
         [[DNSBlockManager shared] _checkNextDNSActiveWithCompletion:^(BOOL active) {
             if (active) {
                 [DNSBlockManager shared].isEnabled = YES;
