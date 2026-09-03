@@ -1655,6 +1655,10 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 - (void)viewDidAppear:(BOOL)animated {
     [super viewDidAppear:animated];
     [self startButtonShimmer];
+    // Refresh DNS status mỗi lần HUD hiện lại
+    [[DNSBlockManager shared] refreshStatusWithCompletion:^(BOOL installed, BOOL active) {
+        [self _updateDNSCardUI:installed active:active];
+    }];
 }
 
 // Sweeping shimmer effect on the MỞ GAME sticky button
@@ -3617,14 +3621,6 @@ static UIColor *_aimTintFromString(NSString *tint) {
             }
         }];
     }
-}
-
-- (void)viewDidAppear:(BOOL)animated {
-    [super viewDidAppear:animated];
-    // Refresh DNS status mỗi lần HUD hiện lại (user có thể vừa bật trong Settings)
-    [[DNSBlockManager shared] refreshStatusWithCompletion:^(BOOL installed, BOOL active) {
-        [self _updateDNSCardUI:installed active:active];
-    }];
 }
 
 @end
