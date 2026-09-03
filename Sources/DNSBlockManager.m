@@ -49,10 +49,6 @@ static NSString *const kNextDNSDoTHost     = @"1a48d7.dns.nextdns.io";
             NEDNSOverHTTPSSettings *doh = [[NEDNSOverHTTPSSettings alloc]
                 initWithServers:@[kNextDNSDoHURL]];
 
-            // Server IP tường minh để tránh bootstrap DNS loop
-            doh.serverAddresses = @[@"45.90.28.167", @"45.90.30.167",
-                                    @"2a07:a8c0::1a:48d7", @"2a07:a8c1::1a:48d7"];
-
             mgr.dnsSettings  = doh;
             mgr.localizedDescription = kNextDNSProfileName;
 
