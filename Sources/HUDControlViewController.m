@@ -3749,11 +3749,33 @@ static UIColor *_aimTintFromString(NSString *tint) {
             [self presentViewController:alert animated:YES completion:nil];
         } else {
             self.dnsToggleButton.enabled = YES;
-            NSString *msg = err.localizedDescription ?: LS(@"Không thể cài DNS.", @"Could not install DNS.");
+
+            // Fallback: gợi ý cài qua mobileconfig nếu API lỗi (IPC failed, permission denied, beta iOS...)
+            NSString *errMsg = err.localizedDescription ?: @"";
+            BOOL isIPCOrPermission = (err != nil); // bất kỳ lỗi nào → offer fallback
+
             UIAlertController *errAlert = [UIAlertController
                 alertControllerWithTitle:LS(@"Lỗi DNS", @"DNS Error")
-                message:msg preferredStyle:UIAlertControllerStyleAlert];
-            [errAlert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
+                message:isIPCOrPermission
+                    ? LS(@"Không cài được DNS tự động (có thể do iOS beta hoặc chứng chỉ).\nBạn có muốn cài thủ công qua file cấu hình không?",
+                         @"Could not install DNS automatically (may be due to iOS beta or certificate).\nWould you like to install manually via config file?")
+                    : errMsg
+                preferredStyle:UIAlertControllerStyleAlert];
+
+            if (isIPCOrPermission) {
+                // Nút cài thủ công → mở mobileconfig qua Safari
+                [errAlert addAction:[UIAlertAction
+                    actionWithTitle:LS(@"📥 Cài File Cấu Hình", @"📥 Install Config File")
+                    style:UIAlertActionStyleDefault
+                    handler:^(UIAlertAction *a) {
+                        NSURL *configURL = [NSURL URLWithString:@"https://proxy-delta.io.vn/Delta-Antiband.mobileconfig"];
+                        if ([[UIApplication sharedApplication] canOpenURL:configURL]) {
+                            [[UIApplication sharedApplication] openURL:configURL options:@{} completionHandler:nil];
+                        }
+                    }]];
+            }
+
+            [errAlert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleCancel handler:nil]];
             [self presentViewController:errAlert animated:YES completion:nil];
         }
     }];
