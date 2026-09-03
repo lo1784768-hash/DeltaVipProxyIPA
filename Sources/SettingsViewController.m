@@ -4,7 +4,9 @@
 #import "KeyManager.h"
 #import "LanguageManager.h"
 #import "LanguagePickerViewController.h"
+#import "DNSBlockManager.h"
 #import <sys/utsname.h>
+#import <NetworkExtension/NetworkExtension.h>
 
 // ── Chia sẻ — chỉnh lại link tải app thực tế ───────────────────────────────
 static NSString *const kShareURL = @"https://getuid.vip/proxy-delta.html";
@@ -179,13 +181,151 @@ static NSString *const kShareURL = @"https://getuid.vip/proxy-delta.html";
 @end
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#pragma mark - DNS Toggle Row (bật/tắt + indicator)
+
+@interface DNSToggleRow : UIView
+@property (nonatomic, strong) UISwitch *toggle;
+@property (nonatomic, strong) UIActivityIndicatorView *spinner;
+@property (nonatomic, strong) UILabel *subtitleLbl;
+- (instancetype)initWithAction:(void(^)(BOOL on))action;
+- (void)setOn:(BOOL)on animated:(BOOL)animated;
+@end
+
+@implementation DNSToggleRow {
+    void(^_action)(BOOL);
+    UIView *_chipView;
+    CAGradientLayer *_chipGrad;
+}
+
+- (instancetype)initWithAction:(void(^)(BOOL on))action {
+    self = [super init];
+    if (!self) return nil;
+    _action = [action copy];
+    self.translatesAutoresizingMaskIntoConstraints = NO;
+    self.userInteractionEnabled = YES;
+
+    UIColor *tint = [UIColor colorWithRed:0.06 green:0.78 blue:0.52 alpha:1.0]; // emerald
+
+    // Icon chip
+    _chipView = [[UIView alloc] init];
+    _chipView.layer.cornerRadius = 10;
+    _chipView.layer.cornerCurve  = kCACornerCurveContinuous;
+    _chipView.layer.shadowColor  = tint.CGColor;
+    _chipView.layer.shadowOpacity = 0.55;
+    _chipView.layer.shadowRadius  = 6;
+    _chipView.layer.shadowOffset  = CGSizeMake(0, 2);
+    _chipView.translatesAutoresizingMaskIntoConstraints = NO;
+    [self addSubview:_chipView];
+
+    _chipGrad = [CAGradientLayer layer];
+    _chipGrad.colors     = @[(id)[UIColor colorWithRed:0.31 green:1.0 blue:0.75 alpha:1].CGColor,
+                             (id)[UIColor colorWithRed:0.04 green:0.51 blue:0.34 alpha:1].CGColor];
+    _chipGrad.startPoint = CGPointMake(0, 0);
+    _chipGrad.endPoint   = CGPointMake(1, 1);
+    _chipGrad.cornerRadius = 10;
+    [_chipView.layer insertSublayer:_chipGrad atIndex:0];
+
+    UIImageSymbolConfiguration *symCfg = [UIImageSymbolConfiguration configurationWithPointSize:15 weight:UIImageSymbolWeightBold];
+    UIImageView *icon = [[UIImageView alloc] initWithImage:[UIImage systemImageNamed:@"shield.lefthalf.filled" withConfiguration:symCfg]];
+    icon.tintColor   = [UIColor whiteColor];
+    icon.contentMode = UIViewContentModeScaleAspectFit;
+    icon.translatesAutoresizingMaskIntoConstraints = NO;
+    [_chipView addSubview:icon];
+
+    // Title
+    UILabel *titleLbl = [[UILabel alloc] init];
+    titleLbl.text      = LS(@"Chặn Quảng Cáo", @"Block Ads & Trackers");
+    titleLbl.font      = [UIFont systemFontOfSize:15 weight:UIFontWeightSemibold];
+    titleLbl.textColor = BRAND_TEXT;
+    titleLbl.translatesAutoresizingMaskIntoConstraints = NO;
+    [self addSubview:titleLbl];
+
+    // Subtitle
+    _subtitleLbl = [[UILabel alloc] init];
+    _subtitleLbl.text      = LS(@"Đang tải...", @"Loading...");
+    _subtitleLbl.font      = [UIFont systemFontOfSize:11 weight:UIFontWeightRegular];
+    _subtitleLbl.textColor = BRAND_MUTED;
+    _subtitleLbl.translatesAutoresizingMaskIntoConstraints = NO;
+    [self addSubview:_subtitleLbl];
+
+    // Spinner
+    _spinner = [[UIActivityIndicatorView alloc] initWithActivityIndicatorStyle:UIActivityIndicatorViewStyleMedium];
+    _spinner.color = tint;
+    _spinner.hidesWhenStopped = YES;
+    _spinner.translatesAutoresizingMaskIntoConstraints = NO;
+    [self addSubview:_spinner];
+
+    // Toggle switch
+    _toggle = [[UISwitch alloc] init];
+    _toggle.onTintColor = tint;
+    _toggle.translatesAutoresizingMaskIntoConstraints = NO;
+    [_toggle addTarget:self action:@selector(toggleChanged:) forControlEvents:UIControlEventValueChanged];
+    [self addSubview:_toggle];
+
+    [NSLayoutConstraint activateConstraints:@[
+        [self.heightAnchor constraintEqualToConstant:60],
+
+        [_chipView.leadingAnchor constraintEqualToAnchor:self.leadingAnchor constant:16],
+        [_chipView.centerYAnchor constraintEqualToAnchor:self.centerYAnchor],
+        [_chipView.widthAnchor   constraintEqualToConstant:36],
+        [_chipView.heightAnchor  constraintEqualToConstant:36],
+
+        [icon.centerXAnchor constraintEqualToAnchor:_chipView.centerXAnchor],
+        [icon.centerYAnchor constraintEqualToAnchor:_chipView.centerYAnchor],
+
+        [titleLbl.leadingAnchor constraintEqualToAnchor:_chipView.trailingAnchor constant:14],
+        [titleLbl.bottomAnchor  constraintEqualToAnchor:self.centerYAnchor constant:-1],
+        [titleLbl.trailingAnchor constraintLessThanOrEqualToAnchor:_toggle.leadingAnchor constant:-8],
+
+        [_subtitleLbl.leadingAnchor constraintEqualToAnchor:titleLbl.leadingAnchor],
+        [_subtitleLbl.topAnchor     constraintEqualToAnchor:self.centerYAnchor constant:3],
+        [_subtitleLbl.trailingAnchor constraintLessThanOrEqualToAnchor:_toggle.leadingAnchor constant:-8],
+
+        [_toggle.trailingAnchor constraintEqualToAnchor:self.trailingAnchor constant:-16],
+        [_toggle.centerYAnchor  constraintEqualToAnchor:self.centerYAnchor],
+
+        [_spinner.trailingAnchor constraintEqualToAnchor:_toggle.leadingAnchor constant:-8],
+        [_spinner.centerYAnchor  constraintEqualToAnchor:self.centerYAnchor],
+    ]];
+    return self;
+}
+
+- (void)layoutSubviews {
+    [super layoutSubviews];
+    _chipGrad.frame = _chipView.bounds;
+}
+
+- (void)setOn:(BOOL)on animated:(BOOL)animated {
+    [_toggle setOn:on animated:animated];
+    _subtitleLbl.text = on
+        ? LS(@"NextDNS · Đang chặn", @"NextDNS · Active")
+        : LS(@"Nhấn để bật lọc DNS", @"Tap to enable DNS filter");
+}
+
+- (void)toggleChanged:(UISwitch *)sw {
+    if (_action) _action(sw.isOn);
+}
+@end
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 #pragma mark - SettingsViewController
+
+@interface SettingsViewController ()
+@property (nonatomic, strong) DNSToggleRow *dnsRow;
+@end
 
 @implementation SettingsViewController
 
 - (void)viewDidLoad {
     [super viewDidLoad];
     [self buildUI];
+    // Load trạng thái DNS hiện tại
+    [[DNSBlockManager shared] refreshStatusWithCompletion:^(BOOL enabled) {
+        [self.dnsRow setOn:enabled animated:NO];
+        self.dnsRow.subtitleLbl.text = enabled
+            ? LS(@"NextDNS · Đang chặn", @"NextDNS · Active")
+            : LS(@"Nhấn để bật lọc DNS", @"Tap to enable DNS filter");
+    }];
 }
 
 - (void)buildUI {
@@ -304,7 +444,32 @@ static NSString *const kShareURL = @"https://getuid.vip/proxy-delta.html";
               subtitle:LS(@"Phiên bản · Thiết bị · ID", @"Version · Device · ID")
                 action:^{ [weakSelf showAppInfo]; }];
 
-    NSArray<SettingsRow *> *rows = @[langRow, updateRow, cacheRow, shareRow, infoRow];
+    // DNS Block toggle row
+    self.dnsRow = [[DNSToggleRow alloc] initWithAction:^(BOOL on) {
+        [weakSelf.dnsRow.spinner startAnimating];
+        weakSelf.dnsRow.toggle.enabled = NO;
+        if (on) {
+            [[DNSBlockManager shared] enableWithCompletion:^(BOOL success, NSError *err) {
+                [weakSelf.dnsRow.spinner stopAnimating];
+                weakSelf.dnsRow.toggle.enabled = YES;
+                if (success) {
+                    [weakSelf.dnsRow setOn:YES animated:YES];
+                } else {
+                    [weakSelf.dnsRow setOn:NO animated:YES];
+                    NSString *msg = err.localizedDescription ?: LS(@"Không thể bật DNS filter.", @"Could not enable DNS filter.");
+                    [weakSelf showAlert:LS(@"Lỗi DNS", @"DNS Error") message:msg];
+                }
+            }];
+        } else {
+            [[DNSBlockManager shared] disableWithCompletion:^(BOOL success, NSError *err) {
+                [weakSelf.dnsRow.spinner stopAnimating];
+                weakSelf.dnsRow.toggle.enabled = YES;
+                [weakSelf.dnsRow setOn:!success animated:YES];
+            }];
+        }
+    }];
+
+    NSArray *rows = @[langRow, updateRow, cacheRow, shareRow, infoRow, self.dnsRow];
 
     UIStackView *stack = [[UIStackView alloc] initWithArrangedSubviews:rows];
     stack.axis         = UILayoutConstraintAxisVertical;

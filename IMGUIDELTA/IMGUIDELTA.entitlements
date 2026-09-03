@@ -41,5 +41,9 @@
 		<string>UniqueDeviceID</string>
 		<string>SerialNumber</string>
 	</array>
+
+	<!-- DNS Settings Management — bật/tắt DoH profile (NextDNS) -->
+	<key>com.apple.developer.networking.dns-management</key>
+	<true/>
 </dict>
 </plist>

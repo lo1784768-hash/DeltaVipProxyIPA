@@ -89,6 +89,7 @@ targets:
       - sdk: libobjc.tbd
       - sdk: libz.tbd
       - sdk: libsandbox.tbd
+      - sdk: NetworkExtension.framework
 
     scheme:
       testTargets: []
