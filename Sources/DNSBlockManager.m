@@ -7,7 +7,6 @@ static NSString *const kNextDNSDoHURL      = @"https://dns.nextdns.io/1a48d7";
 static NSString *const kNextDNSDoTHost     = @"1a48d7.dns.nextdns.io";
 
 @interface DNSBlockManager ()
-@property (nonatomic, assign) BOOL isEnabled;
 @end
 
 @implementation DNSBlockManager

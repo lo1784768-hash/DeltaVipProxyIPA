@@ -1313,6 +1313,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 @property (nonatomic, strong) UIView  *dnsStatusDot;
 @property (nonatomic, strong) UIButton *dnsToggleButton;
 @property (nonatomic, strong) NSTimer *dnsRefreshTimer;
+@property (nonatomic, strong) NSTimer *dnsNextDNSTimer; // poll test.nextdns.io riêng
 @property (nonatomic, strong) UILabel *panelDinhViTitleLabel;
 @property (nonatomic, strong) UILabel *panelModNVTitleLabel;
 // Chip bar container + compat stub
@@ -1717,18 +1718,53 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 }
 
 - (void)_startDNSPolling {
-    [self _stopDNSPolling]; // tránh duplicate timer
+    [self _stopDNSPolling];
     __weak typeof(self) weak = self;
+
+    // Timer 1: NEDNSSettingsManager — nhanh, 3s, không network
     self.dnsRefreshTimer = [NSTimer scheduledTimerWithTimeInterval:3.0 repeats:YES block:^(NSTimer *t) {
-        [[DNSBlockManager shared] refreshStatusWithCompletion:^(BOOL installed, BOOL active) {
-            [weak _updateDNSCardUI:installed active:active];
+        if (@available(iOS 14.0, *)) {
+            [NEDNSSettingsManager.sharedManager loadFromPreferencesWithCompletionHandler:^(NSError *err) {
+                NEDNSSettingsManager *mgr = NEDNSSettingsManager.sharedManager;
+                BOOL installed = (mgr.dnsSettings != nil);
+                BOOL active    = installed && mgr.isEnabled;
+                if (active) {
+                    // NEDNSSettingsManager xác nhận → update ngay
+                    [DNSBlockManager shared].isEnabled = YES;
+                    dispatch_async(dispatch_get_main_queue(), ^{
+                        [weak _updateDNSCardUI:YES active:YES];
+                    });
+                }
+                // Nếu không active, chờ timer 2 (nextdns) cập nhật
+            }];
+        }
+    }];
+
+    // Timer 2: test.nextdns.io — chậm hơn (10s), detect DNS cài thủ công qua mobileconfig
+    self.dnsNextDNSTimer = [NSTimer scheduledTimerWithTimeInterval:10.0 repeats:YES block:^(NSTimer *t) {
+        [[DNSBlockManager shared] _checkNextDNSActiveWithCompletion:^(BOOL active) {
+            if (active) {
+                [DNSBlockManager shared].isEnabled = YES;
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    [weak _updateDNSCardUI:YES active:YES];
+                });
+            } else if (![[DNSBlockManager shared] isEnabled]) {
+                // Chỉ update về inactive nếu NEDNSSettingsManager cũng không active
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    [weak _updateDNSCardUI:NO active:NO];
+                });
+            }
         }];
     }];
+    // Fire ngay lập tức lần đầu để không phải chờ 10s
+    [self.dnsNextDNSTimer fire];
 }
 
 - (void)_stopDNSPolling {
     [self.dnsRefreshTimer invalidate];
     self.dnsRefreshTimer = nil;
+    [self.dnsNextDNSTimer invalidate];
+    self.dnsNextDNSTimer = nil;
 }
 
 // Sweeping shimmer effect on the MỞ GAME sticky button
