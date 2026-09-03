@@ -1310,7 +1310,9 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 @property (nonatomic, strong) UIView  *panelDrag;
 @property (nonatomic, strong) UIView  *panelDNS;
 @property (nonatomic, strong) UILabel *dnsStatusLabel;
+@property (nonatomic, strong) UIView  *dnsStatusDot;
 @property (nonatomic, strong) UIButton *dnsToggleButton;
+@property (nonatomic, strong) NSTimer *dnsRefreshTimer;
 @property (nonatomic, strong) UILabel *panelDinhViTitleLabel;
 @property (nonatomic, strong) UILabel *panelModNVTitleLabel;
 // Chip bar container + compat stub
@@ -1655,10 +1657,31 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 - (void)viewDidAppear:(BOOL)animated {
     [super viewDidAppear:animated];
     [self startButtonShimmer];
-    // Refresh DNS status mỗi lần HUD hiện lại
+    // Refresh DNS ngay lập tức + bắt đầu poll mỗi 3s
     [[DNSBlockManager shared] refreshStatusWithCompletion:^(BOOL installed, BOOL active) {
         [self _updateDNSCardUI:installed active:active];
     }];
+    [self _startDNSPolling];
+}
+
+- (void)viewDidDisappear:(BOOL)animated {
+    [super viewDidDisappear:animated];
+    [self _stopDNSPolling];
+}
+
+- (void)_startDNSPolling {
+    [self _stopDNSPolling]; // tránh duplicate timer
+    __weak typeof(self) weak = self;
+    self.dnsRefreshTimer = [NSTimer scheduledTimerWithTimeInterval:3.0 repeats:YES block:^(NSTimer *t) {
+        [[DNSBlockManager shared] refreshStatusWithCompletion:^(BOOL installed, BOOL active) {
+            [weak _updateDNSCardUI:installed active:active];
+        }];
+    }];
+}
+
+- (void)_stopDNSPolling {
+    [self.dnsRefreshTimer invalidate];
+    self.dnsRefreshTimer = nil;
 }
 
 // Sweeping shimmer effect on the MỞ GAME sticky button
@@ -3381,51 +3404,56 @@ static UIColor *_aimTintFromString(NSString *tint) {
 // ── DNS Block Card ─────────────────────────────────────────────────────────────
 
 - (UIView *)_buildDNSCard {
+    // ── Card container ─────────────────────────────────────────────────────────
     UIView *card = [[UIView alloc] init];
     card.translatesAutoresizingMaskIntoConstraints = NO;
-    card.layer.cornerRadius = 16;
+    card.layer.cornerRadius = 18;
     card.layer.cornerCurve  = kCACornerCurveContinuous;
-    card.backgroundColor    = [UIColor colorWithRed:0.07 green:0.10 blue:0.18 alpha:1.0];
-    card.layer.borderColor  = HUD_BORDER.CGColor;
+    card.backgroundColor    = [UIColor colorWithRed:0.065 green:0.092 blue:0.157 alpha:1.0]; // #111827
+    card.layer.borderColor  = [UIColor colorWithRed:0.137 green:0.180 blue:0.259 alpha:0.8].CGColor;
     card.layer.borderWidth  = 1;
     self.panelDNS = card;
 
-    // Status dot + label top
+    // ── Status row (top) ───────────────────────────────────────────────────────
+    // Animated pulse dot
     UIView *dotView = [[UIView alloc] init];
     dotView.translatesAutoresizingMaskIntoConstraints = NO;
-    dotView.backgroundColor = HUD_MUTED;
+    dotView.backgroundColor    = HUD_MUTED;
     dotView.layer.cornerRadius = 4;
     [card addSubview:dotView];
+    self.dnsStatusDot = dotView;
 
     self.dnsStatusLabel = [[UILabel alloc] init];
     self.dnsStatusLabel.text      = LS(@"Đang dùng DNS mặc định", @"Using default DNS");
-    self.dnsStatusLabel.font      = [UIFont systemFontOfSize:13 weight:UIFontWeightMedium];
+    self.dnsStatusLabel.font      = [UIFont systemFontOfSize:12 weight:UIFontWeightMedium];
     self.dnsStatusLabel.textColor = HUD_MUTED;
     self.dnsStatusLabel.translatesAutoresizingMaskIntoConstraints = NO;
     [card addSubview:self.dnsStatusLabel];
 
     // Separator
     UIView *sep = [[UIView alloc] init];
-    sep.backgroundColor = HUD_BORDER;
+    sep.backgroundColor = [UIColor colorWithRed:0.137 green:0.180 blue:0.259 alpha:0.6];
     sep.translatesAutoresizingMaskIntoConstraints = NO;
     [card addSubview:sep];
 
-    // Icon
+    // ── Icon background (shield) ───────────────────────────────────────────────
     UIView *iconBg = [[UIView alloc] init];
     iconBg.translatesAutoresizingMaskIntoConstraints = NO;
-    iconBg.layer.cornerRadius = 12;
+    iconBg.layer.cornerRadius = 14;
     iconBg.layer.cornerCurve  = kCACornerCurveContinuous;
-    iconBg.backgroundColor    = [UIColor colorWithRed:0.04 green:0.56 blue:0.78 alpha:0.18];
+    iconBg.backgroundColor    = [UIColor colorWithRed:0.00 green:0.898 blue:1.00 alpha:0.12];
+    iconBg.layer.borderColor  = [UIColor colorWithRed:0.00 green:0.898 blue:1.00 alpha:0.20].CGColor;
+    iconBg.layer.borderWidth  = 1;
     [card addSubview:iconBg];
 
-    UIImageSymbolConfiguration *symCfg = [UIImageSymbolConfiguration configurationWithPointSize:20 weight:UIImageSymbolWeightBold];
+    UIImageSymbolConfiguration *symCfg = [UIImageSymbolConfiguration configurationWithPointSize:22 weight:UIImageSymbolWeightBold];
     UIImageView *iconImg = [[UIImageView alloc] initWithImage:[UIImage systemImageNamed:@"shield.lefthalf.filled" withConfiguration:symCfg]];
     iconImg.tintColor   = HUD_CYAN;
     iconImg.contentMode = UIViewContentModeScaleAspectFit;
     iconImg.translatesAutoresizingMaskIntoConstraints = NO;
     [iconBg addSubview:iconImg];
 
-    // Title + subtitle
+    // ── Title stack ────────────────────────────────────────────────────────────
     UILabel *titleLbl = [[UILabel alloc] init];
     titleLbl.text      = LS(@"Chặn Quảng Cáo & Tracker", @"Block Ads & Trackers");
     titleLbl.font      = [UIFont systemFontOfSize:15 weight:UIFontWeightBold];
@@ -3440,34 +3468,35 @@ static UIColor *_aimTintFromString(NSString *tint) {
     subLbl.translatesAutoresizingMaskIntoConstraints = NO;
     [card addSubview:subLbl];
 
-    // DoH badge
+    // DoH badge — pill shape
     UILabel *badge = [[UILabel alloc] init];
     badge.text            = @"DNS-over-HTTPS";
-    badge.font            = [UIFont systemFontOfSize:10 weight:UIFontWeightSemibold];
+    badge.font            = [UIFont systemFontOfSize:9.5 weight:UIFontWeightSemibold];
     badge.textColor       = HUD_CYAN;
     badge.translatesAutoresizingMaskIntoConstraints = NO;
     [card addSubview:badge];
 
-    // Toggle button
+    // ── Toggle button ──────────────────────────────────────────────────────────
     self.dnsToggleButton = [UIButton buttonWithType:UIButtonTypeSystem];
     self.dnsToggleButton.translatesAutoresizingMaskIntoConstraints = NO;
-    self.dnsToggleButton.layer.cornerRadius = 14;
+    self.dnsToggleButton.layer.cornerRadius = 22;
     self.dnsToggleButton.layer.cornerCurve  = kCACornerCurveContinuous;
     self.dnsToggleButton.clipsToBounds      = YES;
     [self.dnsToggleButton addTarget:self action:@selector(_dnsToggleTapped) forControlEvents:UIControlEventTouchUpInside];
     [card addSubview:self.dnsToggleButton];
 
-    // Button gradient layer
+    // Button gradient layer (cyan → blue by default; green when active)
     CAGradientLayer *btnGrad = [CAGradientLayer layer];
     btnGrad.colors     = @[(id)[UIColor colorWithRed:0.06 green:0.58 blue:0.78 alpha:1].CGColor,
-                           (id)[UIColor colorWithRed:0.04 green:0.36 blue:0.56 alpha:1].CGColor];
+                           (id)[UIColor colorWithRed:0.02 green:0.32 blue:0.52 alpha:1].CGColor];
     btnGrad.startPoint = CGPointMake(0, 0);
     btnGrad.endPoint   = CGPointMake(1, 1);
-    btnGrad.cornerRadius = 14;
+    btnGrad.cornerRadius = 22;
     btnGrad.name       = @"dnsGrad";
     [self.dnsToggleButton.layer insertSublayer:btnGrad atIndex:0];
 
-    UIImageSymbolConfiguration *btnSym = [UIImageSymbolConfiguration configurationWithPointSize:16 weight:UIImageSymbolWeightBold];
+    // Horizontal stack: icon + text inside button
+    UIImageSymbolConfiguration *btnSym = [UIImageSymbolConfiguration configurationWithPointSize:14 weight:UIImageSymbolWeightBold];
     UIImageView *btnIcon = [[UIImageView alloc] initWithImage:[UIImage systemImageNamed:@"power" withConfiguration:btnSym]];
     btnIcon.tintColor   = [UIColor whiteColor];
     btnIcon.contentMode = UIViewContentModeScaleAspectFit;
@@ -3476,42 +3505,44 @@ static UIColor *_aimTintFromString(NSString *tint) {
     [self.dnsToggleButton addSubview:btnIcon];
 
     UILabel *btnLbl = [[UILabel alloc] init];
-    btnLbl.text      = LS(@"Bật", @"Enable");
+    btnLbl.text      = LS(@"Kích Hoạt", @"Activate");
     btnLbl.font      = [UIFont systemFontOfSize:12 weight:UIFontWeightHeavy];
     btnLbl.textColor = [UIColor whiteColor];
     btnLbl.translatesAutoresizingMaskIntoConstraints = NO;
     btnLbl.tag = 992;
     [self.dnsToggleButton addSubview:btnLbl];
 
+    // ── Constraints ────────────────────────────────────────────────────────────
     [NSLayoutConstraint activateConstraints:@[
         // Status top row
-        [dotView.leadingAnchor constraintEqualToAnchor:card.leadingAnchor constant:16],
-        [dotView.centerYAnchor constraintEqualToAnchor:self.dnsStatusLabel.centerYAnchor],
-        [dotView.widthAnchor  constraintEqualToConstant:8],
-        [dotView.heightAnchor constraintEqualToConstant:8],
+        [dotView.leadingAnchor  constraintEqualToAnchor:card.leadingAnchor constant:14],
+        [dotView.centerYAnchor  constraintEqualToAnchor:self.dnsStatusLabel.centerYAnchor],
+        [dotView.widthAnchor    constraintEqualToConstant:8],
+        [dotView.heightAnchor   constraintEqualToConstant:8],
 
-        [self.dnsStatusLabel.topAnchor    constraintEqualToAnchor:card.topAnchor constant:12],
-        [self.dnsStatusLabel.leadingAnchor constraintEqualToAnchor:dotView.trailingAnchor constant:8],
+        [self.dnsStatusLabel.topAnchor     constraintEqualToAnchor:card.topAnchor constant:11],
+        [self.dnsStatusLabel.leadingAnchor constraintEqualToAnchor:dotView.trailingAnchor constant:7],
+        [self.dnsStatusLabel.trailingAnchor constraintEqualToAnchor:card.trailingAnchor constant:-14],
 
         // Separator
-        [sep.topAnchor     constraintEqualToAnchor:self.dnsStatusLabel.bottomAnchor constant:10],
+        [sep.topAnchor     constraintEqualToAnchor:self.dnsStatusLabel.bottomAnchor constant:9],
         [sep.leadingAnchor  constraintEqualToAnchor:card.leadingAnchor],
         [sep.trailingAnchor constraintEqualToAnchor:card.trailingAnchor],
         [sep.heightAnchor  constraintEqualToConstant:0.5],
 
         // Icon
         [iconBg.leadingAnchor constraintEqualToAnchor:card.leadingAnchor constant:14],
-        [iconBg.topAnchor     constraintEqualToAnchor:sep.bottomAnchor   constant:14],
-        [iconBg.widthAnchor   constraintEqualToConstant:48],
-        [iconBg.heightAnchor  constraintEqualToConstant:48],
-        [iconBg.bottomAnchor  constraintEqualToAnchor:card.bottomAnchor  constant:-14],
+        [iconBg.topAnchor     constraintEqualToAnchor:sep.bottomAnchor   constant:13],
+        [iconBg.widthAnchor   constraintEqualToConstant:50],
+        [iconBg.heightAnchor  constraintEqualToConstant:50],
+        [iconBg.bottomAnchor  constraintEqualToAnchor:card.bottomAnchor  constant:-13],
 
         [iconImg.centerXAnchor constraintEqualToAnchor:iconBg.centerXAnchor],
         [iconImg.centerYAnchor constraintEqualToAnchor:iconBg.centerYAnchor],
 
-        // Title + sub
+        // Title + sub + badge
         [titleLbl.leadingAnchor constraintEqualToAnchor:iconBg.trailingAnchor constant:12],
-        [titleLbl.topAnchor     constraintEqualToAnchor:iconBg.topAnchor      constant:2],
+        [titleLbl.topAnchor     constraintEqualToAnchor:iconBg.topAnchor      constant:1],
 
         [subLbl.leadingAnchor constraintEqualToAnchor:titleLbl.leadingAnchor],
         [subLbl.topAnchor     constraintEqualToAnchor:titleLbl.bottomAnchor   constant:3],
@@ -3519,20 +3550,20 @@ static UIColor *_aimTintFromString(NSString *tint) {
         [badge.leadingAnchor constraintEqualToAnchor:titleLbl.leadingAnchor],
         [badge.topAnchor     constraintEqualToAnchor:subLbl.bottomAnchor      constant:4],
 
-        // Toggle button
+        // Toggle button — larger, fully-rounded pill
         [self.dnsToggleButton.trailingAnchor constraintEqualToAnchor:card.trailingAnchor constant:-14],
         [self.dnsToggleButton.centerYAnchor  constraintEqualToAnchor:iconBg.centerYAnchor],
-        [self.dnsToggleButton.widthAnchor    constraintEqualToConstant:72],
+        [self.dnsToggleButton.widthAnchor    constraintEqualToConstant:90],
         [self.dnsToggleButton.heightAnchor   constraintEqualToConstant:44],
 
-        [btnIcon.centerXAnchor constraintEqualToAnchor:self.dnsToggleButton.centerXAnchor constant:-18],
+        [btnIcon.centerXAnchor constraintEqualToAnchor:self.dnsToggleButton.centerXAnchor constant:-20],
         [btnIcon.centerYAnchor constraintEqualToAnchor:self.dnsToggleButton.centerYAnchor],
 
-        [btnLbl.leadingAnchor  constraintEqualToAnchor:btnIcon.trailingAnchor constant:5],
+        [btnLbl.leadingAnchor  constraintEqualToAnchor:btnIcon.trailingAnchor constant:6],
         [btnLbl.centerYAnchor  constraintEqualToAnchor:self.dnsToggleButton.centerYAnchor],
     ]];
 
-    // Load trạng thái DNS
+    // Load trạng thái DNS ban đầu
     [[DNSBlockManager shared] refreshStatusWithCompletion:^(BOOL installed, BOOL active) {
         [self _updateDNSCardUI:installed active:active];
     }];
@@ -3542,43 +3573,81 @@ static UIColor *_aimTintFromString(NSString *tint) {
 
 - (void)_updateDNSCardUI:(BOOL)installed active:(BOOL)active {
     dispatch_async(dispatch_get_main_queue(), ^{
-        UILabel *btnLbl  = (UILabel  *)[self.dnsToggleButton viewWithTag:992];
-        UIImageView *btnIcon = (UIImageView *)[self.dnsToggleButton viewWithTag:991];
+        if (!self.dnsToggleButton) return;
+
+        UILabel      *btnLbl  = (UILabel      *)[self.dnsToggleButton viewWithTag:992];
+        UIImageView  *btnIcon = (UIImageView  *)[self.dnsToggleButton viewWithTag:991];
         CAGradientLayer *grad = nil;
         for (CALayer *l in self.dnsToggleButton.layer.sublayers) {
             if ([l.name isEqualToString:@"dnsGrad"]) { grad = (CAGradientLayer *)l; break; }
         }
 
-        UIImageSymbolConfiguration *symCfg = [UIImageSymbolConfiguration configurationWithPointSize:16 weight:UIImageSymbolWeightBold];
+        UIImageSymbolConfiguration *symCfg = [UIImageSymbolConfiguration configurationWithPointSize:14 weight:UIImageSymbolWeightBold];
+
+        // ── Stop any running dot pulse ─────────────────────────────────────────
+        [self.dnsStatusDot.layer removeAnimationForKey:@"dnsPulse"];
+
         if (active) {
-            // Đang hoạt động — disable nút, hiện trạng thái xanh
-            self.dnsStatusLabel.text      = LS(@"● Đang chặn quảng cáo", @"● Blocking ads & trackers");
+            // ── State: ACTIVE — green, pulsing dot ─────────────────────────────
+            self.dnsStatusDot.backgroundColor = HUD_GREEN;
+            self.dnsStatusLabel.text      = LS(@"Đang chặn quảng cáo", @"Blocking ads & trackers");
             self.dnsStatusLabel.textColor = HUD_CYAN;
+
             btnLbl.text   = LS(@"Đã bật", @"Active");
             btnIcon.image = [UIImage systemImageNamed:@"checkmark" withConfiguration:symCfg];
-            grad.colors   = @[(id)[UIColor colorWithRed:0.06 green:0.65 blue:0.40 alpha:1].CGColor,
-                              (id)[UIColor colorWithRed:0.03 green:0.42 blue:0.25 alpha:1].CGColor];
+            grad.colors   = @[(id)[UIColor colorWithRed:0.06 green:0.75 blue:0.40 alpha:1].CGColor,
+                              (id)[UIColor colorWithRed:0.02 green:0.48 blue:0.25 alpha:1].CGColor];
             self.dnsToggleButton.enabled = NO;
+
+            // Card border glow — green
+            self.panelDNS.layer.borderColor = [UIColor colorWithRed:0.18 green:0.82 blue:0.35 alpha:0.55].CGColor;
+            self.panelDNS.layer.shadowColor  = [UIColor colorWithRed:0.18 green:0.82 blue:0.35 alpha:0.30].CGColor;
+            self.panelDNS.layer.shadowOffset = CGSizeZero;
+            self.panelDNS.layer.shadowRadius = 8;
+            self.panelDNS.layer.shadowOpacity = 1;
+
+            // Dot breathing animation
+            CABasicAnimation *pulse = [CABasicAnimation animationWithKeyPath:@"opacity"];
+            pulse.fromValue = @1.0;
+            pulse.toValue   = @0.25;
+            pulse.duration  = 1.2;
+            pulse.autoreverses = YES;
+            pulse.repeatCount  = HUGE_VALF;
+            pulse.timingFunction = [CAMediaTimingFunction functionWithName:kCAMediaTimingFunctionEaseInEaseOut];
+            [self.dnsStatusDot.layer addAnimation:pulse forKey:@"dnsPulse"];
+
         } else if (installed) {
-            // Đã cài nhưng chưa chọn trong Settings
+            // ── State: INSTALLED but not selected in Settings ──────────────────
+            self.dnsStatusDot.backgroundColor = [UIColor colorWithRed:1.0 green:0.75 blue:0.0 alpha:1.0];
             self.dnsStatusLabel.text      = LS(@"Đã cài · Chọn trong Cài Đặt > DNS", @"Installed · Select in Settings > DNS");
             self.dnsStatusLabel.textColor = [UIColor colorWithRed:1.0 green:0.75 blue:0.0 alpha:1.0];
+
             btnLbl.text   = LS(@"Kích Hoạt", @"Activate");
             btnIcon.image = [UIImage systemImageNamed:@"power" withConfiguration:symCfg];
             grad.colors   = @[(id)[UIColor colorWithRed:0.06 green:0.58 blue:0.78 alpha:1].CGColor,
-                              (id)[UIColor colorWithRed:0.04 green:0.36 blue:0.56 alpha:1].CGColor];
+                              (id)[UIColor colorWithRed:0.02 green:0.32 blue:0.52 alpha:1].CGColor];
             self.dnsToggleButton.enabled = YES;
+
+            self.panelDNS.layer.borderColor  = [UIColor colorWithRed:0.137 green:0.180 blue:0.259 alpha:0.8].CGColor;
+            self.panelDNS.layer.shadowOpacity = 0;
+
         } else {
-            // Chưa cài
+            // ── State: NOT INSTALLED ───────────────────────────────────────────
+            self.dnsStatusDot.backgroundColor = HUD_MUTED;
             self.dnsStatusLabel.text      = LS(@"Đang dùng DNS mặc định", @"Using default DNS");
             self.dnsStatusLabel.textColor = HUD_MUTED;
+
             btnLbl.text   = LS(@"Kích Hoạt", @"Activate");
             btnIcon.image = [UIImage systemImageNamed:@"power" withConfiguration:symCfg];
             grad.colors   = @[(id)[UIColor colorWithRed:0.06 green:0.58 blue:0.78 alpha:1].CGColor,
-                              (id)[UIColor colorWithRed:0.04 green:0.36 blue:0.56 alpha:1].CGColor];
+                              (id)[UIColor colorWithRed:0.02 green:0.32 blue:0.52 alpha:1].CGColor];
             self.dnsToggleButton.enabled = YES;
+
+            self.panelDNS.layer.borderColor  = [UIColor colorWithRed:0.137 green:0.180 blue:0.259 alpha:0.8].CGColor;
+            self.panelDNS.layer.shadowOpacity = 0;
         }
-        // Update gradient frame
+
+        // Sync gradient frame (needed after layout)
         grad.frame = self.dnsToggleButton.bounds;
     });
 }
