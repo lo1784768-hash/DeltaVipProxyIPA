@@ -2241,19 +2241,15 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
         i += (tileB ? 2 : 1);
     }
 
-    // ── Tutorial row (optional) ─────────────────────────────
-    NSLayoutYAxisAnchor *gridBottomAnchor = pc.bottomAnchor;
-    CGFloat gridBottomConst = -10;
+    // ── Tutorial row (optional, ở TRÊN grid ngay sau titleBar) ────────────────
+    // gridTopAnchor: nếu có tutorial → dưới sep; không có → dưới titleBar
+    NSLayoutYAxisAnchor *gridTopAnchor = titleBar.bottomAnchor;
+    CGFloat gridTopConst = 10;
 
     if (tutorialURL != nil) {
         BOOL hasURL = tutorialURL.length > 0;
         UIColor *ytRed    = [UIColor colorWithRed:1.0 green:0.22 blue:0.18 alpha:1.0];
         UIColor *tutColor = hasURL ? ytRed : HUD_MUTED;
-
-        UIView *sep = [[UIView alloc] init];
-        sep.backgroundColor = [UIColor colorWithWhite:1 alpha:0.06];
-        sep.translatesAutoresizingMaskIntoConstraints = NO;
-        [pc addSubview:sep];
 
         UIView *tutRow = [[UIView alloc] init];
         tutRow.translatesAutoresizingMaskIntoConstraints = NO;
@@ -2284,19 +2280,32 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
         tutSub.translatesAutoresizingMaskIntoConstraints = NO;
         [tutRow addSubview:tutSub];
 
+        // Separator dưới tutorial row (trước grid)
+        UIView *sep = [[UIView alloc] init];
+        sep.backgroundColor = [UIColor colorWithWhite:1 alpha:0.06];
+        sep.translatesAutoresizingMaskIntoConstraints = NO;
+        [pc addSubview:sep];
+
         [NSLayoutConstraint activateConstraints:@[
-            [sep.leadingAnchor  constraintEqualToAnchor:pc.leadingAnchor  constant:12],
-            [sep.trailingAnchor constraintEqualToAnchor:pc.trailingAnchor constant:-12],
-            [sep.heightAnchor   constraintEqualToConstant:0.5],
+            // Tutorial row: ngay dưới titleBar
+            [tutRow.topAnchor      constraintEqualToAnchor:titleBar.bottomAnchor],
             [tutRow.leadingAnchor  constraintEqualToAnchor:pc.leadingAnchor],
             [tutRow.trailingAnchor constraintEqualToAnchor:pc.trailingAnchor],
             [tutRow.heightAnchor   constraintEqualToConstant:50],
-            [tutRow.bottomAnchor   constraintEqualToAnchor:pc.bottomAnchor],
-            [sep.bottomAnchor      constraintEqualToAnchor:tutRow.topAnchor],
+
+            // Separator dưới tutorial row
+            [sep.topAnchor      constraintEqualToAnchor:tutRow.bottomAnchor],
+            [sep.leadingAnchor  constraintEqualToAnchor:pc.leadingAnchor  constant:12],
+            [sep.trailingAnchor constraintEqualToAnchor:pc.trailingAnchor constant:-12],
+            [sep.heightAnchor   constraintEqualToConstant:0.5],
+
+            // Play icon
             [playIcon.leadingAnchor constraintEqualToAnchor:tutRow.leadingAnchor constant:16],
             [playIcon.centerYAnchor constraintEqualToAnchor:tutRow.centerYAnchor],
             [playIcon.widthAnchor   constraintEqualToConstant:20],
             [playIcon.heightAnchor  constraintEqualToConstant:20],
+
+            // Text
             [tutTitle.leadingAnchor constraintEqualToAnchor:playIcon.trailingAnchor constant:12],
             [tutTitle.bottomAnchor  constraintEqualToAnchor:tutRow.centerYAnchor constant:-1],
             [tutSub.leadingAnchor   constraintEqualToAnchor:tutTitle.leadingAnchor],
@@ -2305,36 +2314,37 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 
         if (hasURL) {
             UIButton *tapBtn = [UIButton buttonWithType:UIButtonTypeCustom];
-            tapBtn.backgroundColor             = [UIColor clearColor];
+            tapBtn.backgroundColor         = [UIColor clearColor];
             tapBtn.translatesAutoresizingMaskIntoConstraints = NO;
-            tapBtn.accessibilityIdentifier     = tutorialURL;
+            tapBtn.accessibilityIdentifier = tutorialURL;
             [tapBtn addTarget:self action:@selector(tutorialButtonTapped:)
                  forControlEvents:UIControlEventTouchUpInside];
             [tutRow addSubview:tapBtn];
             [NSLayoutConstraint activateConstraints:@[
-                [tapBtn.topAnchor    constraintEqualToAnchor:tutRow.topAnchor],
+                [tapBtn.topAnchor      constraintEqualToAnchor:tutRow.topAnchor],
                 [tapBtn.leadingAnchor  constraintEqualToAnchor:tutRow.leadingAnchor],
                 [tapBtn.trailingAnchor constraintEqualToAnchor:tutRow.trailingAnchor],
-                [tapBtn.bottomAnchor constraintEqualToAnchor:tutRow.bottomAnchor],
+                [tapBtn.bottomAnchor   constraintEqualToAnchor:tutRow.bottomAnchor],
             ]];
         }
 
-        gridBottomAnchor = sep.topAnchor;
-        gridBottomConst  = -10;
+        // Grid bắt đầu từ dưới sep
+        gridTopAnchor = sep.bottomAnchor;
+        gridTopConst  = 10;
     }
 
     [NSLayoutConstraint activateConstraints:@[
         // Card fills wrapper
-        [pc.topAnchor    constraintEqualToAnchor:panelWrap.topAnchor],
+        [pc.topAnchor      constraintEqualToAnchor:panelWrap.topAnchor],
         [pc.leadingAnchor  constraintEqualToAnchor:panelWrap.leadingAnchor],
         [pc.trailingAnchor constraintEqualToAnchor:panelWrap.trailingAnchor],
-        [pc.bottomAnchor constraintEqualToAnchor:panelWrap.bottomAnchor],
+        [pc.bottomAnchor   constraintEqualToAnchor:panelWrap.bottomAnchor],
 
         // Title bar
-        [titleBar.topAnchor    constraintEqualToAnchor:pc.topAnchor],
+        [titleBar.topAnchor      constraintEqualToAnchor:pc.topAnchor],
         [titleBar.leadingAnchor  constraintEqualToAnchor:pc.leadingAnchor],
         [titleBar.trailingAnchor constraintEqualToAnchor:pc.trailingAnchor],
-        [titleBar.heightAnchor constraintEqualToConstant:44],
+        [titleBar.heightAnchor   constraintEqualToConstant:44],
 
         // Accent rail
         [accent.leadingAnchor constraintEqualToAnchor:titleBar.leadingAnchor constant:14],
@@ -2352,7 +2362,6 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
         [menuTitle.leadingAnchor  constraintEqualToAnchor:icon.trailingAnchor constant:7],
         [menuTitle.trailingAnchor constraintLessThanOrEqualToAnchor:titleBar.trailingAnchor constant:(hint ? -56 : -14)],
         [menuTitle.centerYAnchor  constraintEqualToAnchor:titleBar.centerYAnchor],
-
     ]];
 
     // Badge constraint (optional — chỉ khi có badge)
@@ -2365,11 +2374,11 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     }
 
     [NSLayoutConstraint activateConstraints:@[
-        // Grid
-        [gridStack.topAnchor    constraintEqualToAnchor:titleBar.bottomAnchor constant:10],
-        [gridStack.leadingAnchor  constraintEqualToAnchor:pc.leadingAnchor   constant:10],
-        [gridStack.trailingAnchor constraintEqualToAnchor:pc.trailingAnchor  constant:-10],
-        [gridStack.bottomAnchor constraintEqualToAnchor:gridBottomAnchor constant:gridBottomConst],
+        // Grid — top anchor từ tutorial sep (hoặc titleBar nếu không có tutorial)
+        [gridStack.topAnchor      constraintEqualToAnchor:gridTopAnchor   constant:gridTopConst],
+        [gridStack.leadingAnchor  constraintEqualToAnchor:pc.leadingAnchor  constant:10],
+        [gridStack.trailingAnchor constraintEqualToAnchor:pc.trailingAnchor constant:-10],
+        [gridStack.bottomAnchor   constraintEqualToAnchor:pc.bottomAnchor   constant:-10],
     ]];
 
     return panelWrap;
