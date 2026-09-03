@@ -3455,9 +3455,11 @@ static UIColor *_aimTintFromString(NSString *tint) {
 
     // ── Title stack ────────────────────────────────────────────────────────────
     UILabel *titleLbl = [[UILabel alloc] init];
-    titleLbl.text      = LS(@"Chặn Quảng Cáo & Tracker", @"Block Ads & Trackers");
-    titleLbl.font      = [UIFont systemFontOfSize:15 weight:UIFontWeightBold];
-    titleLbl.textColor = HUD_TEXT;
+    titleLbl.text                    = LS(@"Chặn Quảng Cáo & Tracker", @"Block Ads & Trackers");
+    titleLbl.font                    = [UIFont systemFontOfSize:14 weight:UIFontWeightBold];
+    titleLbl.textColor               = HUD_TEXT;
+    titleLbl.adjustsFontSizeToFitWidth = YES;
+    titleLbl.minimumScaleFactor      = 0.8;
     titleLbl.translatesAutoresizingMaskIntoConstraints = NO;
     [card addSubview:titleLbl];
 
@@ -3465,6 +3467,8 @@ static UIColor *_aimTintFromString(NSString *tint) {
     subLbl.text      = @"DNS NextDNS · Chống Game Quét";
     subLbl.font      = [UIFont systemFontOfSize:11 weight:UIFontWeightRegular];
     subLbl.textColor = HUD_MUTED;
+    subLbl.adjustsFontSizeToFitWidth = YES;
+    subLbl.minimumScaleFactor        = 0.8;
     subLbl.translatesAutoresizingMaskIntoConstraints = NO;
     [card addSubview:subLbl];
 
@@ -3540,23 +3544,25 @@ static UIColor *_aimTintFromString(NSString *tint) {
         [iconImg.centerXAnchor constraintEqualToAnchor:iconBg.centerXAnchor],
         [iconImg.centerYAnchor constraintEqualToAnchor:iconBg.centerYAnchor],
 
-        // Title + sub + badge
-        [titleLbl.leadingAnchor constraintEqualToAnchor:iconBg.trailingAnchor constant:12],
-        [titleLbl.topAnchor     constraintEqualToAnchor:iconBg.topAnchor      constant:1],
-
-        [subLbl.leadingAnchor constraintEqualToAnchor:titleLbl.leadingAnchor],
-        [subLbl.topAnchor     constraintEqualToAnchor:titleLbl.bottomAnchor   constant:3],
-
-        [badge.leadingAnchor constraintEqualToAnchor:titleLbl.leadingAnchor],
-        [badge.topAnchor     constraintEqualToAnchor:subLbl.bottomAnchor      constant:4],
-
-        // Toggle button — larger, fully-rounded pill
+        // Toggle button — fully-rounded pill, pinned trailing first so title can shrink
         [self.dnsToggleButton.trailingAnchor constraintEqualToAnchor:card.trailingAnchor constant:-14],
         [self.dnsToggleButton.centerYAnchor  constraintEqualToAnchor:iconBg.centerYAnchor],
-        [self.dnsToggleButton.widthAnchor    constraintEqualToConstant:90],
+        [self.dnsToggleButton.widthAnchor    constraintEqualToConstant:100],
         [self.dnsToggleButton.heightAnchor   constraintEqualToConstant:44],
 
-        [btnIcon.centerXAnchor constraintEqualToAnchor:self.dnsToggleButton.centerXAnchor constant:-20],
+        // Title + sub + badge — trailing stops before the button
+        [titleLbl.leadingAnchor  constraintEqualToAnchor:iconBg.trailingAnchor constant:12],
+        [titleLbl.trailingAnchor constraintLessThanOrEqualToAnchor:self.dnsToggleButton.leadingAnchor constant:-8],
+        [titleLbl.topAnchor      constraintEqualToAnchor:iconBg.topAnchor constant:1],
+
+        [subLbl.leadingAnchor  constraintEqualToAnchor:titleLbl.leadingAnchor],
+        [subLbl.trailingAnchor constraintLessThanOrEqualToAnchor:self.dnsToggleButton.leadingAnchor constant:-8],
+        [subLbl.topAnchor      constraintEqualToAnchor:titleLbl.bottomAnchor constant:3],
+
+        [badge.leadingAnchor constraintEqualToAnchor:titleLbl.leadingAnchor],
+        [badge.topAnchor     constraintEqualToAnchor:subLbl.bottomAnchor constant:4],
+
+        [btnIcon.centerXAnchor constraintEqualToAnchor:self.dnsToggleButton.centerXAnchor constant:-22],
         [btnIcon.centerYAnchor constraintEqualToAnchor:self.dnsToggleButton.centerYAnchor],
 
         [btnLbl.leadingAnchor  constraintEqualToAnchor:btnIcon.trailingAnchor constant:6],
