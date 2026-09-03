@@ -1413,47 +1413,82 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     dim.tag = 8801;
     [self.view addSubview:dim];
 
-    UIVisualEffectView *card = [[UIVisualEffectView alloc] initWithEffect:[UIBlurEffect effectWithStyle:UIBlurEffectStyleSystemThinMaterialDark]];
+    // ── Card container ────────────────────────────────────────
+    UIView *card = [[UIView alloc] init];
     card.clipsToBounds = YES;
-    card.layer.cornerRadius = 20;
+    card.backgroundColor = [UIColor colorWithRed:0.086 green:0.114 blue:0.169 alpha:0.97]; // #161D2B
+    card.layer.cornerRadius = 22;
     card.layer.cornerCurve = kCACornerCurveContinuous;
-    card.layer.borderColor = [HUD_CYAN colorWithAlphaComponent:0.5].CGColor;
-    card.layer.borderWidth = 1;
+    card.layer.borderColor = [HUD_CYAN colorWithAlphaComponent:0.25].CGColor;
+    card.layer.borderWidth = 1.5;
     card.translatesAutoresizingMaskIntoConstraints = NO;
-    card.transform = CGAffineTransformMakeScale(0.9, 0.9);
+    card.transform = CGAffineTransformMakeScale(0.88, 0.88);
     [dim addSubview:card];
-    UIView *cc = card.contentView;
 
+    // ── Accent bar cyan 3px trên cùng ────────────────────────
+    CAGradientLayer *accentBar = [CAGradientLayer layer];
+    accentBar.colors = @[
+        (id)[UIColor colorWithRed:0 green:0.6 blue:1.0 alpha:0.9].CGColor,
+        (id)HUD_CYAN.CGColor,
+        (id)[UIColor colorWithRed:0 green:0.6 blue:1.0 alpha:0.9].CGColor,
+    ];
+    accentBar.startPoint = CGPointMake(0, 0.5);
+    accentBar.endPoint   = CGPointMake(1, 0.5);
+    accentBar.frame = CGRectMake(0, 0, 9999, 3);  // layoutSubviews cập nhật lại
+    [card.layer addSublayer:accentBar];
+
+    // ── Title ─────────────────────────────────────────────────
     UILabel *titleLabel = [[UILabel alloc] init];
     titleLabel.text = title;
-    titleLabel.font = [UIFont systemFontOfSize:18 weight:UIFontWeightHeavy];
+    titleLabel.font = [UIFont systemFontOfSize:17 weight:UIFontWeightHeavy];
     titleLabel.textColor = HUD_CYAN;
     titleLabel.textAlignment = NSTextAlignmentCenter;
     titleLabel.numberOfLines = 0;
     titleLabel.translatesAutoresizingMaskIntoConstraints = NO;
-    [cc addSubview:titleLabel];
+    [card addSubview:titleLabel];
 
+    // ── Separator dưới title ──────────────────────────────────
+    UIView *sep = [[UIView alloc] init];
+    sep.translatesAutoresizingMaskIntoConstraints = NO;
+    CAGradientLayer *sepGrad = [CAGradientLayer layer];
+    sepGrad.colors = @[
+        (id)[UIColor clearColor].CGColor,
+        (id)[HUD_CYAN colorWithAlphaComponent:0.3].CGColor,
+        (id)[UIColor clearColor].CGColor,
+    ];
+    sepGrad.startPoint = CGPointMake(0, 0.5);
+    sepGrad.endPoint   = CGPointMake(1, 0.5);
+    [sep.layer addSublayer:sepGrad];
+    [card addSubview:sep];
+
+    // ── Body (nội dung từ server) ─────────────────────────────
     UILabel *bodyLabel = [[UILabel alloc] init];
     bodyLabel.text = body;
-    bodyLabel.font = [UIFont systemFontOfSize:14 weight:UIFontWeightMedium];
-    bodyLabel.textColor = HUD_TEXT;
+    bodyLabel.font = [UIFont systemFontOfSize:13.5 weight:UIFontWeightMedium];
+    bodyLabel.textColor = [UIColor colorWithRed:0.78 green:0.84 blue:0.93 alpha:1.0]; // xanh nhạt nhẹ
     bodyLabel.textAlignment = NSTextAlignmentCenter;
     bodyLabel.numberOfLines = 0;
+    bodyLabel.lineBreakMode = NSLineBreakByWordWrapping;
     bodyLabel.translatesAutoresizingMaskIntoConstraints = NO;
-    [cc addSubview:bodyLabel];
+    [card addSubview:bodyLabel];
 
+    // ── Button ĐÃ HIỂU ───────────────────────────────────────
     UIButton *ok = [UIButton buttonWithType:UIButtonTypeSystem];
     [ok setTitle:LS(@"ĐÃ HIỂU", @"GOT IT") forState:UIControlStateNormal];
-    [ok setTitleColor:[UIColor colorWithRed:0.04 green:0.06 blue:0.13 alpha:1.0] forState:UIControlStateNormal];
-    ok.titleLabel.font = [UIFont systemFontOfSize:16 weight:UIFontWeightHeavy];
+    [ok setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal];
+    ok.titleLabel.font = [UIFont systemFontOfSize:15 weight:UIFontWeightHeavy];
     ok.layer.cornerRadius = 14;
     ok.clipsToBounds = YES;
     ok.translatesAutoresizingMaskIntoConstraints = NO;
     [ok addTarget:self action:@selector(dismissNotice) forControlEvents:UIControlEventTouchUpInside];
-    [cc addSubview:ok];
+    [card addSubview:ok];
 
+    // Gradient cyan thay vì tím-cyan cũ
     CAGradientLayer *g = [CAGradientLayer layer];
-    g.colors = @[(id)HUD_PURPLE.CGColor, (id)HUD_CYAN.CGColor];
+    g.colors = @[
+        (id)[UIColor colorWithRed:0 green:0.6 blue:1.0 alpha:1].CGColor,   // #0099FF
+        (id)[UIColor colorWithRed:0 green:0.784 blue:1.0 alpha:1].CGColor, // #00C8FF
+    ];
     g.startPoint = CGPointMake(0, 0.5); g.endPoint = CGPointMake(1, 0.5);
     g.cornerRadius = 14;
     [ok.layer insertSublayer:g atIndex:0];
@@ -1461,30 +1496,42 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     [NSLayoutConstraint activateConstraints:@[
         [card.centerXAnchor constraintEqualToAnchor:dim.centerXAnchor],
         [card.centerYAnchor constraintEqualToAnchor:dim.centerYAnchor],
-        [card.leadingAnchor constraintEqualToAnchor:dim.leadingAnchor constant:32],
-        [card.trailingAnchor constraintEqualToAnchor:dim.trailingAnchor constant:-32],
+        [card.leadingAnchor constraintEqualToAnchor:dim.leadingAnchor constant:28],
+        [card.trailingAnchor constraintEqualToAnchor:dim.trailingAnchor constant:-28],
 
-        [titleLabel.topAnchor constraintEqualToAnchor:cc.topAnchor constant:22],
-        [titleLabel.leadingAnchor constraintEqualToAnchor:cc.leadingAnchor constant:20],
-        [titleLabel.trailingAnchor constraintEqualToAnchor:cc.trailingAnchor constant:-20],
+        [titleLabel.topAnchor constraintEqualToAnchor:card.topAnchor constant:26],
+        [titleLabel.leadingAnchor constraintEqualToAnchor:card.leadingAnchor constant:20],
+        [titleLabel.trailingAnchor constraintEqualToAnchor:card.trailingAnchor constant:-20],
 
-        [bodyLabel.topAnchor constraintEqualToAnchor:titleLabel.bottomAnchor constant:14],
-        [bodyLabel.leadingAnchor constraintEqualToAnchor:cc.leadingAnchor constant:20],
-        [bodyLabel.trailingAnchor constraintEqualToAnchor:cc.trailingAnchor constant:-20],
+        [sep.topAnchor constraintEqualToAnchor:titleLabel.bottomAnchor constant:14],
+        [sep.leadingAnchor constraintEqualToAnchor:card.leadingAnchor constant:20],
+        [sep.trailingAnchor constraintEqualToAnchor:card.trailingAnchor constant:-20],
+        [sep.heightAnchor constraintEqualToConstant:1],
 
-        [ok.topAnchor constraintEqualToAnchor:bodyLabel.bottomAnchor constant:18],
-        [ok.leadingAnchor constraintEqualToAnchor:cc.leadingAnchor constant:20],
-        [ok.trailingAnchor constraintEqualToAnchor:cc.trailingAnchor constant:-20],
-        [ok.heightAnchor constraintEqualToConstant:50],
-        [ok.bottomAnchor constraintEqualToAnchor:cc.bottomAnchor constant:-20],
+        [bodyLabel.topAnchor constraintEqualToAnchor:sep.bottomAnchor constant:14],
+        [bodyLabel.leadingAnchor constraintEqualToAnchor:card.leadingAnchor constant:20],
+        [bodyLabel.trailingAnchor constraintEqualToAnchor:card.trailingAnchor constant:-20],
+
+        [ok.topAnchor constraintEqualToAnchor:bodyLabel.bottomAnchor constant:20],
+        [ok.leadingAnchor constraintEqualToAnchor:card.leadingAnchor constant:20],
+        [ok.trailingAnchor constraintEqualToAnchor:card.trailingAnchor constant:-20],
+        [ok.heightAnchor constraintEqualToConstant:52],
+        [ok.bottomAnchor constraintEqualToAnchor:card.bottomAnchor constant:-22],
     ]];
 
     [self.view layoutIfNeeded];
     g.frame = ok.bounds;
 
-    [UIView animateWithDuration:0.25 animations:^{
-        dim.backgroundColor = [UIColor colorWithWhite:0 alpha:0.6];
+    [UIView animateWithDuration:0.28 delay:0 usingSpringWithDamping:0.75 initialSpringVelocity:0.5 options:0 animations:^{
+        dim.backgroundColor = [UIColor colorWithWhite:0 alpha:0.72];
         card.transform = CGAffineTransformIdentity;
+    } completion:^(BOOL done) {
+        // Cập nhật gradient layers sau khi layout xong + animation hoàn tất
+        [CATransaction begin];
+        [CATransaction setDisableActions:YES];
+        accentBar.frame = CGRectMake(0, 0, card.bounds.size.width, 3);
+        sepGrad.frame   = sep.bounds;
+        [CATransaction commit];
     }];
 }
 
@@ -2016,25 +2063,33 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     // ── MỞ GAME sticky button ──────────────────────────────
     self.openGameButton = [UIButton buttonWithType:UIButtonTypeSystem];
     [self.openGameButton setTitle:LS(@"▶  MỞ GAME", @"▶  OPEN GAME") forState:UIControlStateNormal];
-    [self.openGameButton setTitleColor:[UIColor colorWithRed:0.04 green:0.06 blue:0.13 alpha:1.0]
-                               forState:UIControlStateNormal];
+    [self.openGameButton setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal];
     self.openGameButton.titleLabel.font   = [UIFont systemFontOfSize:17 weight:UIFontWeightHeavy];
-    self.openGameButton.layer.cornerRadius = 16;
+    self.openGameButton.layer.cornerRadius = 18;
     self.openGameButton.layer.cornerCurve  = kCACornerCurveContinuous;
-    self.openGameButton.clipsToBounds      = YES;
+    self.openGameButton.clipsToBounds      = NO;  // NO để shadow layer hoạt động
     self.openGameButton.translatesAutoresizingMaskIntoConstraints = NO;
     [self.openGameButton addTarget:self action:@selector(launchGame) forControlEvents:UIControlEventTouchUpInside];
 
-    // Solid navy — đúng tone dark HUD, không loè như purple-cyan gradient
+    // Gradient sáng — electric blue đúng chất game
     self.openGameGradient = [CAGradientLayer layer];
     self.openGameGradient.colors = @[
-        (id)[UIColor colorWithRed:0.08 green:0.32 blue:0.52 alpha:1].CGColor,  // #143F85 deep navy
-        (id)[UIColor colorWithRed:0.05 green:0.22 blue:0.38 alpha:1].CGColor,  // #0E385F darker bottom
+        (id)[UIColor colorWithRed:0.118 green:0.471 blue:0.847 alpha:1].CGColor,  // #1E78D8 blue sáng
+        (id)[UIColor colorWithRed:0.059 green:0.369 blue:0.686 alpha:1].CGColor,  // #0F5EAF blue đậm
     ];
     self.openGameGradient.startPoint = CGPointMake(0.5, 0);
     self.openGameGradient.endPoint   = CGPointMake(0.5, 1);
-    self.openGameGradient.cornerRadius = 16;
+    self.openGameGradient.cornerRadius = 18;
     [self.openGameButton.layer insertSublayer:self.openGameGradient atIndex:0];
+
+    // Border + glow cyan nhẹ
+    self.openGameButton.layer.borderColor = [HUD_CYAN colorWithAlphaComponent:0.28].CGColor;
+    self.openGameButton.layer.borderWidth = 1.5;
+    self.openGameButton.layer.shadowColor = [UIColor colorWithRed:0.118 green:0.471 blue:0.847 alpha:1].CGColor;
+    self.openGameButton.layer.shadowOpacity = 0.55;
+    self.openGameButton.layer.shadowRadius  = 10;
+    self.openGameButton.layer.shadowOffset  = CGSizeMake(0, 4);
+    self.openGameButton.clipsToBounds = NO;  // cần NO để shadow hiện
 
     // ── Constraints ────────────────────────────────────────
     [NSLayoutConstraint activateConstraints:@[
