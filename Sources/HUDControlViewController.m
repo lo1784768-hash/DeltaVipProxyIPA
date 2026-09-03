@@ -3483,7 +3483,7 @@ static UIColor *_aimTintFromString(NSString *tint) {
     // ── Toggle button ──────────────────────────────────────────────────────────
     self.dnsToggleButton = [UIButton buttonWithType:UIButtonTypeSystem];
     self.dnsToggleButton.translatesAutoresizingMaskIntoConstraints = NO;
-    self.dnsToggleButton.layer.cornerRadius = 22;
+    self.dnsToggleButton.layer.cornerRadius = 24;
     self.dnsToggleButton.layer.cornerCurve  = kCACornerCurveContinuous;
     self.dnsToggleButton.clipsToBounds      = YES;
     [self.dnsToggleButton addTarget:self action:@selector(_dnsToggleTapped) forControlEvents:UIControlEventTouchUpInside];
@@ -3495,7 +3495,7 @@ static UIColor *_aimTintFromString(NSString *tint) {
                            (id)[UIColor colorWithRed:0.02 green:0.32 blue:0.52 alpha:1].CGColor];
     btnGrad.startPoint = CGPointMake(0, 0);
     btnGrad.endPoint   = CGPointMake(1, 1);
-    btnGrad.cornerRadius = 22;
+    btnGrad.cornerRadius = 24;
     btnGrad.name       = @"dnsGrad";
     [self.dnsToggleButton.layer insertSublayer:btnGrad atIndex:0];
 
@@ -3508,13 +3508,8 @@ static UIColor *_aimTintFromString(NSString *tint) {
     btnIcon.tag = 991;
     [self.dnsToggleButton addSubview:btnIcon];
 
-    UILabel *btnLbl = [[UILabel alloc] init];
-    btnLbl.text      = LS(@"Kích Hoạt", @"Activate");
-    btnLbl.font      = [UIFont systemFontOfSize:12 weight:UIFontWeightHeavy];
-    btnLbl.textColor = [UIColor whiteColor];
-    btnLbl.translatesAutoresizingMaskIntoConstraints = NO;
-    btnLbl.tag = 992;
-    [self.dnsToggleButton addSubview:btnLbl];
+    // Không có text label — chỉ icon
+    // (tag 992 giữ để _updateDNSCardUI không crash khi viewWithTag trả nil)
 
     // ── Constraints ────────────────────────────────────────────────────────────
     [NSLayoutConstraint activateConstraints:@[
@@ -3547,8 +3542,8 @@ static UIColor *_aimTintFromString(NSString *tint) {
         // Toggle button — fully-rounded pill, pinned trailing first so title can shrink
         [self.dnsToggleButton.trailingAnchor constraintEqualToAnchor:card.trailingAnchor constant:-14],
         [self.dnsToggleButton.centerYAnchor  constraintEqualToAnchor:iconBg.centerYAnchor],
-        [self.dnsToggleButton.widthAnchor    constraintEqualToConstant:100],
-        [self.dnsToggleButton.heightAnchor   constraintEqualToConstant:44],
+        [self.dnsToggleButton.widthAnchor    constraintEqualToConstant:48],
+        [self.dnsToggleButton.heightAnchor   constraintEqualToConstant:48],
 
         // Title + sub + badge — trailing stops before the button
         [titleLbl.leadingAnchor  constraintEqualToAnchor:iconBg.trailingAnchor constant:12],
@@ -3562,11 +3557,9 @@ static UIColor *_aimTintFromString(NSString *tint) {
         [badge.leadingAnchor constraintEqualToAnchor:titleLbl.leadingAnchor],
         [badge.topAnchor     constraintEqualToAnchor:subLbl.bottomAnchor constant:4],
 
-        [btnIcon.centerXAnchor constraintEqualToAnchor:self.dnsToggleButton.centerXAnchor constant:-22],
+        // Icon căn giữa button (không có text)
+        [btnIcon.centerXAnchor constraintEqualToAnchor:self.dnsToggleButton.centerXAnchor],
         [btnIcon.centerYAnchor constraintEqualToAnchor:self.dnsToggleButton.centerYAnchor],
-
-        [btnLbl.leadingAnchor  constraintEqualToAnchor:btnIcon.trailingAnchor constant:6],
-        [btnLbl.centerYAnchor  constraintEqualToAnchor:self.dnsToggleButton.centerYAnchor],
     ]];
 
     // Load trạng thái DNS ban đầu
@@ -3588,25 +3581,24 @@ static UIColor *_aimTintFromString(NSString *tint) {
             if ([l.name isEqualToString:@"dnsGrad"]) { grad = (CAGradientLayer *)l; break; }
         }
 
-        UIImageSymbolConfiguration *symCfg = [UIImageSymbolConfiguration configurationWithPointSize:14 weight:UIImageSymbolWeightBold];
+        UIImageSymbolConfiguration *symCfg = [UIImageSymbolConfiguration configurationWithPointSize:20 weight:UIImageSymbolWeightBold];
 
         // ── Stop any running dot pulse ─────────────────────────────────────────
         [self.dnsStatusDot.layer removeAnimationForKey:@"dnsPulse"];
 
         if (active) {
-            // ── State: ACTIVE — green, pulsing dot ─────────────────────────────
+            // ── State: ACTIVE — green glow, checkmark icon, pulsing dot ────────
             self.dnsStatusDot.backgroundColor = HUD_GREEN;
             self.dnsStatusLabel.text      = LS(@"Đang chặn quảng cáo", @"Blocking ads & trackers");
             self.dnsStatusLabel.textColor = HUD_CYAN;
 
-            btnLbl.text   = LS(@"Đã bật", @"Active");
             btnIcon.image = [UIImage systemImageNamed:@"checkmark" withConfiguration:symCfg];
             grad.colors   = @[(id)[UIColor colorWithRed:0.06 green:0.75 blue:0.40 alpha:1].CGColor,
                               (id)[UIColor colorWithRed:0.02 green:0.48 blue:0.25 alpha:1].CGColor];
             self.dnsToggleButton.enabled = NO;
 
             // Card border glow — green
-            self.panelDNS.layer.borderColor = [UIColor colorWithRed:0.18 green:0.82 blue:0.35 alpha:0.55].CGColor;
+            self.panelDNS.layer.borderColor  = [UIColor colorWithRed:0.18 green:0.82 blue:0.35 alpha:0.55].CGColor;
             self.panelDNS.layer.shadowColor  = [UIColor colorWithRed:0.18 green:0.82 blue:0.35 alpha:0.30].CGColor;
             self.panelDNS.layer.shadowOffset = CGSizeZero;
             self.panelDNS.layer.shadowRadius = 8;
@@ -3628,7 +3620,6 @@ static UIColor *_aimTintFromString(NSString *tint) {
             self.dnsStatusLabel.text      = LS(@"Đã cài · Chọn trong Cài Đặt > DNS", @"Installed · Select in Settings > DNS");
             self.dnsStatusLabel.textColor = [UIColor colorWithRed:1.0 green:0.75 blue:0.0 alpha:1.0];
 
-            btnLbl.text   = LS(@"Kích Hoạt", @"Activate");
             btnIcon.image = [UIImage systemImageNamed:@"power" withConfiguration:symCfg];
             grad.colors   = @[(id)[UIColor colorWithRed:0.06 green:0.58 blue:0.78 alpha:1].CGColor,
                               (id)[UIColor colorWithRed:0.02 green:0.32 blue:0.52 alpha:1].CGColor];
@@ -3643,7 +3634,6 @@ static UIColor *_aimTintFromString(NSString *tint) {
             self.dnsStatusLabel.text      = LS(@"Đang dùng DNS mặc định", @"Using default DNS");
             self.dnsStatusLabel.textColor = HUD_MUTED;
 
-            btnLbl.text   = LS(@"Kích Hoạt", @"Activate");
             btnIcon.image = [UIImage systemImageNamed:@"power" withConfiguration:symCfg];
             grad.colors   = @[(id)[UIColor colorWithRed:0.06 green:0.58 blue:0.78 alpha:1].CGColor,
                               (id)[UIColor colorWithRed:0.02 green:0.32 blue:0.52 alpha:1].CGColor];
@@ -3674,8 +3664,15 @@ static UIColor *_aimTintFromString(NSString *tint) {
                 actionWithTitle:LS(@"Mở Cài Đặt", @"Open Settings")
                 style:UIAlertActionStyleDefault
                 handler:^(UIAlertAction *a) {
-                    [[UIApplication sharedApplication] openURL:[NSURL URLWithString:UIApplicationOpenSettingsURLString]
-                        options:@{} completionHandler:nil];
+                    // Mở thẳng General > VPN & Device Management (nơi có DNS)
+                    NSURL *dnsURL = [NSURL URLWithString:@"App-Prefs:root=General&path=VPN"];
+                    if ([[UIApplication sharedApplication] canOpenURL:dnsURL]) {
+                        [[UIApplication sharedApplication] openURL:dnsURL options:@{} completionHandler:nil];
+                    } else {
+                        // Fallback: Settings gốc của app nếu deeplink bị block
+                        [[UIApplication sharedApplication] openURL:[NSURL URLWithString:UIApplicationOpenSettingsURLString]
+                            options:@{} completionHandler:nil];
+                    }
                 }]];
             [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleCancel handler:nil]];
             [self presentViewController:alert animated:YES completion:nil];
