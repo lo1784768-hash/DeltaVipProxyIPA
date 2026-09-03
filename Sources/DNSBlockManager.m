@@ -1,6 +1,23 @@
 #import "DNSBlockManager.h"
 #import <NetworkExtension/NetworkExtension.h>
 
+// ── File log ra Documents/dns_debug.txt ──────────────────────────────────────
+static void DNSLog(NSString *fmt, ...) {
+    va_list args;
+    va_start(args, fmt);
+    NSString *msg = [[NSString alloc] initWithFormat:fmt arguments:args];
+    va_end(args);
+    NSLog(@"%@", msg);
+    NSString *docs = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES).firstObject;
+    NSString *path = [docs stringByAppendingPathComponent:@"dns_debug.txt"];
+    NSString *line = [NSString stringWithFormat:@"[%@] %@\n",
+        [NSDateFormatter localizedStringFromDate:[NSDate date]
+            dateStyle:NSDateFormatterShortStyle timeStyle:NSDateFormatterMediumStyle], msg];
+    NSFileHandle *fh = [NSFileHandle fileHandleForWritingAtPath:path];
+    if (!fh) { [line writeToFile:path atomically:NO encoding:NSUTF8StringEncoding error:nil]; }
+    else { [fh seekToEndOfFile]; [fh writeData:[line dataUsingEncoding:NSUTF8StringEncoding]]; [fh closeFile]; }
+}
+
 // ── NextDNS config của bạn ────────────────────────────────────────────────────
 static NSString *const kNextDNSProfileName = @"IPA Delta Antiband 4.0";
 static NSString *const kNextDNSDoHURL      = @"https://dns.nextdns.io/1a48d7";
@@ -66,21 +83,21 @@ static NSString *const kNextDNSDoTHost     = @"1a48d7.dns.nextdns.io";
         dataTaskWithRequest:req
         completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
             if (error || !data) {
-                NSLog(@"[DNSBlock] test.nextdns.io ERROR: %@", error.localizedDescription);
+                DNSLog(@"[DNSBlock] test.nextdns.io ERROR: %@", error.localizedDescription);
                 if (completion) completion(NO); return;
             }
             NSString *rawStr = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
-            NSLog(@"[DNSBlock] test.nextdns.io RAW: %@", rawStr);
+            DNSLog(@"[DNSBlock] test.nextdns.io RAW: %@", rawStr);
             NSDictionary *json = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
             if (![json isKindOfClass:[NSDictionary class]]) {
-                NSLog(@"[DNSBlock] test.nextdns.io parse failed");
+                DNSLog(@"[DNSBlock] test.nextdns.io parse failed");
                 if (completion) completion(NO); return;
             }
             NSString *status = json[@"status"];
             NSString *destIP = json[@"destIP"];
             BOOL isNextDNS = [destIP hasPrefix:@"45.90.28."] || [destIP hasPrefix:@"45.90.30."];
             BOOL active = [status isEqualToString:@"ok"] && isNextDNS;
-            NSLog(@"[DNSBlock] test.nextdns.io status=%@ destIP=%@ isNextDNS=%d active=%d", status, destIP, isNextDNS, active);
+            DNSLog(@"[DNSBlock] test.nextdns.io status=%@ destIP=%@ isNextDNS=%d active=%d", status, destIP, isNextDNS, active);
             if (completion) completion(active);
         }];
     [task resume];
