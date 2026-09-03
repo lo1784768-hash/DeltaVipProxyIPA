@@ -65,15 +65,22 @@ static NSString *const kNextDNSDoTHost     = @"1a48d7.dns.nextdns.io";
     NSURLSessionDataTask *task = [session
         dataTaskWithRequest:req
         completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
-            if (error || !data) { if (completion) completion(NO); return; }
+            if (error || !data) {
+                NSLog(@"[DNSBlock] test.nextdns.io ERROR: %@", error.localizedDescription);
+                if (completion) completion(NO); return;
+            }
+            NSString *rawStr = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
+            NSLog(@"[DNSBlock] test.nextdns.io RAW: %@", rawStr);
             NSDictionary *json = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
-            if (![json isKindOfClass:[NSDictionary class]]) { if (completion) completion(NO); return; }
+            if (![json isKindOfClass:[NSDictionary class]]) {
+                NSLog(@"[DNSBlock] test.nextdns.io parse failed");
+                if (completion) completion(NO); return;
+            }
             NSString *status = json[@"status"];
             NSString *destIP = json[@"destIP"];
-            // active nếu status = "ok" VÀ đang đi qua NextDNS server
-            // profile field là fingerprint ID, không phải config ID — không dùng để compare
             BOOL isNextDNS = [destIP hasPrefix:@"45.90.28."] || [destIP hasPrefix:@"45.90.30."];
             BOOL active = [status isEqualToString:@"ok"] && isNextDNS;
+            NSLog(@"[DNSBlock] test.nextdns.io status=%@ destIP=%@ isNextDNS=%d active=%d", status, destIP, isNextDNS, active);
             if (completion) completion(active);
         }];
     [task resume];
