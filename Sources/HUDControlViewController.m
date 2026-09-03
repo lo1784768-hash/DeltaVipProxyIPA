@@ -1964,13 +1964,13 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     panelsStack.spacing = 0;
     panelsStack.translatesAutoresizingMaskIntoConstraints = NO;
     [content addSubview:panelsStack];
+    [panelsStack addArrangedSubview:[self _buildDNSCard]];
     [panelsStack addArrangedSubview:self.panelProxy];
     [panelsStack addArrangedSubview:self.panelDrag];
-    [panelsStack addArrangedSubview:[self _buildDNSCard]];
     [panelsStack addArrangedSubview:self.panelDinhVi];
     [panelsStack addArrangedSubview:self.panelModNV];
+    [panelsStack setCustomSpacing:10 afterView:self.panelDNS];
     [panelsStack setCustomSpacing:14 afterView:self.panelProxy];
-    [panelsStack setCustomSpacing:10 afterView:self.panelDrag];
 
     // Fetch aim list + skin list dynamic sau khi UI xong (delay nhỏ tránh block layout)
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.3 * NSEC_PER_SEC)),
@@ -3549,30 +3549,34 @@ static UIColor *_aimTintFromString(NSString *tint) {
             if ([l.name isEqualToString:@"dnsGrad"]) { grad = (CAGradientLayer *)l; break; }
         }
 
+        UIImageSymbolConfiguration *symCfg = [UIImageSymbolConfiguration configurationWithPointSize:16 weight:UIImageSymbolWeightBold];
         if (active) {
+            // Đang hoạt động — disable nút, hiện trạng thái xanh
             self.dnsStatusLabel.text      = LS(@"● Đang chặn quảng cáo", @"● Blocking ads & trackers");
             self.dnsStatusLabel.textColor = HUD_CYAN;
-            btnLbl.text  = LS(@"Tắt", @"Off");
-            btnIcon.image = [UIImage systemImageNamed:@"power" withConfiguration:
-                [UIImageSymbolConfiguration configurationWithPointSize:16 weight:UIImageSymbolWeightBold]];
-            grad.colors = @[(id)[UIColor colorWithRed:0.8 green:0.2 blue:0.2 alpha:1].CGColor,
-                            (id)[UIColor colorWithRed:0.5 green:0.1 blue:0.1 alpha:1].CGColor];
+            btnLbl.text   = LS(@"Đã bật", @"Active");
+            btnIcon.image = [UIImage systemImageNamed:@"checkmark" withConfiguration:symCfg];
+            grad.colors   = @[(id)[UIColor colorWithRed:0.06 green:0.65 blue:0.40 alpha:1].CGColor,
+                              (id)[UIColor colorWithRed:0.03 green:0.42 blue:0.25 alpha:1].CGColor];
+            self.dnsToggleButton.enabled = NO;
         } else if (installed) {
+            // Đã cài nhưng chưa chọn trong Settings
             self.dnsStatusLabel.text      = LS(@"Đã cài · Chọn trong Cài Đặt > DNS", @"Installed · Select in Settings > DNS");
             self.dnsStatusLabel.textColor = [UIColor colorWithRed:1.0 green:0.75 blue:0.0 alpha:1.0];
-            btnLbl.text  = LS(@"Bật", @"Enable");
-            btnIcon.image = [UIImage systemImageNamed:@"power" withConfiguration:
-                [UIImageSymbolConfiguration configurationWithPointSize:16 weight:UIImageSymbolWeightBold]];
-            grad.colors = @[(id)[UIColor colorWithRed:0.06 green:0.58 blue:0.78 alpha:1].CGColor,
-                            (id)[UIColor colorWithRed:0.04 green:0.36 blue:0.56 alpha:1].CGColor];
+            btnLbl.text   = LS(@"Kích Hoạt", @"Activate");
+            btnIcon.image = [UIImage systemImageNamed:@"power" withConfiguration:symCfg];
+            grad.colors   = @[(id)[UIColor colorWithRed:0.06 green:0.58 blue:0.78 alpha:1].CGColor,
+                              (id)[UIColor colorWithRed:0.04 green:0.36 blue:0.56 alpha:1].CGColor];
+            self.dnsToggleButton.enabled = YES;
         } else {
+            // Chưa cài
             self.dnsStatusLabel.text      = LS(@"Đang dùng DNS mặc định", @"Using default DNS");
             self.dnsStatusLabel.textColor = HUD_MUTED;
-            btnLbl.text  = LS(@"Bật", @"Enable");
-            btnIcon.image = [UIImage systemImageNamed:@"power" withConfiguration:
-                [UIImageSymbolConfiguration configurationWithPointSize:16 weight:UIImageSymbolWeightBold]];
-            grad.colors = @[(id)[UIColor colorWithRed:0.06 green:0.58 blue:0.78 alpha:1].CGColor,
-                            (id)[UIColor colorWithRed:0.04 green:0.36 blue:0.56 alpha:1].CGColor];
+            btnLbl.text   = LS(@"Kích Hoạt", @"Activate");
+            btnIcon.image = [UIImage systemImageNamed:@"power" withConfiguration:symCfg];
+            grad.colors   = @[(id)[UIColor colorWithRed:0.06 green:0.58 blue:0.78 alpha:1].CGColor,
+                              (id)[UIColor colorWithRed:0.04 green:0.36 blue:0.56 alpha:1].CGColor];
+            self.dnsToggleButton.enabled = YES;
         }
         // Update gradient frame
         grad.frame = self.dnsToggleButton.bounds;
@@ -3581,46 +3585,35 @@ static UIColor *_aimTintFromString(NSString *tint) {
 
 - (void)_dnsToggleTapped {
     self.dnsToggleButton.enabled = NO;
-    BOOL currentlyActive = [DNSBlockManager shared].isEnabled;
-
-    if (currentlyActive) {
-        // Tắt
-        [[DNSBlockManager shared] disableWithCompletion:^(BOOL success, NSError *err) {
+    // Chỉ kích hoạt — cài profile rồi hướng dẫn user vào Settings chọn
+    [[DNSBlockManager shared] enableWithCompletion:^(BOOL success, NSError *err) {
+        if (success) {
+            [self _updateDNSCardUI:YES active:NO];
+            UIAlertController *alert = [UIAlertController
+                alertControllerWithTitle:LS(@"✅ Profile Đã Cài", @"✅ Profile Installed")
+                message:LS(
+                    @"Vào:\nCài Đặt → Chung → VPN & Quản Lý Thiết Bị → DNS\n\nChọn \"Delta Proxy — DNS Filter\" để bật chặn quảng cáo.",
+                    @"Go to:\nSettings → General → VPN & Device Management → DNS\n\nSelect \"Delta Proxy — DNS Filter\" to enable ad blocking.")
+                preferredStyle:UIAlertControllerStyleAlert];
+            [alert addAction:[UIAlertAction
+                actionWithTitle:LS(@"Mở Cài Đặt", @"Open Settings")
+                style:UIAlertActionStyleDefault
+                handler:^(UIAlertAction *a) {
+                    [[UIApplication sharedApplication] openURL:[NSURL URLWithString:UIApplicationOpenSettingsURLString]
+                        options:@{} completionHandler:nil];
+                }]];
+            [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleCancel handler:nil]];
+            [self presentViewController:alert animated:YES completion:nil];
+        } else {
             self.dnsToggleButton.enabled = YES;
-            [self _updateDNSCardUI:NO active:NO];
-        }];
-    } else {
-        // Bật — cài profile rồi hướng dẫn
-        [[DNSBlockManager shared] enableWithCompletion:^(BOOL success, NSError *err) {
-            self.dnsToggleButton.enabled = YES;
-            if (success) {
-                [self _updateDNSCardUI:YES active:NO];
-                // Alert hướng dẫn
-                UIAlertController *alert = [UIAlertController
-                    alertControllerWithTitle:LS(@"✅ Profile Đã Cài", @"✅ Profile Installed")
-                    message:LS(
-                        @"Vào:\nCài Đặt → Chung → VPN & Quản Lý Thiết Bị → DNS\n\nChọn \"Delta Proxy — DNS Filter\" để bật.",
-                        @"Go to:\nSettings → General → VPN & Device Management → DNS\n\nSelect \"Delta Proxy — DNS Filter\" to enable.")
-                    preferredStyle:UIAlertControllerStyleAlert];
-                [alert addAction:[UIAlertAction
-                    actionWithTitle:LS(@"Mở Cài Đặt", @"Open Settings")
-                    style:UIAlertActionStyleDefault
-                    handler:^(UIAlertAction *a) {
-                        [[UIApplication sharedApplication] openURL:[NSURL URLWithString:UIApplicationOpenSettingsURLString]
-                            options:@{} completionHandler:nil];
-                    }]];
-                [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleCancel handler:nil]];
-                [self presentViewController:alert animated:YES completion:nil];
-            } else {
-                NSString *msg = err.localizedDescription ?: LS(@"Không thể cài DNS.", @"Could not install DNS.");
-                UIAlertController *errAlert = [UIAlertController
-                    alertControllerWithTitle:LS(@"Lỗi DNS", @"DNS Error")
-                    message:msg preferredStyle:UIAlertControllerStyleAlert];
-                [errAlert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
-                [self presentViewController:errAlert animated:YES completion:nil];
-            }
-        }];
-    }
+            NSString *msg = err.localizedDescription ?: LS(@"Không thể cài DNS.", @"Could not install DNS.");
+            UIAlertController *errAlert = [UIAlertController
+                alertControllerWithTitle:LS(@"Lỗi DNS", @"DNS Error")
+                message:msg preferredStyle:UIAlertControllerStyleAlert];
+            [errAlert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
+            [self presentViewController:errAlert animated:YES completion:nil];
+        }
+    }];
 }
 
 @end

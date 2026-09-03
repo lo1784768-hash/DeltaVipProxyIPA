@@ -37,6 +37,7 @@ static NSString *const kNextDNSDoTHost     = @"1a48d7.dns.nextdns.io";
 }
 
 // ── Cài DNS profile (chưa tự bật — user phải vào Settings chọn) ──────────────
+// Xoá profile cũ trước để tránh lỗi "configuration is unchanged"
 
 - (void)enableWithCompletion:(DNSBlock)completion {
     if (@available(iOS 14.0, *)) {
@@ -47,23 +48,25 @@ static NSString *const kNextDNSDoTHost     = @"1a48d7.dns.nextdns.io";
                 return;
             }
 
-            // Tạo DoH settings trỏ về NextDNS
-            NEDNSOverHTTPSSettings *doh = [[NEDNSOverHTTPSSettings alloc] init];
-            doh.serverURL = [NSURL URLWithString:kNextDNSDoHURL];
+            void(^doSave)(void) = ^{
+                NEDNSOverHTTPSSettings *doh = [[NEDNSOverHTTPSSettings alloc] init];
+                doh.serverURL = [NSURL URLWithString:kNextDNSDoHURL];
+                mgr.dnsSettings          = doh;
+                mgr.localizedDescription = kNextDNSProfileName;
+                [mgr saveToPreferencesWithCompletionHandler:^(NSError *saveErr) {
+                    self.isEnabled = NO;
+                    if (completion) dispatch_async(dispatch_get_main_queue(), ^{ completion(saveErr == nil, saveErr); });
+                }];
+            };
 
-            mgr.dnsSettings          = doh;
-            mgr.localizedDescription = kNextDNSProfileName;
-
-            [mgr saveToPreferencesWithCompletionHandler:^(NSError *saveErr) {
-                if (saveErr) {
-                    if (completion) dispatch_async(dispatch_get_main_queue(), ^{ completion(NO, saveErr); });
-                    return;
-                }
-                // Profile đã cài — trả success để UI hiện hướng dẫn
-                // isEnabled vẫn NO cho đến khi user chọn trong Settings
-                self.isEnabled = NO;
-                if (completion) dispatch_async(dispatch_get_main_queue(), ^{ completion(YES, nil); });
-            }];
+            // Nếu đã có profile cũ → xoá trước để tránh "configuration is unchanged"
+            if (mgr.dnsSettings != nil) {
+                [mgr removeFromPreferencesWithCompletionHandler:^(NSError *removeErr) {
+                    doSave();
+                }];
+            } else {
+                doSave();
+            }
         }];
     } else {
         NSError *err = [NSError errorWithDomain:@"DNSBlock" code:0

@@ -483,11 +483,10 @@ static NSString *const kShareURL = @"https://getuid.vip/proxy-delta.html";
                 }
             }];
         } else {
-            [[DNSBlockManager shared] disableWithCompletion:^(BOOL success, NSError *err) {
-                [weakSelf.dnsRow.spinner stopAnimating];
-                weakSelf.dnsRow.toggle.enabled = YES;
-                [weakSelf.dnsRow setOn:!success animated:YES];
-            }];
+            // Toggle tắt → không làm gì, giữ nguyên trạng thái
+            [weakSelf.dnsRow.spinner stopAnimating];
+            weakSelf.dnsRow.toggle.enabled = YES;
+            [weakSelf.dnsRow setOn:NO animated:YES];
         }
     }];
 
