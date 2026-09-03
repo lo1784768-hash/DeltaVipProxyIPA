@@ -6,6 +6,7 @@
 #import "Endpoints.h"
 #import "LanguageManager.h"
 #import "DinhViColorPickerViewController.h"
+#import <NetworkExtension/NetworkExtension.h>
 
 // ── Palette — Tactical Matrix Grid ──────────────────────
 // Surface
