@@ -46,8 +46,8 @@ static NSString *const kNextDNSDoTHost     = @"1a48d7.dns.nextdns.io";
             }
 
             // Tạo DoH settings trỏ về NextDNS
-            NEDNSOverHTTPSSettings *doh = [[NEDNSOverHTTPSSettings alloc]
-                initWithServers:@[kNextDNSDoHURL]];
+            NEDNSOverHTTPSSettings *doh = [[NEDNSOverHTTPSSettings alloc] init];
+            doh.serverURL = [NSURL URLWithString:kNextDNSDoHURL];
 
             mgr.dnsSettings  = doh;
             mgr.localizedDescription = kNextDNSProfileName;
