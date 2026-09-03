@@ -3663,13 +3663,7 @@ static UIColor *_aimTintFromString(NSString *tint) {
                     LS(@"Vào:\n%@\n\nChọn \"Delta Proxy — DNS Filter\" để bật chặn quảng cáo.",
                        @"Go to:\n%@\n\nSelect \"Delta Proxy — DNS Filter\" to enable ad blocking."), path]
                 preferredStyle:UIAlertControllerStyleAlert];
-            [alert addAction:[UIAlertAction
-                actionWithTitle:LS(@"📋 Sao Chép Đường Dẫn", @"📋 Copy Path")
-                style:UIAlertActionStyleDefault
-                handler:^(UIAlertAction *a) {
-                    [UIPasteboard generalPasteboard].string = path;
-                }]];
-            [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleCancel handler:nil]];
+            [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
             [self presentViewController:alert animated:YES completion:nil];
         } else {
             self.dnsToggleButton.enabled = YES;
