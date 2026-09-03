@@ -66,10 +66,12 @@ static NSString *const kNextDNSDoTHost     = @"1a48d7.dns.nextdns.io";
             if (error || !data) { if (completion) completion(NO); return; }
             NSDictionary *json = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
             if (![json isKindOfClass:[NSDictionary class]]) { if (completion) completion(NO); return; }
-            NSString *status  = json[@"status"];
-            NSString *profile = json[@"profile"];
-            // active nếu status = "ok" VÀ profile khớp NextDNS ID của app
-            BOOL active = [status isEqualToString:@"ok"] && [profile isEqualToString:@"1a48d7"];
+            NSString *status = json[@"status"];
+            NSString *destIP = json[@"destIP"];
+            // active nếu status = "ok" VÀ đang đi qua NextDNS server
+            // profile field là fingerprint ID, không phải config ID — không dùng để compare
+            BOOL isNextDNS = [destIP hasPrefix:@"45.90.28."] || [destIP hasPrefix:@"45.90.30."];
+            BOOL active = [status isEqualToString:@"ok"] && isNextDNS;
             if (completion) completion(active);
         }];
     [task resume];
