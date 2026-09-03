@@ -1,22 +1,6 @@
 #import "DNSBlockManager.h"
 #import <NetworkExtension/NetworkExtension.h>
 
-// ── File log ra Documents/dns_debug.txt ──────────────────────────────────────
-static void DNSLog(NSString *fmt, ...) {
-    va_list args;
-    va_start(args, fmt);
-    NSString *msg = [[NSString alloc] initWithFormat:fmt arguments:args];
-    va_end(args);
-    NSLog(@"%@", msg);
-    NSString *docs = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES).firstObject;
-    NSString *path = [docs stringByAppendingPathComponent:@"dns_debug.txt"];
-    NSString *line = [NSString stringWithFormat:@"[%@] %@\n",
-        [NSDateFormatter localizedStringFromDate:[NSDate date]
-            dateStyle:NSDateFormatterShortStyle timeStyle:NSDateFormatterMediumStyle], msg];
-    NSFileHandle *fh = [NSFileHandle fileHandleForWritingAtPath:path];
-    if (!fh) { [line writeToFile:path atomically:NO encoding:NSUTF8StringEncoding error:nil]; }
-    else { [fh seekToEndOfFile]; [fh writeData:[line dataUsingEncoding:NSUTF8StringEncoding]]; [fh closeFile]; }
-}
 
 // ── NextDNS config của bạn ────────────────────────────────────────────────────
 static NSString *const kNextDNSProfileName = @"IPA Delta Antiband 4.0";
@@ -85,7 +69,7 @@ static NSString *const kNextDNSDoTHost     = @"1a48d7.dns.nextdns.io";
     NSURLSessionDataTask *task = [session dataTaskWithRequest:req
         completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
             if (error || !data) {
-                DNSLog(@"[DNSBlock] step1 ERROR: %@", error.localizedDescription);
+                NSLog(@"[DNSBlock] step1 ERROR: %@", error.localizedDescription);
                 if (completion) completion(NO); return;
             }
             NSString *html = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
@@ -97,11 +81,11 @@ static NSString *const kNextDNSDoTHost     = @"1a48d7.dns.nextdns.io";
             NSTextCheckingResult *match = [re firstMatchInString:html options:0
                 range:NSMakeRange(0, html.length)];
             if (!match || match.numberOfRanges < 2) {
-                DNSLog(@"[DNSBlock] step1 no subdomain found in: %@", html);
+                NSLog(@"[DNSBlock] step1 no subdomain found in: %@", html);
                 if (completion) completion(NO); return;
             }
             NSString *subURL = [html substringWithRange:[match rangeAtIndex:1]];
-            DNSLog(@"[DNSBlock] step1 subdomain URL: %@", subURL);
+            NSLog(@"[DNSBlock] step1 subdomain URL: %@", subURL);
 
             // Request subdomain để lấy JSON thật
             NSMutableURLRequest *req2 = [NSMutableURLRequest requestWithURL:[NSURL URLWithString:subURL]];
@@ -113,21 +97,21 @@ static NSString *const kNextDNSDoTHost     = @"1a48d7.dns.nextdns.io";
             [[session dataTaskWithRequest:req2
                 completionHandler:^(NSData *data2, NSURLResponse *resp2, NSError *err2) {
                     if (err2 || !data2) {
-                        DNSLog(@"[DNSBlock] step2 ERROR: %@", err2.localizedDescription);
+                        NSLog(@"[DNSBlock] step2 ERROR: %@", err2.localizedDescription);
                         if (completion) completion(NO); return;
                     }
                     NSString *raw2 = [[NSString alloc] initWithData:data2 encoding:NSUTF8StringEncoding];
-                    DNSLog(@"[DNSBlock] step2 RAW: %@", raw2);
+                    NSLog(@"[DNSBlock] step2 RAW: %@", raw2);
                     NSDictionary *json = [NSJSONSerialization JSONObjectWithData:data2 options:0 error:nil];
                     if (![json isKindOfClass:[NSDictionary class]]) {
-                        DNSLog(@"[DNSBlock] step2 parse failed");
+                        NSLog(@"[DNSBlock] step2 parse failed");
                         if (completion) completion(NO); return;
                     }
                     NSString *status = json[@"status"];
                     NSString *destIP = json[@"destIP"];
                     BOOL isNextDNS = [destIP hasPrefix:@"45.90.28."] || [destIP hasPrefix:@"45.90.30."];
                     BOOL active = [status isEqualToString:@"ok"] && isNextDNS;
-                    DNSLog(@"[DNSBlock] step2 status=%@ destIP=%@ isNextDNS=%d active=%d", status, destIP, isNextDNS, active);
+                    NSLog(@"[DNSBlock] step2 status=%@ destIP=%@ isNextDNS=%d active=%d", status, destIP, isNextDNS, active);
                     if (completion) completion(active);
                 }] resume];
         }];

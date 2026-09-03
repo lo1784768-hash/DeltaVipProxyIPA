@@ -1729,8 +1729,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
                 NEDNSSettingsManager *mgr = NEDNSSettingsManager.sharedManager;
                 BOOL installed = (mgr.dnsSettings != nil);
                 BOOL active    = installed && mgr.isEnabled;
-                NSLog(@"[DNSBlock] Timer1 NE: err=%@ installed=%d isEnabled=%d active=%d", err.localizedDescription, installed, mgr.isEnabled, active);
-                if (active) {
+if (active) {
                     // NEDNSSettingsManager xác nhận active → update ngay
                     [DNSBlockManager shared].isEnabled = YES;
                     dispatch_async(dispatch_get_main_queue(), ^{
