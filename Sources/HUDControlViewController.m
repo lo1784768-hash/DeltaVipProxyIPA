@@ -3768,7 +3768,7 @@ static UIColor *_aimTintFromString(NSString *tint) {
                     actionWithTitle:LS(@"📥 Cài File Cấu Hình", @"📥 Install Config File")
                     style:UIAlertActionStyleDefault
                     handler:^(UIAlertAction *a) {
-                        NSURL *configURL = [NSURL URLWithString:@"https://getuid.vip/Delta-Antiband.mobileconfig"];
+                        NSURL *configURL = [NSURL URLWithString:@"https://getuid.vip/install-dns.php"];
                         if ([[UIApplication sharedApplication] canOpenURL:configURL]) {
                             [[UIApplication sharedApplication] openURL:configURL options:@{} completionHandler:nil];
                         }
