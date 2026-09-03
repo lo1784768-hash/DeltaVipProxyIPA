@@ -36,9 +36,11 @@ static NSString *const kNextDNSDoTHost     = @"1a48d7.dns.nextdns.io";
                 if (completion) dispatch_async(dispatch_get_main_queue(), ^{ completion(YES, YES); });
             } else {
                 // Fallback: query test.nextdns.io để detect DNS cài thủ công qua mobileconfig
+                // hoặc khi iOS beta trả "Không xác định" (installed=YES nhưng isEnabled=NO)
                 [self _checkNextDNSActiveWithCompletion:^(BOOL nextdnsActive) {
+                    // installed = YES nếu NEDNSSettingsManager thấy profile CẦN hoặc nextdns active
                     BOOL finalInstalled = installed || nextdnsActive;
-                    BOOL finalActive    = active    || nextdnsActive;
+                    BOOL finalActive    = nextdnsActive; // chỉ active khi nextdns xác nhận
                     self.isEnabled = finalActive;
                     if (completion) dispatch_async(dispatch_get_main_queue(), ^{
                         completion(finalInstalled, finalActive);

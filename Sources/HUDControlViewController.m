@@ -1730,13 +1730,19 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
                 BOOL installed = (mgr.dnsSettings != nil);
                 BOOL active    = installed && mgr.isEnabled;
                 if (active) {
-                    // NEDNSSettingsManager xác nhận → update ngay
+                    // NEDNSSettingsManager xác nhận active → update ngay
                     [DNSBlockManager shared].isEnabled = YES;
                     dispatch_async(dispatch_get_main_queue(), ^{
                         [weak _updateDNSCardUI:YES active:YES];
                     });
+                } else if (installed && ![[DNSBlockManager shared] isEnabled]) {
+                    // Profile đã cài (kể cả "Không xác định" trên iOS beta)
+                    // nhưng chưa xác nhận active — hiển thị vàng "Đã cài"
+                    dispatch_async(dispatch_get_main_queue(), ^{
+                        [weak _updateDNSCardUI:YES active:NO];
+                    });
                 }
-                // Nếu không active, chờ timer 2 (nextdns) cập nhật
+                // Nếu không installed, để timer 2 (nextdns) quyết định
             }];
         }
     }];
