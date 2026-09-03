@@ -2025,10 +2025,14 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     self.openGameButton.translatesAutoresizingMaskIntoConstraints = NO;
     [self.openGameButton addTarget:self action:@selector(launchGame) forControlEvents:UIControlEventTouchUpInside];
 
+    // Solid navy — đúng tone dark HUD, không loè như purple-cyan gradient
     self.openGameGradient = [CAGradientLayer layer];
-    self.openGameGradient.colors = @[(id)HUD_PURPLE.CGColor, (id)HUD_CYAN.CGColor];
-    self.openGameGradient.startPoint = CGPointMake(0, 0.5);
-    self.openGameGradient.endPoint   = CGPointMake(1, 0.5);
+    self.openGameGradient.colors = @[
+        (id)[UIColor colorWithRed:0.08 green:0.32 blue:0.52 alpha:1].CGColor,  // #143F85 deep navy
+        (id)[UIColor colorWithRed:0.05 green:0.22 blue:0.38 alpha:1].CGColor,  // #0E385F darker bottom
+    ];
+    self.openGameGradient.startPoint = CGPointMake(0.5, 0);
+    self.openGameGradient.endPoint   = CGPointMake(0.5, 1);
     self.openGameGradient.cornerRadius = 16;
     [self.openGameButton.layer insertSublayer:self.openGameGradient atIndex:0];
 
