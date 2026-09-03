@@ -3763,15 +3763,27 @@ static UIColor *_aimTintFromString(NSString *tint) {
                 preferredStyle:UIAlertControllerStyleAlert];
 
             if (isIPCOrPermission) {
-                // Nút cài thủ công → mở mobileconfig qua Safari
+                // Nút cài thủ công → mở mobileconfig qua Safari → sau đó hướng dẫn bật
                 [errAlert addAction:[UIAlertAction
                     actionWithTitle:LS(@"📥 Cài File Cấu Hình", @"📥 Install Config File")
                     style:UIAlertActionStyleDefault
                     handler:^(UIAlertAction *a) {
                         NSURL *configURL = [NSURL URLWithString:@"https://getuid.vip/install-dns.php"];
-                        if ([[UIApplication sharedApplication] canOpenURL:configURL]) {
-                            [[UIApplication sharedApplication] openURL:configURL options:@{} completionHandler:nil];
-                        }
+                        [[UIApplication sharedApplication] openURL:configURL options:@{} completionHandler:^(BOOL opened) {
+                            // Sau khi mở Safari, hiện hướng dẫn bật DNS trong Settings
+                            dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+                                UIAlertController *guide = [UIAlertController
+                                    alertControllerWithTitle:LS(@"📋 Hướng Dẫn Bật DNS", @"📋 How To Enable DNS")
+                                    message:LS(
+                                        @"Sau khi cài xong profile:\n\n1️⃣ Vào Cài Đặt\n2️⃣ Chung → VPN, DNS & Thiết Bị\n3️⃣ Bấm vào DNS\n4️⃣ Chọn \"IPA Delta Antiband 4.0\"\n\nRồi quay lại app.",
+                                        @"After installing the profile:\n\n1️⃣ Open Settings\n2️⃣ General → VPN, DNS & Device\n3️⃣ Tap DNS\n4️⃣ Select \"IPA Delta Antiband 4.0\"\n\nThen return to the app.")
+                                    preferredStyle:UIAlertControllerStyleAlert];
+                                [guide addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
+                                UIViewController *top = self;
+                                while (top.presentedViewController) top = top.presentedViewController;
+                                [top presentViewController:guide animated:YES completion:nil];
+                            });
+                        }];
                     }]];
             }
 
