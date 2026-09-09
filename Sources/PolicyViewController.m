@@ -55,10 +55,10 @@ static NSString *const kPolicyAcceptedKey = @"policy_accepted";
 
     // Icon chip
     UIView *chip = [[UIView alloc] init];
-    chip.backgroundColor = [section.accentColor colorWithAlphaComponent:0.18];
+    chip.backgroundColor = [UIColor colorWithWhite:1 alpha:0.06];
     chip.layer.cornerRadius = 12;
     chip.layer.cornerCurve = kCACornerCurveContinuous;
-    chip.layer.borderColor = [section.accentColor colorWithAlphaComponent:0.40].CGColor;
+    chip.layer.borderColor = [UIColor colorWithWhite:1 alpha:0.10].CGColor;
     chip.layer.borderWidth = 1;
     chip.translatesAutoresizingMaskIntoConstraints = NO;
     [_headerRow addSubview:chip];
@@ -233,7 +233,7 @@ static NSString *const kPolicyAcceptedKey = @"policy_accepted";
 
     PVSection *s2 = [PVSection new];
     s2.icon = @"exclamationmark.shield.fill";
-    s2.accentColor = [UIColor colorWithRed:0.431 green:0.455 blue:0.529 alpha:1.0];
+    s2.accentColor = PV_MUTED;
     s2.title = LS(@"Tuyên Bố Miễn Trừ Trách Nhiệm", @"Disclaimer");
     s2.body  = LS(
         @"• DELTA IPA VN được cung cấp 'như hiện tại' (as-is) — không có bất kỳ bảo hành nào.\n"
@@ -251,7 +251,7 @@ static NSString *const kPolicyAcceptedKey = @"policy_accepted";
 
     PVSection *s3 = [PVSection new];
     s3.icon = @"lock.shield.fill";
-    s3.accentColor = PV_GREEN;
+    s3.accentColor = PV_MUTED;
     s3.title = LS(@"Hướng Dẫn An Toàn & Bảo Mật", @"Safety & Privacy Guidelines");
     s3.body  = LS(
         @"• Không bao giờ cung cấp thông tin tài khoản game hoặc mật khẩu cho bất kỳ ai.\n"
@@ -299,8 +299,8 @@ static NSString *const kPolicyAcceptedKey = @"policy_accepted";
     // Radial glow top
     CAGradientLayer *radial = [CAGradientLayer layer];
     radial.type = kCAGradientLayerRadial;
-    radial.colors = @[(id)[PV_PURPLE colorWithAlphaComponent:0.28].CGColor,
-                      (id)[PV_PURPLE colorWithAlphaComponent:0.0].CGColor];
+    radial.colors = @[(id)[UIColor colorWithWhite:1 alpha:0.06].CGColor,
+                      (id)[UIColor colorWithWhite:1 alpha:0.0].CGColor];
     radial.startPoint = CGPointMake(0.5, 0.5);
     radial.endPoint   = CGPointMake(1.0, 1.0);
     radial.frame = CGRectMake(self.view.bounds.size.width/2 - 200, -40, 400, 400);
@@ -352,7 +352,7 @@ static NSString *const kPolicyAcceptedKey = @"policy_accepted";
     card.clipsToBounds = YES;
     card.layer.cornerRadius = 24;
     card.layer.cornerCurve = kCACornerCurveContinuous;
-    card.layer.borderColor = [UIColor colorWithWhite:1 alpha:0.10].CGColor;
+    card.layer.borderColor = [UIColor colorWithWhite:1 alpha:0.07].CGColor;
     card.layer.borderWidth = 1;
     card.translatesAutoresizingMaskIntoConstraints = NO;
     [self.scrollView addSubview:card];

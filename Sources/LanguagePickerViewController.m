@@ -49,7 +49,7 @@
 
     // Gradient stroke border
     _glowBorder = [CAGradientLayer layer];
-    _glowBorder.colors = @[(id)BRAND_PURPLE.CGColor, (id)BRAND_CYAN.CGColor, (id)BRAND_PURPLE.CGColor];
+    _glowBorder.colors = @[(id)BRAND_CYAN.CGColor, (id)BRAND_CYAN.CGColor];
     _glowBorder.startPoint = CGPointMake(0, 0);
     _glowBorder.endPoint   = CGPointMake(1, 1);
     _glowBorder.opacity    = 0;

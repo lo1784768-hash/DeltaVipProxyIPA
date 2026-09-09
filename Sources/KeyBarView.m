@@ -5,7 +5,7 @@
 
 #define KB_GREEN  [UIColor colorWithRed:0.204 green:0.827 blue:0.600 alpha:1.0]
 #define KB_RED    [UIColor colorWithRed:0.973 green:0.443 blue:0.443 alpha:1.0]
-#define KB_ORANGE [UIColor colorWithRed:1.000 green:0.58  blue:0.0   alpha:1.0]
+#define KB_ORANGE [UIColor colorWithRed:0.984 green:0.749 blue:0.141 alpha:1.0]
 #define KB_CYAN   BRAND_CYAN
 #define KB_MUTED  BRAND_MUTED
 #define KB_TEXT   BRAND_TEXT

@@ -12,7 +12,7 @@
 // ── Palette — OBSIDIAN ──────────────────────────────────
 // Surface
 #define HUD_BG_TOP      [UIColor colorWithRed:0.039 green:0.043 blue:0.063 alpha:1.0]  // #0A0B10
-#define HUD_BG_BOTTOM   [UIColor colorWithRed:0.055 green:0.063 blue:0.090 alpha:1.0]  // #0E1017
+#define HUD_BG_BOTTOM   [UIColor colorWithRed:0.059 green:0.071 blue:0.110 alpha:1.0]  // #0F121C
 #define HUD_CARD        [UIColor colorWithRed:0.075 green:0.082 blue:0.114 alpha:1.0]  // #13151D
 #define HUD_CARD_ON     [UIColor colorWithRed:0.106 green:0.118 blue:0.153 alpha:1.0]  // #1B1E27
 #define HUD_BORDER      [UIColor colorWithRed:0.106 green:0.118 blue:0.153 alpha:1.0]  // #1B1E27
@@ -612,7 +612,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 
     // ── Tile base styling ──────────────────────────────────
     self.backgroundColor    = HUD_CARD;
-    self.layer.cornerRadius = 16;
+    self.layer.cornerRadius = 14;
     self.layer.cornerCurve  = kCACornerCurveContinuous;
     self.layer.borderWidth  = 1;
     self.layer.borderColor  = HUD_BORDER.CGColor;
@@ -621,7 +621,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     // ── Tinted glow bg (fade-in khi ON) ───────────────────
     _tileGlow = [[UIView alloc] init];
     _tileGlow.backgroundColor    = [HUD_CYAN colorWithAlphaComponent:0.10];
-    _tileGlow.layer.cornerRadius = 16;
+    _tileGlow.layer.cornerRadius = 14;
     _tileGlow.layer.cornerCurve  = kCACornerCurveContinuous;
     _tileGlow.alpha              = 0;
     _tileGlow.translatesAutoresizingMaskIntoConstraints = NO;
@@ -652,7 +652,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 
     // ── Title ─────────────────────────────────────────────
     UILabel *titleLbl = [[UILabel alloc] init];
-    titleLbl.font          = DELTA_FONT(12,UIFontWeightSemibold);
+    titleLbl.font          = DELTA_FONT(13,UIFontWeightBold);
     titleLbl.textColor     = HUD_TEXT;
     titleLbl.numberOfLines = 2;
     titleLbl.lineBreakMode = NSLineBreakByWordWrapping;
@@ -662,7 +662,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 
     // ── Subtitle ──────────────────────────────────────────
     UILabel *subLbl = [[UILabel alloc] init];
-    subLbl.font          = DELTA_FONT(9.5,UIFontWeightRegular);
+    subLbl.font          = DELTA_FONT(10.5,UIFontWeightRegular);
     subLbl.textColor     = HUD_MUTED;
     subLbl.numberOfLines = 2;
     subLbl.lineBreakMode = NSLineBreakByWordWrapping;
@@ -1429,6 +1429,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     [self.view addSubview:grid];
 
     [self setupNavBarAppearance];
+    [self setupCircleBackButton];
     [self buildUI];
     [self buildToast];
     [self fetchAndShowNotice];
@@ -1743,10 +1744,33 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     UINavigationBarAppearance *ap = [[UINavigationBarAppearance alloc] init];
     [ap configureWithTransparentBackground];
     ap.titleTextAttributes = @{NSForegroundColorAttributeName: HUD_TEXT,
-                               NSFontAttributeName: DELTA_FONT(17,UIFontWeightBold)};
+                               NSFontAttributeName: DELTA_FONT(18,UIFontWeightBold)};
     self.navigationItem.standardAppearance = ap;
     self.navigationItem.scrollEdgeAppearance = ap;
     self.navigationItem.compactAppearance = ap;
+}
+
+// Back button 40×40 circle (#13151D + hairline, chevron)
+- (void)setupCircleBackButton {
+    UIButton *btn = [UIButton buttonWithType:UIButtonTypeCustom];
+    btn.frame = CGRectMake(0, 0, 40, 40);
+    btn.backgroundColor = BRAND_SURFACE;
+    btn.layer.cornerRadius = 20;
+    btn.layer.cornerCurve  = kCACornerCurveContinuous;
+    btn.layer.borderColor  = [UIColor colorWithWhite:1 alpha:0.07].CGColor;
+    btn.layer.borderWidth  = 1;
+    btn.layer.masksToBounds = YES;
+    UIImageSymbolConfiguration *cfg = [UIImageSymbolConfiguration
+        configurationWithPointSize:17 weight:UIImageSymbolWeightSemibold];
+    [btn setImage:[UIImage systemImageNamed:@"chevron.left" withConfiguration:cfg]
+         forState:UIControlStateNormal];
+    btn.tintColor = HUD_TEXT;
+    [btn addTarget:self action:@selector(backTapped) forControlEvents:UIControlEventTouchUpInside];
+    self.navigationItem.leftBarButtonItem = [[UIBarButtonItem alloc] initWithCustomView:btn];
+}
+
+- (void)backTapped {
+    [self.navigationController popViewControllerAnimated:YES];
 }
 
 - (void)viewWillAppear:(BOOL)animated {
@@ -1916,7 +1940,7 @@ if (active) {
     UIImageView *iconView = [[UIImageView alloc] initWithImage:self.icon];
     iconView.contentMode = UIViewContentModeScaleAspectFill;
     iconView.clipsToBounds = YES;
-    iconView.layer.cornerRadius = 18;
+    iconView.layer.cornerRadius = 16;
     iconView.layer.cornerCurve  = kCACornerCurveContinuous;
     iconView.layer.borderColor  = [HUD_CYAN colorWithAlphaComponent:0.4].CGColor;
     iconView.layer.borderWidth  = 1.5;
@@ -1925,14 +1949,14 @@ if (active) {
 
     UILabel *nameLabel = [[UILabel alloc] init];
     nameLabel.text      = self.appName;
-    nameLabel.font      = DELTA_FONT(20,UIFontWeightHeavy);
+    nameLabel.font      = DELTA_FONT(16,UIFontWeightBold);
     nameLabel.textColor = HUD_TEXT;
     nameLabel.translatesAutoresizingMaskIntoConstraints = NO;
     [headerView addSubview:nameLabel];
 
     UILabel *bundleLabel = [[UILabel alloc] init];
     bundleLabel.text      = self.bundleID;
-    bundleLabel.font      = [UIFont monospacedSystemFontOfSize:10 weight:UIFontWeightRegular];
+    bundleLabel.font      = [UIFont monospacedSystemFontOfSize:12 weight:UIFontWeightRegular];
     bundleLabel.textColor = HUD_MUTED;
     bundleLabel.translatesAutoresizingMaskIntoConstraints = NO;
     [headerView addSubview:bundleLabel];
@@ -1946,7 +1970,7 @@ if (active) {
 
     UILabel *onlineLbl = [[UILabel alloc] init];
     onlineLbl.text      = @"ONLINE";
-    onlineLbl.font      = DELTA_FONT(9,UIFontWeightBold);
+    onlineLbl.font      = DELTA_FONT(11,UIFontWeightSemibold);
     onlineLbl.textColor = HUD_GREEN;
     onlineLbl.translatesAutoresizingMaskIntoConstraints = NO;
     [headerView addSubview:onlineLbl];
@@ -1959,8 +1983,8 @@ if (active) {
 
         [iconView.leadingAnchor constraintEqualToAnchor:headerView.leadingAnchor],
         [iconView.centerYAnchor constraintEqualToAnchor:headerView.centerYAnchor],
-        [iconView.widthAnchor   constraintEqualToConstant:56],
-        [iconView.heightAnchor  constraintEqualToConstant:56],
+        [iconView.widthAnchor   constraintEqualToConstant:52],
+        [iconView.heightAnchor  constraintEqualToConstant:52],
 
         [nameLabel.leadingAnchor constraintEqualToAnchor:iconView.trailingAnchor constant:12],
         [nameLabel.topAnchor     constraintEqualToAnchor:iconView.topAnchor constant:4],
@@ -1990,7 +2014,7 @@ if (active) {
     UIView *chipBar = [[UIView alloc] init];
     chipBar.translatesAutoresizingMaskIntoConstraints = NO;
     chipBar.backgroundColor = BRAND_SURFACE;
-    chipBar.layer.cornerRadius = 16;
+    chipBar.layer.cornerRadius = 12;
     chipBar.layer.cornerCurve  = kCACornerCurveContinuous;
     chipBar.layer.borderColor  = [UIColor colorWithWhite:1 alpha:0.07].CGColor;
     chipBar.layer.borderWidth  = 1;
@@ -2036,7 +2060,7 @@ if (active) {
 
         // Icon
         UIImageSymbolConfiguration *symCfg = [UIImageSymbolConfiguration
-            configurationWithPointSize:12 weight:UIImageSymbolWeightBold];
+            configurationWithPointSize:13 weight:UIImageSymbolWeightBold];
         UIImageView *iconIV = [[UIImageView alloc]
             initWithImage:[UIImage systemImageNamed:tabSyms[(NSUInteger)i] withConfiguration:symCfg]];
         iconIV.contentMode           = UIViewContentModeScaleAspectFit;
@@ -2048,7 +2072,7 @@ if (active) {
         // Label
         UILabel *lbl = [[UILabel alloc] init];
         lbl.text           = tabLabels[(NSUInteger)i];
-        lbl.font           = DELTA_FONT(10,UIFontWeightBold);
+        lbl.font           = DELTA_FONT(11,UIFontWeightSemibold);
         lbl.textAlignment  = NSTextAlignmentCenter;
         lbl.translatesAutoresizingMaskIntoConstraints = NO;
         lbl.userInteractionEnabled = NO;
@@ -2087,6 +2111,21 @@ if (active) {
             [vStack.centerYAnchor constraintEqualToAnchor:chip.centerYAnchor],
             [vStack.leadingAnchor constraintGreaterThanOrEqualToAnchor:chip.leadingAnchor constant:4],
             [vStack.trailingAnchor constraintLessThanOrEqualToAnchor:chip.trailingAnchor constant:-4],
+        ]];
+
+        // Bottom glowing indicator bar (alpha 0 khi tắt, cyan khi active)
+        UIView *indBar = [[UIView alloc] init];
+        indBar.backgroundColor    = HUD_CYAN;
+        indBar.layer.cornerRadius = 1.5;
+        indBar.translatesAutoresizingMaskIntoConstraints = NO;
+        indBar.alpha = 0;
+        indBar.tag   = 40 + i;
+        [chip addSubview:indBar];
+        [NSLayoutConstraint activateConstraints:@[
+            [indBar.centerXAnchor constraintEqualToAnchor:chip.centerXAnchor],
+            [indBar.bottomAnchor constraintEqualToAnchor:chip.bottomAnchor constant:-4],
+            [indBar.widthAnchor  constraintEqualToConstant:26],
+            [indBar.heightAnchor constraintEqualToConstant:3],
         ]];
 
         [chipStack addArrangedSubview:chip];
@@ -2191,8 +2230,8 @@ if (active) {
     self.openGameButton = [UIButton buttonWithType:UIButtonTypeSystem];
     [self.openGameButton setTitle:LS(@"▶  MỞ GAME", @"▶  OPEN GAME") forState:UIControlStateNormal];
     [self.openGameButton setTitleColor:HUD_CYAN forState:UIControlStateNormal];
-    self.openGameButton.titleLabel.font   = DELTA_FONT(16,UIFontWeightSemibold);
-    self.openGameButton.layer.cornerRadius = 16;
+    self.openGameButton.titleLabel.font   = DELTA_FONT(16,UIFontWeightBold);
+    self.openGameButton.layer.cornerRadius = 20;
     self.openGameButton.layer.cornerCurve  = kCACornerCurveContinuous;
     self.openGameButton.clipsToBounds      = YES;
     self.openGameButton.translatesAutoresizingMaskIntoConstraints = NO;
@@ -2200,8 +2239,8 @@ if (active) {
 
     // Primary CTA — dark glass + cyan glow text
     self.openGameButton.backgroundColor = BRAND_TILE;
-    self.openGameButton.layer.borderColor  = [UIColor colorWithWhite:1 alpha:0.14].CGColor;
-    self.openGameButton.layer.borderWidth  = 1;
+    self.openGameButton.layer.borderColor  = [HUD_CYAN colorWithAlphaComponent:0.50].CGColor;
+    self.openGameButton.layer.borderWidth  = 1.5;
     self.openGameGradient = nil;
     // Text glow (cyan)
     self.openGameButton.titleLabel.layer.shadowColor   = HUD_CYAN.CGColor;
@@ -2347,7 +2386,7 @@ if (active) {
 
     UILabel *menuTitle = [[UILabel alloc] init];
     menuTitle.text      = title;
-    menuTitle.font      = DELTA_FONT(13,UIFontWeightHeavy);
+    menuTitle.font      = DELTA_FONT(14,UIFontWeightHeavy);
     menuTitle.textColor = HUD_TEXT;
     menuTitle.translatesAutoresizingMaskIntoConstraints = NO;
     [titleBar addSubview:menuTitle];
@@ -2443,7 +2482,7 @@ if (active) {
 
         UILabel *tutTitle = [[UILabel alloc] init];
         tutTitle.text      = LS(@"Xem Video Hướng Dẫn", @"Watch Tutorial Video");
-        tutTitle.font      = DELTA_FONT(13,UIFontWeightSemibold);
+        tutTitle.font      = DELTA_FONT(14,UIFontWeightBold);
         tutTitle.textColor = hasURL ? HUD_TEXT : HUD_MUTED;
         tutTitle.translatesAutoresizingMaskIntoConstraints = NO;
         [tutRow addSubview:tutTitle];
@@ -2452,7 +2491,7 @@ if (active) {
         tutSub.text = hasURL
             ? LS(@"Nhấn để mở YouTube ▶", @"Tap to open YouTube ▶")
             : LS(@"🎬 Video hướng dẫn sắp có...", @"🎬 Tutorial coming soon...");
-        tutSub.font      = DELTA_FONT(11,UIFontWeightRegular);
+        tutSub.font      = DELTA_FONT(12,UIFontWeightRegular);
         tutSub.textColor = HUD_MUTED;
         tutSub.translatesAutoresizingMaskIntoConstraints = NO;
         [tutRow addSubview:tutSub];
@@ -2588,6 +2627,9 @@ if (active) {
             chip.backgroundColor   = active ? [UIColor colorWithWhite:1 alpha:0.10] : [UIColor clearColor];
             chip.layer.borderColor = [UIColor clearColor].CGColor;
             chip.layer.borderWidth = 0;
+
+            UIView *ind = [chip viewWithTag:40 + i];
+            ind.alpha = active ? 1.0 : 0.0;
 
             if (iconV)  iconV.tintColor   = active ? HUD_CYAN : HUD_MUTED;
             if (lblV)   lblV.textColor    = active ? HUD_CYAN : HUD_MUTED;
@@ -3655,7 +3697,7 @@ static UIColor *_aimTintFromString(NSString *tint) {
     // ── Title stack ────────────────────────────────────────────────────────────
     UILabel *titleLbl = [[UILabel alloc] init];
     titleLbl.text                    = LS(@"DNS Antiband 4.0", @"DNS Antiband 4.0");
-    titleLbl.font                    = DELTA_FONT(14,UIFontWeightBold);
+    titleLbl.font                    = DELTA_FONT(15,UIFontWeightBold);
     titleLbl.textColor               = HUD_TEXT;
     titleLbl.adjustsFontSizeToFitWidth = YES;
     titleLbl.minimumScaleFactor      = 0.8;
@@ -3674,7 +3716,7 @@ static UIColor *_aimTintFromString(NSString *tint) {
     // DoH badge — pill shape
     UILabel *badge = [[UILabel alloc] init];
     badge.text            = @"DNS-over-HTTPS";
-    badge.font            = DELTA_FONT(9.5,UIFontWeightSemibold);
+    badge.font            = [UIFont monospacedSystemFontOfSize:11 weight:UIFontWeightSemibold];
     badge.textColor       = HUD_CYAN;
     badge.translatesAutoresizingMaskIntoConstraints = NO;
     [card addSubview:badge];
