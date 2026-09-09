@@ -582,9 +582,8 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 @property (nonatomic, strong) UIButton   *previewButton;
 @property (nonatomic, strong) UILabel    *rowTitleLabel;
 @property (nonatomic, strong) UILabel    *rowSubtitleLabel;
-@property (nonatomic, strong) UIView    *switchTrack;
-@property (nonatomic, strong) UIView    *switchKnob;
-@property (nonatomic, strong) NSLayoutConstraint *switchKnobLead;
+@property (nonatomic, strong) UIView    *stateBar;
+@property (nonatomic, strong) UIImageView *iconRef;
 @property (nonatomic, assign) BOOL        isLoading;
 @property (nonatomic, copy)   void (^onChanged)(HUDFeatureRow *row, BOOL isOn);
 @property (nonatomic, copy)   void (^onPreviewTapped)(void);
@@ -640,6 +639,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     UIImageView *iconIV = [[UIImageView alloc]
         initWithImage:[UIImage systemImageNamed:feature.symbol withConfiguration:symCfg]];
     iconIV.tintColor    = HUD_CYAN;
+    self.iconRef        = iconIV;
     iconIV.contentMode  = UIViewContentModeScaleAspectFit;
     iconIV.translatesAutoresizingMaskIntoConstraints = NO;
     [self addSubview:iconIV];
@@ -685,28 +685,11 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     _spinner.translatesAutoresizingMaskIntoConstraints = NO;
     [self addSubview:_spinner];
 
-    // ── Toggle switch (glow cyan) — indicator bật/tắt ─────
-    _switchTrack = [[UIView alloc] init];
-    _switchTrack.backgroundColor    = [UIColor colorWithRed:0.173 green:0.196 blue:0.259 alpha:1.0]; // #2C3242
-    _switchTrack.layer.cornerRadius = 12;
-    _switchTrack.layer.cornerCurve  = kCACornerCurveContinuous;
-    _switchTrack.layer.borderColor  = [UIColor colorWithWhite:1 alpha:0.15].CGColor;
-    _switchTrack.layer.borderWidth  = 1;
-    _switchTrack.layer.shadowColor  = HUD_CYAN.CGColor;
-    _switchTrack.layer.shadowOpacity = 0;
-    _switchTrack.layer.shadowRadius  = 5;
-    _switchTrack.layer.shadowOffset  = CGSizeZero;
-    _switchTrack.translatesAutoresizingMaskIntoConstraints = NO;
-    [self addSubview:_switchTrack];
-
-    _switchKnob = [[UIView alloc] init];
-    _switchKnob.backgroundColor = [UIColor whiteColor];
-    _switchKnob.layer.cornerRadius = 10;
-    _switchKnob.layer.cornerCurve  = kCACornerCurveContinuous;
-    _switchKnob.translatesAutoresizingMaskIntoConstraints = NO;
-    [_switchTrack addSubview:_switchKnob];
-
-    _switchKnobLead = [_switchKnob.leadingAnchor constraintEqualToAnchor:_switchTrack.leadingAnchor constant:2];
+    // ── State bar (dải trạng thái 3pt dưới đáy card) ──────
+    _stateBar = [[UIView alloc] init];
+    _stateBar.backgroundColor = [UIColor clearColor];
+    _stateBar.translatesAutoresizingMaskIntoConstraints = NO;
+    [self addSubview:_stateBar];
 
     // ── Preview button (chỉ khi có previewImageURL) ───────
     if (feature.previewImageURL.length) {
@@ -754,29 +737,24 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
         [iconIV.widthAnchor   constraintEqualToConstant:20],
         [iconIV.heightAnchor  constraintEqualToConstant:20],
 
-        // Toggle: top-right, glow khi ON
-        [_switchTrack.trailingAnchor constraintEqualToAnchor:self.trailingAnchor constant:-10],
-        [_switchTrack.centerYAnchor  constraintEqualToAnchor:_ledDot.centerYAnchor],
-        [_switchTrack.widthAnchor    constraintEqualToConstant:44],
-        [_switchTrack.heightAnchor   constraintEqualToConstant:24],
+        // State bar: cạnh dưới card (cyan khi ON / trắng mờ khi OFF)
+        [_stateBar.leadingAnchor  constraintEqualToAnchor:self.leadingAnchor],
+        [_stateBar.trailingAnchor constraintEqualToAnchor:self.trailingAnchor],
+        [_stateBar.bottomAnchor   constraintEqualToAnchor:self.bottomAnchor],
+        [_stateBar.heightAnchor   constraintEqualToConstant:3],
 
-        [_switchKnob.centerYAnchor constraintEqualToAnchor:_switchTrack.centerYAnchor],
-        _switchKnobLead,
-        [_switchKnob.widthAnchor  constraintEqualToConstant:20],
-        [_switchKnob.heightAnchor constraintEqualToConstant:20],
-
-        // Status dot (✓/✕) — bên trái toggle, feedback ngắn
-        [_statusDot.trailingAnchor constraintEqualToAnchor:_switchTrack.leadingAnchor constant:-6],
-        [_statusDot.centerYAnchor  constraintEqualToAnchor:_switchTrack.centerYAnchor],
+        // Status dot (✓/✕) — top-right feedback ngắn
+        [_statusDot.trailingAnchor constraintEqualToAnchor:self.trailingAnchor constant:-10],
+        [_statusDot.topAnchor      constraintEqualToAnchor:self.topAnchor      constant:10],
         [_statusDot.widthAnchor    constraintEqualToConstant:16],
 
         // Spinner: đè lên status dot
         [_spinner.centerXAnchor constraintEqualToAnchor:_statusDot.centerXAnchor],
         [_spinner.centerYAnchor constraintEqualToAnchor:_statusDot.centerYAnchor],
 
-        // Title: dưới icon, chừa khoảng cho toggle bên phải
+        // Title: dưới icon, full width
         [titleLbl.leadingAnchor   constraintEqualToAnchor:self.leadingAnchor  constant:10],
-        [titleLbl.trailingAnchor  constraintEqualToAnchor:_switchTrack.leadingAnchor constant:-8],
+        [titleLbl.trailingAnchor  constraintEqualToAnchor:self.trailingAnchor constant:-10],
         [titleLbl.topAnchor       constraintEqualToAnchor:iconIV.bottomAnchor constant:7],
 
         // Subtitle: directly below title
@@ -837,16 +815,15 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
         self.layer.borderColor      = active
             ? [HUD_CYAN colorWithAlphaComponent:0.75].CGColor
             : [UIColor colorWithWhite:1 alpha:0.12].CGColor;
-        self->_ledDot.backgroundColor = active ? HUD_CYAN : HUD_BORDER;
+        self->_ledDot.backgroundColor = active ? HUD_CYAN : [UIColor colorWithWhite:1 alpha:0.25];
 
-        // Toggle switch glow
-        self->_switchKnobLead.constant    = active ? 22 : 2;
-        self->_switchTrack.backgroundColor = active ? HUD_CYAN : [UIColor colorWithRed:0.173 green:0.196 blue:0.259 alpha:1.0];
-        self->_switchKnob.backgroundColor  = [UIColor whiteColor];
-        self->_switchTrack.layer.shadowOpacity = active ? 0.35 : 0.0;
-        self->_switchTrack.layer.borderColor   = active
-            ? [HUD_CYAN colorWithAlphaComponent:0.9].CGColor
-            : [UIColor colorWithWhite:1 alpha:0.15].CGColor;
+        // State bar + icon glow
+        self->_stateBar.backgroundColor = active ? HUD_CYAN : [UIColor colorWithWhite:1 alpha:0.10];
+        self.iconRef.layer.shadowColor   = HUD_CYAN.CGColor;
+        self.iconRef.layer.shadowOpacity = active ? 0.9 : 0.0;
+        self.iconRef.layer.shadowRadius  = 4;
+        self.iconRef.layer.shadowOffset  = CGSizeZero;
+        self.iconRef.layer.masksToBounds = NO;
         [self layoutIfNeeded];
     } completion:nil];
 }
