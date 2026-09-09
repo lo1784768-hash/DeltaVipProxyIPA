@@ -1196,8 +1196,9 @@
         [dot.heightAnchor constraintEqualToConstant:6],
         [supportPill.widthAnchor constraintGreaterThanOrEqualToConstant:90],
         [supportPill.trailingAnchor constraintEqualToAnchor:cc.trailingAnchor constant:-16],
-        [devPill setContentCompressionResistancePriority:UILayoutPriorityDefaultLow forAxis:UILayoutConstraintAxisHorizontal],
     ]];
+    [devPill setContentCompressionResistancePriority:UILayoutPriorityDefaultLow
+                                             forAxis:UILayoutConstraintAxisHorizontal];
 
     UILongPressGestureRecognizer *lp = [[UILongPressGestureRecognizer alloc]
         initWithTarget:self action:@selector(handleAdminLongPress:)];
