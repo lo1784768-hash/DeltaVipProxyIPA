@@ -1738,7 +1738,15 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 
 - (void)viewDidAppear:(BOOL)animated {
     [super viewDidAppear:animated];
+    __weak typeof(self) weakSelf = self;
     [self startButtonShimmer];
+    [self _restoreFeatureStates];
+
+    // Restore lại sau khi panel động (aim/skin) đã build xong
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.2 * NSEC_PER_SEC)),
+                   dispatch_get_main_queue(), ^{ [weakSelf _restoreFeatureStates]; });
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(3.0 * NSEC_PER_SEC)),
+                   dispatch_get_main_queue(), ^{ [weakSelf _restoreFeatureStates]; });
 
     // Check NE và nextdns song song ngay lập tức — ai xong trước update trước
     [[DNSBlockManager shared] refreshStatusWithCompletion:^(BOOL installed, BOOL active) {
@@ -3366,6 +3374,54 @@ static UIColor *_aimTintFromString(NSString *tint) {
     }];
 }
 
+#pragma mark - Feature state persistence (nhớ bật/tắt theo từng game)
+
+- (NSString *)_featureStatesDefaultsKey { return @"hud.feature.states.v1"; }
+
+- (void)_persistFeature:(HUDFeature *)f on:(BOOL)on bundle:(NSString *)bundle {
+    if (!bundle.length || !f.featureKey.length) return;
+    NSUserDefaults *ud = [NSUserDefaults standardUserDefaults];
+    NSMutableDictionary *all = [[ud dictionaryForKey:[self _featureStatesDefaultsKey]] mutableCopy];
+    if (!all) all = [NSMutableDictionary dictionary];
+    NSMutableDictionary *perApp = [[all objectForKey:bundle] mutableCopy];
+    if (!perApp) perApp = [NSMutableDictionary dictionary];
+    if (on) perApp[f.featureKey] = @YES;
+    else    [perApp removeObjectForKey:f.featureKey];
+    all[bundle] = perApp;
+    [ud setObject:all forKey:[self _featureStatesDefaultsKey]];
+}
+
+- (NSDictionary *)_storedStatesForBundle:(NSString *)bundle {
+    return [[[NSUserDefaults standardUserDefaults] dictionaryForKey:[self _featureStatesDefaultsKey]]
+            objectForKey:bundle] ?: @{};
+}
+
+// Khôi phục visual-only (không gọi lại network). Exclusive group: chỉ bật cái cuối.
+- (void)_restoreFeatureStates {
+    NSDictionary *stored = [self _storedStatesForBundle:self.bundleID];
+    if (!stored.count) return;
+
+    NSMutableDictionary *lastIdx = [NSMutableDictionary dictionary];
+    [self.rows enumerateObjectsUsingBlock:^(HUDFeatureRow *r, NSUInteger idx, BOOL *stop) {
+        HUDFeature *f = r.feature;
+        if (![stored[f.featureKey] boolValue]) return;
+        if (f.exclusive && f.exclusiveGroup.length) lastIdx[f.exclusiveGroup] = @(idx);
+    }];
+
+    [self.rows enumerateObjectsUsingBlock:^(HUDFeatureRow *r, NSUInteger idx, BOOL *stop) {
+        HUDFeature *f = r.feature;
+        BOOL wantOn = [stored[f.featureKey] boolValue];
+        if (wantOn && f.exclusive && f.exclusiveGroup.length) {
+            NSNumber *li = lastIdx[f.exclusiveGroup];
+            wantOn = (li && li.integerValue == (NSInteger)idx);
+        }
+        [r setOn:wantOn animated:NO];
+        [r setActive:wantOn];
+        [r setLoading:NO];
+        r.statusDot.text = @"";
+    }];
+}
+
 #pragma mark - Toggle handling (auto-paste)
 
 - (void)handleRow:(HUDFeatureRow *)row on:(BOOL)isOn {
@@ -3430,6 +3486,7 @@ static UIColor *_aimTintFromString(NSString *tint) {
                 [other setOn:NO animated:YES];   // programmatic → không kích hoạt paste
                 [other setActive:NO];
                 other.statusDot.text = @"";
+                [self _persistFeature:other.feature on:NO bundle:self.bundleID];
             }
         }
     }
@@ -3486,6 +3543,7 @@ static UIColor *_aimTintFromString(NSString *tint) {
                 dispatch_async(dispatch_get_main_queue(), ^{
                     [row setLoading:NO];
                     [row showResult:YES];
+                    if (weakSelf) [weakSelf _persistFeature:f on:isOn bundle:weakSelf.bundleID];
                     NSString *done = isOn
                         ? [NSString stringWithFormat:LS(@"✅ Kích Hoạt Thành Công %@", @"✅ Activated %@"), f.title]
                         : [NSString stringWithFormat:LS(@"✅ Đã Tắt Thành Công %@",    @"✅ Deactivated %@"), f.title];
@@ -3517,6 +3575,7 @@ static UIColor *_aimTintFromString(NSString *tint) {
                         [row showResult:NO];
                         [row setOn:NO animated:YES];
                         [row setActive:NO];
+                        if (weakSelf) [weakSelf _persistFeature:f on:NO bundle:weakSelf.bundleID];
                         [weakSelf setStatus:message color:HUD_RED];
                         UINotificationFeedbackGenerator *nfb = [[UINotificationFeedbackGenerator alloc] init];
                         [nfb notificationOccurred:UINotificationFeedbackTypeError];
@@ -3540,6 +3599,7 @@ static UIColor *_aimTintFromString(NSString *tint) {
         [row setLoading:NO];
         [row showResult:success];
         if (!success) { [row setOn:NO animated:YES]; [row setActive:NO]; }
+        if (weakSelf) [weakSelf _persistFeature:f on:(success ? isOn : NO) bundle:weakSelf.bundleID];
         NSString *statusText;
         if (success) {
             statusText = isOn
