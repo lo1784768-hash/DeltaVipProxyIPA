@@ -442,7 +442,7 @@
         [card addSubview:self.iconView];
 
         self.nameLabel = [[UILabel alloc] init];
-        self.nameLabel.font = DELTA_FONT(15,UIFontWeightSemibold);
+        self.nameLabel.font = DELTA_FONT(16,UIFontWeightBold);
         self.nameLabel.textColor = BRAND_TEXT;
         self.nameLabel.numberOfLines = 1;
         self.nameLabel.adjustsFontSizeToFitWidth = YES;
@@ -451,7 +451,7 @@
         [card addSubview:self.nameLabel];
 
         self.bundleLabel = [[UILabel alloc] init];
-        self.bundleLabel.font = [UIFont monospacedSystemFontOfSize:11 weight:UIFontWeightRegular];
+        self.bundleLabel.font = [UIFont monospacedSystemFontOfSize:12 weight:UIFontWeightRegular];
         self.bundleLabel.textColor = BRAND_MUTED;
         self.bundleLabel.numberOfLines = 1;
         self.bundleLabel.adjustsFontSizeToFitWidth = YES;
@@ -547,20 +547,20 @@
     // ── Clean title "DELTA IPA VN" + version pill ─────────────────────────
     UILabel *titleLabel = [[UILabel alloc] init];
     titleLabel.text = @"DELTA IPA VN";
-    titleLabel.font = DELTA_FONT(17,UIFontWeightHeavy);
+    titleLabel.font = DELTA_FONT(18,UIFontWeightHeavy);
     titleLabel.textColor = BRAND_TEXT;
     [titleLabel sizeToFit];
 
-    // Version pill — trung tính (không glow)
+    // Version pill — mono 12, tối (dark pill)
     UILabel *badge = [[UILabel alloc] init];
     NSString *_bdgVer = [[NSBundle mainBundle] objectForInfoDictionaryKey:@"CFBundleShortVersionString"] ?: @"1.4.7";
     badge.text = [NSString stringWithFormat:@"  v%@  ", _bdgVer];
-    badge.font = [UIFont monospacedSystemFontOfSize:10 weight:UIFontWeightMedium];
+    badge.font = [UIFont monospacedSystemFontOfSize:12 weight:UIFontWeightMedium];
     badge.textColor = BRAND_MUTED;
-    badge.backgroundColor = [UIColor colorWithWhite:1 alpha:0.06];
+    badge.backgroundColor = BRAND_SURFACE;
     badge.layer.cornerRadius = 7;
     badge.layer.masksToBounds = YES;
-    badge.layer.borderColor = [UIColor colorWithWhite:1 alpha:0.10].CGColor;
+    badge.layer.borderColor = [UIColor colorWithWhite:1 alpha:0.08].CGColor;
     badge.layer.borderWidth = 1;
 
     UIStackView *titleStack = [[UIStackView alloc] initWithArrangedSubviews:@[titleLabel, badge]];
@@ -569,20 +569,21 @@
     titleStack.alignment = UIStackViewAlignmentCenter;
     self.navigationItem.titleView = titleStack;
 
-    // ── Settings → glass gear button ────────────────────────────────────────
-    // Wrap trong UIView cố định 34×34 để iOS không auto-resize shape thành marquise
-    UIView *gearContainer = [[UIView alloc] initWithFrame:CGRectMake(0, 0, 34, 34)];
-    gearContainer.backgroundColor = [UIColor colorWithWhite:1 alpha:0.08];
-    gearContainer.layer.cornerRadius = 17;   // 34/2 → tròn hoàn toàn
+    // ── Settings → 44×44 circular base, icon muted ────────────────────────
+    UIView *gearContainer = [[UIView alloc] initWithFrame:CGRectMake(0, 0, 44, 44)];
+    gearContainer.backgroundColor = BRAND_SURFACE;
+    gearContainer.layer.cornerRadius = 22;   // 44/2 → tròn hoàn toàn
     gearContainer.layer.cornerCurve = kCACornerCurveContinuous;
+    gearContainer.layer.borderColor = [UIColor colorWithWhite:1 alpha:0.07].CGColor;
+    gearContainer.layer.borderWidth = 1;
     gearContainer.layer.masksToBounds = YES;
 
     UIButton *settingsBtn = [UIButton buttonWithType:UIButtonTypeCustom];
     settingsBtn.frame = gearContainer.bounds;
-    UIImageSymbolConfiguration *rCfg = [UIImageSymbolConfiguration configurationWithPointSize:14 weight:UIImageSymbolWeightMedium];
-    [settingsBtn setImage:[UIImage systemImageNamed:@"gearshape.fill" withConfiguration:rCfg]
+    UIImageSymbolConfiguration *rCfg = [UIImageSymbolConfiguration configurationWithPointSize:18 weight:UIImageSymbolWeightMedium];
+    [settingsBtn setImage:[UIImage systemImageNamed:@"gearshape" withConfiguration:rCfg]
                  forState:UIControlStateNormal];
-    settingsBtn.tintColor = BRAND_CYAN;
+    settingsBtn.tintColor = BRAND_MUTED;
     settingsBtn.backgroundColor = [UIColor clearColor];
     settingsBtn.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
     [settingsBtn addTarget:self action:@selector(openSettings) forControlEvents:UIControlEventTouchUpInside];
@@ -626,6 +627,15 @@
     // Stats (device info strip)
     [self createStatsStrip];
 
+    // ── Section header "APPLICATIONS (n)" ────────────────────────────────
+    UILabel *appHeader = [[UILabel alloc] init];
+    appHeader.tag = 996;
+    appHeader.font = [UIFont monospacedSystemFontOfSize:11 weight:UIFontWeightMedium];
+    appHeader.textColor = BRAND_MUTED;
+    appHeader.translatesAutoresizingMaskIntoConstraints = NO;
+    [self.view addSubview:appHeader];
+    [self updateAppSectionHeader];
+
     // Collection view — OBSIDIAN: full-width rows
     UICollectionViewFlowLayout *layout = [[UICollectionViewFlowLayout alloc] init];
     CGFloat rowWidth = self.view.bounds.size.width - 32;
@@ -639,7 +649,7 @@
     self.collectionView.backgroundColor = [UIColor clearColor];
     self.collectionView.dataSource = self;
     self.collectionView.delegate = self;
-    self.collectionView.contentInset = UIEdgeInsetsMake(0, 0, 110, 0); // room for floating pill
+    self.collectionView.contentInset = UIEdgeInsetsMake(0, 0, 190, 0); // room: news widget + license bar
     [self.collectionView registerClass:[AppDataRowCell class] forCellWithReuseIdentifier:@"AppCell"];
     self.collectionView.translatesAutoresizingMaskIntoConstraints = NO;
     [self.view addSubview:self.collectionView];
@@ -654,9 +664,13 @@
     self.keyBar.onInfoTapped   = ^{ [weakSelf showUDIDInfo]; };
     self.keyBar.onPolicyTapped = ^{ [weakSelf showPolicy]; };
 
-    // Layout: full-width collection view, floating pill overlays bottom
+    // Layout: header → collection, news widget + key pill nổi cuối màn
     [NSLayoutConstraint activateConstraints:@[
-        [self.collectionView.topAnchor constraintEqualToAnchor:self.statsView.bottomAnchor constant:12],
+        [appHeader.topAnchor constraintEqualToAnchor:self.statsView.bottomAnchor constant:14],
+        [appHeader.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor constant:16],
+        [appHeader.trailingAnchor constraintLessThanOrEqualToAnchor:self.view.trailingAnchor constant:-16],
+
+        [self.collectionView.topAnchor constraintEqualToAnchor:appHeader.bottomAnchor constant:8],
         [self.collectionView.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor],
         [self.collectionView.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor],
         [self.collectionView.bottomAnchor constraintEqualToAnchor:self.view.bottomAnchor],
@@ -666,6 +680,50 @@
         [self.keyBar.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor constant:-16],
         [self.keyBar.bottomAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.bottomAnchor constant:-12],
         [self.keyBar.heightAnchor constraintEqualToConstant:68],
+    ]];
+
+    // ── Announcement widget (dead space giữa list & license bar) ────────
+    UIVisualEffectView *news = [[UIVisualEffectView alloc]
+        initWithEffect:[UIBlurEffect effectWithStyle:UIBlurEffectStyleSystemThinMaterialDark]];
+    news.clipsToBounds = YES;
+    news.layer.cornerRadius = 12;
+    news.layer.cornerCurve  = kCACornerCurveContinuous;
+    news.layer.borderColor  = [UIColor colorWithWhite:1 alpha:0.07].CGColor;
+    news.layer.borderWidth  = 1;
+    news.translatesAutoresizingMaskIntoConstraints = NO;
+    [self.view addSubview:news];
+
+    UIView *ncc = news.contentView;
+    UIImageSymbolConfiguration *mgCfg = [UIImageSymbolConfiguration
+        configurationWithPointSize:14 weight:UIImageSymbolWeightMedium];
+    UIImageView *mgIcon = [[UIImageView alloc] initWithImage:[UIImage systemImageNamed:@"megaphone.fill" withConfiguration:mgCfg]];
+    mgIcon.tintColor = BRAND_MUTED;
+    mgIcon.contentMode = UIViewContentModeScaleAspectFit;
+    mgIcon.translatesAutoresizingMaskIntoConstraints = NO;
+    [ncc addSubview:mgIcon];
+
+    UILabel *newsLabel = [[UILabel alloc] init];
+    newsLabel.tag = 995;
+    newsLabel.numberOfLines = 2;
+    newsLabel.adjustsFontSizeToFitWidth = YES;
+    newsLabel.minimumScaleFactor = 0.7;
+    newsLabel.translatesAutoresizingMaskIntoConstraints = NO;
+    [ncc addSubview:newsLabel];
+    [self updateNewsLabel];
+
+    [NSLayoutConstraint activateConstraints:@[
+        [news.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor constant:16],
+        [news.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor constant:-16],
+        [news.bottomAnchor constraintEqualToAnchor:self.keyBar.topAnchor constant:-10],
+        [news.heightAnchor constraintEqualToConstant:46],
+
+        [mgIcon.leadingAnchor constraintEqualToAnchor:ncc.leadingAnchor constant:14],
+        [mgIcon.centerYAnchor constraintEqualToAnchor:ncc.centerYAnchor],
+        [mgIcon.widthAnchor constraintEqualToConstant:16],
+        [mgIcon.heightAnchor constraintEqualToConstant:16],
+        [newsLabel.leadingAnchor constraintEqualToAnchor:mgIcon.trailingAnchor constant:10],
+        [newsLabel.trailingAnchor constraintEqualToAnchor:ncc.trailingAnchor constant:-14],
+        [newsLabel.centerYAnchor constraintEqualToAnchor:ncc.centerYAnchor],
     ]];
 
     // Load apps immediately without waiting
@@ -680,7 +738,26 @@
         name:LMLanguageChangedNotification object:nil];
 }
 
+- (void)updateAppSectionHeader {
+    UILabel *h = (UILabel *)[self.view viewWithTag:996];
+    if (!h) return;
+    NSString *base = [NSString stringWithFormat:LS(@"ỨNG DỤNG (%lu)", @"APPLICATIONS (%lu)"),
+                      (unsigned long)(self.appIDs ? self.appIDs.count : 0)];
+    h.text = [base uppercaseString];
+}
+
+- (void)updateNewsLabel {
+    UILabel *l = (UILabel *)[self.view viewWithTag:995];
+    if (!l) return;
+    l.font = DELTA_FONT(12.5,UIFontWeightMedium);
+    l.textColor = BRAND_TEXT;
+    l.text = LS(@"Tin tức: Hệ thống Proxy v4.0 đã hoạt động ổn định.",
+                @"News: Proxy system v4.0 is up and running.");
+}
+
 - (void)refreshLocalizedStrings {
+    [self updateAppSectionHeader];
+    [self updateNewsLabel];
     // Cập nhật cột "Tương thích" (dot tag 997 + label tag 998)
     BOOL supported = [self isIOSSupported];
     UIColor *st = supported ? BRAND_CYAN : BRAND_YELLOW;
@@ -877,6 +954,7 @@
         self.appIDs = appIDs;
         [logger log:@"[AppData] ✅ Found %lu apps immediately", (unsigned long)self.appIDs.count];
         [self updateStatsKeysCount];
+                [self updateAppSectionHeader];
         [self.collectionView reloadData];
     } else {
         [logger log:@"[AppData] ⚠️  No apps in VFS yet, loading in background..."];
@@ -978,7 +1056,8 @@
         [logger log:@"[AppData] ✅ Ready to display %lu apps", (unsigned long)self.appIDs.count];
 
         dispatch_async(dispatch_get_main_queue(), ^{
-            [self.collectionView reloadData];
+                    [self updateAppSectionHeader];
+        [self.collectionView reloadData];
             [self hideLoadingView];  // Fade out loading screen
             isLoading = NO;
         });
@@ -1169,7 +1248,7 @@
     [cc addSubview:c1];
     UILabel *t1 = [[UILabel alloc] init];
     t1.text = [LS(@"Thiết Bị", @"Device") uppercaseString];
-    t1.font = DELTA_FONT(10,UIFontWeightSemibold);
+    t1.font = [UIFont monospacedSystemFontOfSize:10 weight:UIFontWeightMedium];
     t1.textColor = BRAND_MUTED;
     t1.translatesAutoresizingMaskIntoConstraints = NO;
     [c1 addSubview:t1];
@@ -1188,7 +1267,7 @@
     [cc addSubview:c2];
     UILabel *t2 = [[UILabel alloc] init];
     t2.text = [LS(@"Hệ Điều Hành", @"Operating System") uppercaseString];
-    t2.font = DELTA_FONT(10,UIFontWeightSemibold);
+    t2.font = [UIFont monospacedSystemFontOfSize:10 weight:UIFontWeightMedium];
     t2.textColor = BRAND_MUTED;
     t2.translatesAutoresizingMaskIntoConstraints = NO;
     [c2 addSubview:t2];
@@ -1205,7 +1284,7 @@
     [cc addSubview:c3];
     UILabel *t3 = [[UILabel alloc] init];
     t3.text = [LS(@"Tương Thích", @"Compatibility") uppercaseString];
-    t3.font = DELTA_FONT(10,UIFontWeightSemibold);
+    t3.font = [UIFont monospacedSystemFontOfSize:10 weight:UIFontWeightMedium];
     t3.textColor = BRAND_MUTED;
     t3.translatesAutoresizingMaskIntoConstraints = NO;
     [c3 addSubview:t3];

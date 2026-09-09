@@ -131,7 +131,7 @@
     self.backgroundColor = [UIColor clearColor];
     self.layer.borderColor = [UIColor colorWithWhite:1 alpha:0.07].CGColor;
     self.layer.borderWidth = 1;
-    self.layer.cornerRadius = 16;
+    self.layer.cornerRadius = 20;
     self.layer.cornerCurve = kCACornerCurveContinuous;
     self.layer.masksToBounds = YES;
 
@@ -157,7 +157,7 @@
     [self addSubview:_dot];
 
     _titleLabel = [[UILabel alloc] init];
-    _titleLabel.font = DELTA_FONT(13,UIFontWeightBold);
+    _titleLabel.font = [UIFont monospacedSystemFontOfSize:13 weight:UIFontWeightBold];
     _titleLabel.textColor = KB_TEXT;
     _titleLabel.translatesAutoresizingMaskIntoConstraints = NO;
     [self addSubview:_titleLabel];
@@ -185,14 +185,15 @@
             forControlEvents:UIControlEventTouchUpInside];
     [self addSubview:_policyButton];
 
-    // Add key button — light surface, text (iOS-like, không gradient)
+    // Add key button — dark tile + hairline (không solid white)
     _addButton = [UIButton buttonWithType:UIButtonTypeSystem];
     _addButton.titleLabel.font = DELTA_FONT(13,UIFontWeightSemibold);
-    [_addButton setTitleColor:[UIColor colorWithRed:0.039 green:0.043 blue:0.063 alpha:1.0]
-                     forState:UIControlStateNormal];
-    _addButton.backgroundColor = BRAND_LIGHT;
+    [_addButton setTitleColor:BRAND_TEXT forState:UIControlStateNormal];
+    _addButton.backgroundColor = BRAND_TILE;
     _addButton.layer.cornerRadius = 10;
     _addButton.layer.cornerCurve = kCACornerCurveContinuous;
+    _addButton.layer.borderColor = [UIColor colorWithWhite:1 alpha:0.10].CGColor;
+    _addButton.layer.borderWidth = 1;
     _addButton.clipsToBounds = YES;
     _addButton.contentEdgeInsets = UIEdgeInsetsMake(0, 14, 0, 14);
     _addButton.translatesAutoresizingMaskIntoConstraints = NO;
