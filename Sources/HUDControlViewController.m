@@ -12,8 +12,8 @@
 // ── Palette — OBSIDIAN ──────────────────────────────────
 // Surface
 #define HUD_BG_TOP      [UIColor colorWithRed:0.039 green:0.043 blue:0.063 alpha:1.0]  // #0A0B10
-#define HUD_BG_BOTTOM   [UIColor colorWithRed:0.059 green:0.071 blue:0.110 alpha:1.0]  // #0F121C
-#define HUD_CARD        [UIColor colorWithRed:0.075 green:0.082 blue:0.114 alpha:1.0]  // #13151D
+#define HUD_BG_BOTTOM   [UIColor colorWithRed:0.039 green:0.043 blue:0.063 alpha:1.0]  // #0A0B10 (solid)
+#define HUD_CARD        [UIColor colorWithRed:0.071 green:0.082 blue:0.122 alpha:1.0]  // #12151F module
 #define HUD_CARD_ON     [UIColor colorWithRed:0.106 green:0.118 blue:0.153 alpha:1.0]  // #1B1E27
 #define HUD_BORDER      [UIColor colorWithRed:0.106 green:0.118 blue:0.153 alpha:1.0]  // #1B1E27
 // Accent + semantic states (single accent: cyan)
@@ -25,8 +25,8 @@
 #define HUD_ORANGE      HUD_PURPLE
 #define HUD_PINK        HUD_PURPLE
 // Text
-#define HUD_TEXT        [UIColor colorWithRed:0.961 green:0.965 blue:0.980 alpha:1.0]  // #F5F6FA
-#define HUD_MUTED       [UIColor colorWithRed:0.541 green:0.565 blue:0.635 alpha:1.0]  // #8A90A2
+#define HUD_TEXT        [UIColor colorWithRed:1.000 green:1.000 blue:1.000 alpha:1.0]  // #FFFFFF
+#define HUD_MUTED       [UIColor colorWithRed:0.620 green:0.659 blue:0.714 alpha:1.0]  // #9EA8B6
 
 // ── Tutorial video URLs — điền link YouTube thực tế ────────────────────────
 static NSString *const kTutorialProxyURL = @"https://youtu.be/bchI1KaZhSI";
@@ -174,7 +174,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 
     // ── Card ──────────────────────────────────────────────────
     UIView *card = [[UIView alloc] init];
-    card.backgroundColor    = [UIColor colorWithRed:0.075 green:0.082 blue:0.114 alpha:1]; // HUD_CARD
+    card.backgroundColor    = [UIColor colorWithRed:0.071 green:0.082 blue:0.122 alpha:1]; // HUD_CARD
     card.layer.cornerRadius = 24;
     card.layer.cornerCurve  = kCACornerCurveContinuous;
     card.layer.borderColor  = [UIColor colorWithRed:0.106 green:0.118 blue:0.153 alpha:1].CGColor; // HUD_BORDER
@@ -611,11 +611,11 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     self.translatesAutoresizingMaskIntoConstraints = NO;
 
     // ── Tile base styling ──────────────────────────────────
-    self.backgroundColor    = HUD_CARD;
+    self.backgroundColor    = [UIColor colorWithRed:0.102 green:0.118 blue:0.169 alpha:1.0]; // #1A1E2B elevated
     self.layer.cornerRadius = 14;
     self.layer.cornerCurve  = kCACornerCurveContinuous;
     self.layer.borderWidth  = 1;
-    self.layer.borderColor  = HUD_BORDER.CGColor;
+    self.layer.borderColor  = [UIColor colorWithWhite:1 alpha:0.12].CGColor;
     self.clipsToBounds      = YES;  // clip nội dung vào rounded corner
 
     // ── Tinted glow bg (fade-in khi ON) ───────────────────
@@ -639,7 +639,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
         configurationWithPointSize:18 weight:UIImageSymbolWeightSemibold];
     UIImageView *iconIV = [[UIImageView alloc]
         initWithImage:[UIImage systemImageNamed:feature.symbol withConfiguration:symCfg]];
-    iconIV.tintColor    = HUD_PURPLE;
+    iconIV.tintColor    = HUD_CYAN;
     iconIV.contentMode  = UIViewContentModeScaleAspectFit;
     iconIV.translatesAutoresizingMaskIntoConstraints = NO;
     [self addSubview:iconIV];
@@ -652,7 +652,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 
     // ── Title ─────────────────────────────────────────────
     UILabel *titleLbl = [[UILabel alloc] init];
-    titleLbl.font          = DELTA_FONT(13,UIFontWeightBold);
+    titleLbl.font          = DELTA_FONT(14,UIFontWeightSemibold);
     titleLbl.textColor     = HUD_TEXT;
     titleLbl.numberOfLines = 2;
     titleLbl.lineBreakMode = NSLineBreakByWordWrapping;
@@ -662,7 +662,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 
     // ── Subtitle ──────────────────────────────────────────
     UILabel *subLbl = [[UILabel alloc] init];
-    subLbl.font          = DELTA_FONT(10.5,UIFontWeightRegular);
+    subLbl.font          = DELTA_FONT(11,UIFontWeightRegular);
     subLbl.textColor     = HUD_MUTED;
     subLbl.numberOfLines = 2;
     subLbl.lineBreakMode = NSLineBreakByWordWrapping;
@@ -687,10 +687,10 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 
     // ── Toggle switch (glow cyan) — indicator bật/tắt ─────
     _switchTrack = [[UIView alloc] init];
-    _switchTrack.backgroundColor    = [UIColor colorWithWhite:1 alpha:0.12];
-    _switchTrack.layer.cornerRadius = 10;
+    _switchTrack.backgroundColor    = [UIColor colorWithRed:0.173 green:0.196 blue:0.259 alpha:1.0]; // #2C3242
+    _switchTrack.layer.cornerRadius = 12;
     _switchTrack.layer.cornerCurve  = kCACornerCurveContinuous;
-    _switchTrack.layer.borderColor  = [UIColor colorWithWhite:1 alpha:0.12].CGColor;
+    _switchTrack.layer.borderColor  = [UIColor colorWithWhite:1 alpha:0.15].CGColor;
     _switchTrack.layer.borderWidth  = 1;
     _switchTrack.layer.shadowColor  = HUD_CYAN.CGColor;
     _switchTrack.layer.shadowOpacity = 0;
@@ -700,8 +700,8 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     [self addSubview:_switchTrack];
 
     _switchKnob = [[UIView alloc] init];
-    _switchKnob.backgroundColor = [UIColor colorWithWhite:1 alpha:0.6];
-    _switchKnob.layer.cornerRadius = 8;
+    _switchKnob.backgroundColor = [UIColor whiteColor];
+    _switchKnob.layer.cornerRadius = 10;
     _switchKnob.layer.cornerCurve  = kCACornerCurveContinuous;
     _switchKnob.translatesAutoresizingMaskIntoConstraints = NO;
     [_switchTrack addSubview:_switchKnob];
@@ -757,13 +757,13 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
         // Toggle: top-right, glow khi ON
         [_switchTrack.trailingAnchor constraintEqualToAnchor:self.trailingAnchor constant:-10],
         [_switchTrack.centerYAnchor  constraintEqualToAnchor:_ledDot.centerYAnchor],
-        [_switchTrack.widthAnchor    constraintEqualToConstant:34],
-        [_switchTrack.heightAnchor   constraintEqualToConstant:20],
+        [_switchTrack.widthAnchor    constraintEqualToConstant:44],
+        [_switchTrack.heightAnchor   constraintEqualToConstant:24],
 
         [_switchKnob.centerYAnchor constraintEqualToAnchor:_switchTrack.centerYAnchor],
         _switchKnobLead,
-        [_switchKnob.widthAnchor  constraintEqualToConstant:16],
-        [_switchKnob.heightAnchor constraintEqualToConstant:16],
+        [_switchKnob.widthAnchor  constraintEqualToConstant:20],
+        [_switchKnob.heightAnchor constraintEqualToConstant:20],
 
         // Status dot (✓/✕) — bên trái toggle, feedback ngắn
         [_statusDot.trailingAnchor constraintEqualToAnchor:_switchTrack.leadingAnchor constant:-6],
@@ -835,18 +835,18 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
                      animations:^{
         self->_tileGlow.alpha       = active ? 1 : 0;
         self.layer.borderColor      = active
-            ? [HUD_CYAN colorWithAlphaComponent:0.60].CGColor
-            : [UIColor colorWithWhite:1 alpha:0.06].CGColor;
+            ? [HUD_CYAN colorWithAlphaComponent:0.75].CGColor
+            : [UIColor colorWithWhite:1 alpha:0.12].CGColor;
         self->_ledDot.backgroundColor = active ? HUD_CYAN : HUD_BORDER;
 
         // Toggle switch glow
-        self->_switchKnobLead.constant    = active ? 16 : 2;
-        self->_switchTrack.backgroundColor = active ? HUD_CYAN : [UIColor colorWithWhite:1 alpha:0.12];
-        self->_switchKnob.backgroundColor  = active ? [UIColor whiteColor] : [UIColor colorWithWhite:1 alpha:0.6];
-        self->_switchTrack.layer.shadowOpacity = active ? 0.7 : 0.0;
+        self->_switchKnobLead.constant    = active ? 22 : 2;
+        self->_switchTrack.backgroundColor = active ? HUD_CYAN : [UIColor colorWithRed:0.173 green:0.196 blue:0.259 alpha:1.0];
+        self->_switchKnob.backgroundColor  = [UIColor whiteColor];
+        self->_switchTrack.layer.shadowOpacity = active ? 0.35 : 0.0;
         self->_switchTrack.layer.borderColor   = active
             ? [HUD_CYAN colorWithAlphaComponent:0.9].CGColor
-            : [UIColor colorWithWhite:1 alpha:0.12].CGColor;
+            : [UIColor colorWithWhite:1 alpha:0.15].CGColor;
         [self layoutIfNeeded];
     } completion:nil];
 }
@@ -967,7 +967,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 
     // ── Card ──────────────────────────────────────────────────
     UIView *card = [[UIView alloc] init];
-    card.backgroundColor    = [UIColor colorWithRed:0.075 green:0.082 blue:0.114 alpha:1];
+    card.backgroundColor    = [UIColor colorWithRed:0.071 green:0.082 blue:0.122 alpha:1];
     card.layer.cornerRadius = 24;
     card.layer.cornerCurve  = kCACornerCurveContinuous;
     card.layer.borderColor  = [UIColor colorWithRed:0.106 green:0.118 blue:0.153 alpha:1].CGColor;
@@ -1469,7 +1469,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     // ── Card container ────────────────────────────────────────
     UIView *card = [[UIView alloc] init];
     card.clipsToBounds = YES;
-    card.backgroundColor = [UIColor colorWithRed:0.075 green:0.082 blue:0.114 alpha:0.97]; // #16203C
+    card.backgroundColor = [UIColor colorWithRed:0.071 green:0.082 blue:0.122 alpha:0.97]; // #16203C
     card.layer.cornerRadius = 24;
     card.layer.cornerCurve = kCACornerCurveContinuous;
     card.layer.borderColor = [HUD_CYAN colorWithAlphaComponent:0.25].CGColor;
@@ -2252,7 +2252,7 @@ if (active) {
 - (void)buildToast {
     // Outer pill
     UIView *toast = [[UIView alloc] init];
-    toast.backgroundColor    = [UIColor colorWithRed:0.075 green:0.082 blue:0.114 alpha:0.96];
+    toast.backgroundColor    = [UIColor colorWithRed:0.071 green:0.082 blue:0.122 alpha:0.96];
     toast.layer.cornerRadius = 16;
     toast.layer.cornerCurve  = kCACornerCurveContinuous;
     toast.layer.borderColor  = [UIColor colorWithWhite:1 alpha:0.10].CGColor;
@@ -2440,37 +2440,66 @@ if (active) {
 
     if (tutorialURL != nil) {
         BOOL hasURL = tutorialURL.length > 0;
-        UIColor *ytRed    = [UIColor colorWithRed:0.431 green:0.455 blue:0.529 alpha:1.0];
-        UIColor *tutColor = hasURL ? ytRed : HUD_MUTED;
 
         UIView *tutRow = [[UIView alloc] init];
         tutRow.translatesAutoresizingMaskIntoConstraints = NO;
+        tutRow.backgroundColor    = [UIColor colorWithRed:0.118 green:0.137 blue:0.188 alpha:1.0]; // #1E2330 boxed
+        tutRow.layer.cornerRadius = 12;
+        tutRow.layer.cornerCurve  = kCACornerCurveContinuous;
+        tutRow.layer.borderColor  = [UIColor colorWithWhite:1 alpha:0.10].CGColor;
+        tutRow.layer.borderWidth  = 1;
+        tutRow.layer.masksToBounds = YES;
         [pc addSubview:tutRow];
+
+        // Badge YouTube 32×32 (#281A1D) — play icon đỏ #FF4B4B
+        UIView *tutBadge = [[UIView alloc] init];
+        tutBadge.translatesAutoresizingMaskIntoConstraints = NO;
+        tutBadge.backgroundColor = [UIColor colorWithRed:0.157 green:0.102 blue:0.114 alpha:1.0];
+        tutBadge.layer.cornerRadius = 8;
+        tutBadge.layer.cornerCurve  = kCACornerCurveContinuous;
+        [tutRow addSubview:tutBadge];
 
         UIImageSymbolConfiguration *playCfg = [UIImageSymbolConfiguration
             configurationWithPointSize:16 weight:UIImageSymbolWeightBold];
         UIImageView *playIcon = [[UIImageView alloc]
-            initWithImage:[UIImage systemImageNamed:@"play.circle.fill" withConfiguration:playCfg]];
-        playIcon.tintColor   = tutColor;
+            initWithImage:[UIImage systemImageNamed:@"play.fill" withConfiguration:playCfg]];
+        playIcon.tintColor   = [UIColor colorWithRed:1.000 green:0.294 blue:0.294 alpha:1.0]; // #FF4B4B
         playIcon.contentMode = UIViewContentModeScaleAspectFit;
         playIcon.translatesAutoresizingMaskIntoConstraints = NO;
-        [tutRow addSubview:playIcon];
+        [tutBadge addSubview:playIcon];
 
         UILabel *tutTitle = [[UILabel alloc] init];
         tutTitle.text      = LS(@"Xem Video Hướng Dẫn", @"Watch Tutorial Video");
         tutTitle.font      = DELTA_FONT(14,UIFontWeightBold);
-        tutTitle.textColor = hasURL ? HUD_TEXT : HUD_MUTED;
+        tutTitle.textColor = hasURL ? [UIColor whiteColor] : HUD_MUTED;
         tutTitle.translatesAutoresizingMaskIntoConstraints = NO;
         [tutRow addSubview:tutTitle];
 
         UILabel *tutSub = [[UILabel alloc] init];
         tutSub.text = hasURL
-            ? LS(@"Nhấn để mở YouTube ▶", @"Tap to open YouTube ▶")
-            : LS(@"🎬 Video hướng dẫn sắp có...", @"🎬 Tutorial coming soon...");
-        tutSub.font      = DELTA_FONT(12,UIFontWeightRegular);
+            ? LS(@"Hướng dẫn cài đặt & bật Proxy chi tiết", @"Step-by-step Proxy setup guide")
+            : LS(@"Video hướng dẫn sắp có...", @"Tutorial video coming soon...");
+        tutSub.font      = DELTA_FONT(11,UIFontWeightRegular);
         tutSub.textColor = HUD_MUTED;
         tutSub.translatesAutoresizingMaskIntoConstraints = NO;
         [tutRow addSubview:tutSub];
+
+        // Action pill "XEM NGAY" (trang trí — cả row là nút mở)
+        UIButton *watchBtn = nil;
+        if (hasURL) {
+            watchBtn = [UIButton buttonWithType:UIButtonTypeSystem];
+            watchBtn.userInteractionEnabled = NO;
+            watchBtn.titleLabel.font = [UIFont monospacedSystemFontOfSize:11 weight:UIFontWeightSemibold];
+            [watchBtn setTitle:LS(@"XEM NGAY", @"WATCH NOW") forState:UIControlStateNormal];
+            [watchBtn setTitleColor:HUD_CYAN forState:UIControlStateNormal];
+            watchBtn.backgroundColor = [UIColor colorWithRed:0.157 green:0.180 blue:0.243 alpha:1.0]; // #282E3E
+            watchBtn.layer.cornerRadius = 6;
+            watchBtn.layer.cornerCurve  = kCACornerCurveContinuous;
+            watchBtn.layer.masksToBounds = YES;
+            watchBtn.contentEdgeInsets = UIEdgeInsetsMake(5, 10, 5, 10);
+            watchBtn.translatesAutoresizingMaskIntoConstraints = NO;
+            [tutRow addSubview:watchBtn];
+        }
 
         // Separator dưới tutorial row (trước grid)
         UIView *sep = [[UIView alloc] init];
@@ -2479,30 +2508,44 @@ if (active) {
         [pc addSubview:sep];
 
         [NSLayoutConstraint activateConstraints:@[
-            // Tutorial row: ngay dưới titleBar
-            [tutRow.topAnchor      constraintEqualToAnchor:titleBar.bottomAnchor],
-            [tutRow.leadingAnchor  constraintEqualToAnchor:pc.leadingAnchor],
-            [tutRow.trailingAnchor constraintEqualToAnchor:pc.trailingAnchor],
-            [tutRow.heightAnchor   constraintEqualToConstant:50],
+            // Tutorial row: boxed card, cách mép panel 10
+            [tutRow.topAnchor      constraintEqualToAnchor:titleBar.bottomAnchor constant:6],
+            [tutRow.leadingAnchor  constraintEqualToAnchor:pc.leadingAnchor constant:10],
+            [tutRow.trailingAnchor constraintEqualToAnchor:pc.trailingAnchor constant:-10],
+            [tutRow.heightAnchor   constraintEqualToConstant:52],
 
             // Separator dưới tutorial row
-            [sep.topAnchor      constraintEqualToAnchor:tutRow.bottomAnchor],
+            [sep.topAnchor      constraintEqualToAnchor:tutRow.bottomAnchor constant:8],
             [sep.leadingAnchor  constraintEqualToAnchor:pc.leadingAnchor  constant:12],
             [sep.trailingAnchor constraintEqualToAnchor:pc.trailingAnchor constant:-12],
             [sep.heightAnchor   constraintEqualToConstant:0.5],
 
-            // Play icon
-            [playIcon.leadingAnchor constraintEqualToAnchor:tutRow.leadingAnchor constant:16],
-            [playIcon.centerYAnchor constraintEqualToAnchor:tutRow.centerYAnchor],
-            [playIcon.widthAnchor   constraintEqualToConstant:20],
-            [playIcon.heightAnchor  constraintEqualToConstant:20],
+            // Badge play 32×32
+            [tutBadge.leadingAnchor constraintEqualToAnchor:tutRow.leadingAnchor constant:10],
+            [tutBadge.centerYAnchor constraintEqualToAnchor:tutRow.centerYAnchor],
+            [tutBadge.widthAnchor   constraintEqualToConstant:32],
+            [tutBadge.heightAnchor  constraintEqualToConstant:32],
+
+            [playIcon.centerXAnchor constraintEqualToAnchor:tutBadge.centerXAnchor],
+            [playIcon.centerYAnchor constraintEqualToAnchor:tutBadge.centerYAnchor],
+            [playIcon.widthAnchor  constraintEqualToConstant:15],
+            [playIcon.heightAnchor constraintEqualToConstant:15],
 
             // Text
-            [tutTitle.leadingAnchor constraintEqualToAnchor:playIcon.trailingAnchor constant:12],
-            [tutTitle.bottomAnchor  constraintEqualToAnchor:tutRow.centerYAnchor constant:-1],
+            [tutTitle.leadingAnchor constraintEqualToAnchor:tutBadge.trailingAnchor constant:10],
+            [tutTitle.trailingAnchor constraintLessThanOrEqualToAnchor:tutRow.trailingAnchor constant:-12],
+            [tutTitle.centerYAnchor constraintEqualToAnchor:tutRow.centerYAnchor constant:-7],
             [tutSub.leadingAnchor   constraintEqualToAnchor:tutTitle.leadingAnchor],
-            [tutSub.topAnchor       constraintEqualToAnchor:tutRow.centerYAnchor constant:3],
+            [tutSub.centerYAnchor   constraintEqualToAnchor:tutRow.centerYAnchor constant:9],
         ]];
+
+        if (hasURL && watchBtn) {
+            [NSLayoutConstraint activateConstraints:@[
+                [watchBtn.trailingAnchor constraintEqualToAnchor:tutRow.trailingAnchor constant:-10],
+                [watchBtn.centerYAnchor  constraintEqualToAnchor:tutRow.centerYAnchor],
+                [tutTitle.trailingAnchor constraintLessThanOrEqualToAnchor:watchBtn.leadingAnchor constant:-8],
+            ]];
+        }
 
         if (hasURL) {
             UIButton *tapBtn = [UIButton buttonWithType:UIButtonTypeCustom];
@@ -3626,7 +3669,7 @@ static UIColor *_aimTintFromString(NSString *tint) {
     card.translatesAutoresizingMaskIntoConstraints = NO;
     card.layer.cornerRadius = 22;
     card.layer.cornerCurve  = kCACornerCurveContinuous;
-    card.backgroundColor    = [UIColor colorWithRed:0.075 green:0.082 blue:0.114 alpha:1.0]; // #0F1528
+    card.backgroundColor    = [UIColor colorWithRed:0.071 green:0.082 blue:0.122 alpha:1.0]; // #0F1528
     card.layer.borderColor  = [UIColor colorWithRed:0.106 green:0.118 blue:0.153 alpha:0.8].CGColor;
     card.layer.borderWidth  = 1;
     self.panelDNS = card;
