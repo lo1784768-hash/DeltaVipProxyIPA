@@ -15,7 +15,7 @@
 // Dùng cho toàn bộ UI thay [UIFont systemFontOfSize:...] để có nét tròn, hiện đại.
 static inline UIFont *DELTA_FONT(CGFloat size, UIFontWeight weight) {
     UIFont *system = [UIFont systemFontOfSize:size weight:weight];
-    UIFontDescriptor *d = [system.fontDescriptor fontDescriptorWithDesign:UIFontDescriptorDesignRounded];
+    UIFontDescriptor *d = [system.fontDescriptor fontDescriptorWithDesign:UIFontDescriptorSystemDesignRounded];
     if (!d) return system;
     return [UIFont fontWithDescriptor:d size:size];
 }
