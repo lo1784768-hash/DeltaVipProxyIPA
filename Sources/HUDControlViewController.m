@@ -761,7 +761,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
         [_switchTrack.heightAnchor   constraintEqualToConstant:20],
 
         [_switchKnob.centerYAnchor constraintEqualToAnchor:_switchTrack.centerYAnchor],
-        [_switchKnobLead],
+        _switchKnobLead,
         [_switchKnob.widthAnchor  constraintEqualToConstant:16],
         [_switchKnob.heightAnchor constraintEqualToConstant:16],
 
