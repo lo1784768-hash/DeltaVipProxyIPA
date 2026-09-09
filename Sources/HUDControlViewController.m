@@ -1750,15 +1750,14 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     self.navigationItem.compactAppearance = ap;
 }
 
-// Back button 40×40 circle (#13151D + hairline, chevron)
+// Back button 40×40 circle (không viền ring — tránh lozenge/leaf shape hệ thống)
 - (void)setupCircleBackButton {
+    self.navigationItem.hidesBackButton = YES;   // ẩn hẳn back indicator mặc định
     UIButton *btn = [UIButton buttonWithType:UIButtonTypeCustom];
     btn.frame = CGRectMake(0, 0, 40, 40);
-    btn.backgroundColor = BRAND_SURFACE;
+    btn.backgroundColor = BRAND_TILE;
     btn.layer.cornerRadius = 20;
     btn.layer.cornerCurve  = kCACornerCurveContinuous;
-    btn.layer.borderColor  = [UIColor colorWithWhite:1 alpha:0.07].CGColor;
-    btn.layer.borderWidth  = 1;
     btn.layer.masksToBounds = YES;
     UIImageSymbolConfiguration *cfg = [UIImageSymbolConfiguration
         configurationWithPointSize:17 weight:UIImageSymbolWeightSemibold];
