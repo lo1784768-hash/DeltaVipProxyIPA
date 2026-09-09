@@ -1230,7 +1230,16 @@
     v3.adjustsFontSizeToFitWidth = YES;
     v3.minimumScaleFactor = 0.6;
     v3.translatesAutoresizingMaskIntoConstraints = NO;
-    [c3 addSubview:v3];
+    [v3 setContentCompressionResistancePriority:UILayoutPriorityDefaultLow
+                                        forAxis:UILayoutConstraintAxisHorizontal];
+
+    // Group dot + label rồi canh giữa theo cột
+    UIStackView *row3 = [[UIStackView alloc] initWithArrangedSubviews:@[dot, v3]];
+    row3.axis = UILayoutConstraintAxisHorizontal;
+    row3.spacing = 7;
+    row3.alignment = UIStackViewAlignmentCenter;
+    row3.translatesAutoresizingMaskIntoConstraints = NO;
+    [c3 addSubview:row3];
 
     // ── Vách hairline dọc ──────────────────────────────────
     UIView *d1 = [[UIView alloc] init];
@@ -1267,30 +1276,28 @@
         [d2.bottomAnchor constraintEqualToAnchor:cc.bottomAnchor constant:-12],
         [d2.widthAnchor constraintEqualToConstant:1],
 
-        // Nội dung cột 1
-        [t1.leadingAnchor constraintEqualToAnchor:c1.leadingAnchor],
+        // Nội dung cột 1 — canh giữa
+        [t1.centerXAnchor constraintEqualToAnchor:c1.centerXAnchor],
         [t1.topAnchor constraintEqualToAnchor:c1.topAnchor constant:12],
-        [v1.leadingAnchor constraintEqualToAnchor:t1.leadingAnchor],
-        [v1.trailingAnchor constraintLessThanOrEqualToAnchor:c1.trailingAnchor],
+        [v1.centerXAnchor constraintEqualToAnchor:c1.centerXAnchor],
+        [v1.widthAnchor constraintLessThanOrEqualToAnchor:c1.widthAnchor],
         [v1.topAnchor constraintEqualToAnchor:t1.bottomAnchor constant:4],
 
-        // Nội dung cột 2
-        [t2.leadingAnchor constraintEqualToAnchor:c2.leadingAnchor constant:14],
+        // Nội dung cột 2 — canh giữa
+        [t2.centerXAnchor constraintEqualToAnchor:c2.centerXAnchor],
         [t2.topAnchor constraintEqualToAnchor:c2.topAnchor constant:12],
-        [v2.leadingAnchor constraintEqualToAnchor:t2.leadingAnchor],
-        [v2.trailingAnchor constraintLessThanOrEqualToAnchor:c2.trailingAnchor],
+        [v2.centerXAnchor constraintEqualToAnchor:c2.centerXAnchor],
+        [v2.widthAnchor constraintLessThanOrEqualToAnchor:c2.widthAnchor],
         [v2.topAnchor constraintEqualToAnchor:t2.bottomAnchor constant:4],
 
-        // Nội dung cột 3 — canh dòng value giống cột 1 & 2
-        [t3.leadingAnchor constraintEqualToAnchor:c3.leadingAnchor constant:14],
+        // Nội dung cột 3 — group dot+label canh giữa
+        [t3.centerXAnchor constraintEqualToAnchor:c3.centerXAnchor],
         [t3.topAnchor constraintEqualToAnchor:c3.topAnchor constant:12],
-        [dot.leadingAnchor constraintEqualToAnchor:t3.leadingAnchor],
-        [v3.leadingAnchor constraintEqualToAnchor:dot.trailingAnchor constant:7],
-        [v3.topAnchor constraintEqualToAnchor:t3.bottomAnchor constant:4],
-        [dot.centerYAnchor constraintEqualToAnchor:v3.centerYAnchor],
+        [row3.centerXAnchor constraintEqualToAnchor:c3.centerXAnchor],
+        [row3.topAnchor constraintEqualToAnchor:t3.bottomAnchor constant:4],
+        [row3.widthAnchor constraintLessThanOrEqualToAnchor:c3.widthAnchor],
         [dot.widthAnchor constraintEqualToConstant:6],
         [dot.heightAnchor constraintEqualToConstant:6],
-        [v3.trailingAnchor constraintLessThanOrEqualToAnchor:c3.trailingAnchor],
     ]];
 
     UILongPressGestureRecognizer *lp = [[UILongPressGestureRecognizer alloc]
