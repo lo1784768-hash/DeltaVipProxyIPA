@@ -686,7 +686,7 @@
     UIColor *st = supported ? BRAND_CYAN : BRAND_YELLOW;
     UILabel *supportLabel = (UILabel *)[self.statsView viewWithTag:998];
     if (supportLabel) {
-        supportLabel.text = supported ? LS(@"Sẵn Sàng", @"Ready") : LS(@"Chưa Hỗ Trợ", @"Not Supported");
+        supportLabel.text = supported ? LS(@"Có Hỗ Trợ", @"Supported") : LS(@"Không Hỗ Trợ", @"Not Supported");
         supportLabel.textColor = st;
     }
     UIView *dot = [self.statsView viewWithTag:997];
@@ -1224,7 +1224,7 @@
 
     UILabel *v3 = [[UILabel alloc] init];
     v3.tag = 998;
-    v3.text = supported ? LS(@"Sẵn Sàng", @"Ready") : LS(@"Chưa Hỗ Trợ", @"Not Supported");
+    v3.text = supported ? LS(@"Có Hỗ Trợ", @"Supported") : LS(@"Không Hỗ Trợ", @"Not Supported");
     v3.font = DELTA_FONT(13,UIFontWeightSemibold);
     v3.textColor = supported ? BRAND_CYAN : BRAND_YELLOW;
     v3.adjustsFontSizeToFitWidth = YES;
@@ -1281,15 +1281,15 @@
         [v2.trailingAnchor constraintLessThanOrEqualToAnchor:c2.trailingAnchor],
         [v2.topAnchor constraintEqualToAnchor:t2.bottomAnchor constant:4],
 
-        // Nội dung cột 3
+        // Nội dung cột 3 — canh dòng value giống cột 1 & 2
         [t3.leadingAnchor constraintEqualToAnchor:c3.leadingAnchor constant:14],
         [t3.topAnchor constraintEqualToAnchor:c3.topAnchor constant:12],
         [dot.leadingAnchor constraintEqualToAnchor:t3.leadingAnchor],
-        [dot.centerYAnchor constraintEqualToAnchor:c3.centerYAnchor],
+        [v3.leadingAnchor constraintEqualToAnchor:dot.trailingAnchor constant:7],
+        [v3.topAnchor constraintEqualToAnchor:t3.bottomAnchor constant:4],
+        [dot.centerYAnchor constraintEqualToAnchor:v3.centerYAnchor],
         [dot.widthAnchor constraintEqualToConstant:6],
         [dot.heightAnchor constraintEqualToConstant:6],
-        [v3.leadingAnchor constraintEqualToAnchor:dot.trailingAnchor constant:7],
-        [v3.centerYAnchor constraintEqualToAnchor:dot.centerYAnchor],
         [v3.trailingAnchor constraintLessThanOrEqualToAnchor:c3.trailingAnchor],
     ]];
 
