@@ -56,6 +56,27 @@ static inline CAGradientLayer *BrandGradient(void) {
     g.endPoint   = CGPointMake(1.0, 1.0);
     return g;
 }
+
+// ── Carbon-fiber texture (rất nhẹ, cho nền) ─────────────────────────────
+static inline UIColor *DeltaCarbonTexture(void) {
+    CGFloat s = 16;
+    UIGraphicsImageRenderer *r = [[UIGraphicsImageRenderer alloc] initWithSize:CGSizeMake(s, s)];
+    UIImage *img = [r imageWithActions:^(UIGraphicsImageRendererContext * _Nonnull ctx) {
+        CGContextRef cg = ctx.CGContext;
+        CGContextSetStrokeColorWithColor(cg, [UIColor colorWithWhite:1 alpha:0.028].CGColor);
+        CGContextSetLineWidth(cg, 0.5);
+        // Weave chéo 2 hướng
+        CGContextMoveToPoint(cg, 0, 0);     CGContextAddLineToPoint(cg, s, s);
+        CGContextMoveToPoint(cg, 0, s/2);   CGContextAddLineToPoint(cg, s/2, s);
+        CGContextMoveToPoint(cg, s/2, 0);   CGContextAddLineToPoint(cg, s, s/2);
+        CGContextMoveToPoint(cg, 0, s);     CGContextAddLineToPoint(cg, s, 0);
+        CGContextStrokePath(cg);
+        // Nút dệt sáng hơn một chút
+        CGContextSetFillColorWithColor(cg, [UIColor colorWithWhite:1 alpha:0.05].CGColor);
+        CGContextFillRect(cg, CGRectMake(s/2 - 0.4, s/2 - 0.4, 0.8, 0.8));
+    }];
+    return [UIColor colorWithPatternImage:img];
+}
 static inline CAGradientLayer *BrandRadialGlow(UIColor *color) {
     CAGradientLayer *g = [CAGradientLayer layer];
     g.type = kCAGradientLayerRadial;

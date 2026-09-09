@@ -517,6 +517,9 @@
 
 - (void)setReady:(BOOL)ready {
     self.statusChip.textColor = ready ? BRAND_CYAN : BRAND_MUTED;
+    self.statusChip.layer.borderColor = ready
+        ? [BRAND_CYAN colorWithAlphaComponent:0.45].CGColor
+        : [UIColor colorWithWhite:1 alpha:0.10].CGColor;
     self.statusChip.text = ready ? @"  READY  " : @"  OFFLINE  ";
 }
 
@@ -609,7 +612,7 @@
 
     UIView *grid = [[UIView alloc] initWithFrame:self.view.bounds];
     grid.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
-    grid.backgroundColor = BrandGridPattern();
+    grid.backgroundColor = DeltaCarbonTexture();
     grid.userInteractionEnabled = NO;
     [self.view addSubview:grid];
 

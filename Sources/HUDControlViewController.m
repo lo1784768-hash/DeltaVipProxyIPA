@@ -582,6 +582,9 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 @property (nonatomic, strong) UIButton   *previewButton;
 @property (nonatomic, strong) UILabel    *rowTitleLabel;
 @property (nonatomic, strong) UILabel    *rowSubtitleLabel;
+@property (nonatomic, strong) UIView    *switchTrack;
+@property (nonatomic, strong) UIView    *switchKnob;
+@property (nonatomic, strong) NSLayoutConstraint *switchKnobLead;
 @property (nonatomic, assign) BOOL        isLoading;
 @property (nonatomic, copy)   void (^onChanged)(HUDFeatureRow *row, BOOL isOn);
 @property (nonatomic, copy)   void (^onPreviewTapped)(void);
@@ -682,6 +685,29 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     _spinner.translatesAutoresizingMaskIntoConstraints = NO;
     [self addSubview:_spinner];
 
+    // ── Toggle switch (glow cyan) — indicator bật/tắt ─────
+    _switchTrack = [[UIView alloc] init];
+    _switchTrack.backgroundColor    = [UIColor colorWithWhite:1 alpha:0.12];
+    _switchTrack.layer.cornerRadius = 10;
+    _switchTrack.layer.cornerCurve  = kCACornerCurveContinuous;
+    _switchTrack.layer.borderColor  = [UIColor colorWithWhite:1 alpha:0.12].CGColor;
+    _switchTrack.layer.borderWidth  = 1;
+    _switchTrack.layer.shadowColor  = HUD_CYAN.CGColor;
+    _switchTrack.layer.shadowOpacity = 0;
+    _switchTrack.layer.shadowRadius  = 5;
+    _switchTrack.layer.shadowOffset  = CGSizeZero;
+    _switchTrack.translatesAutoresizingMaskIntoConstraints = NO;
+    [self addSubview:_switchTrack];
+
+    _switchKnob = [[UIView alloc] init];
+    _switchKnob.backgroundColor = [UIColor colorWithWhite:1 alpha:0.6];
+    _switchKnob.layer.cornerRadius = 8;
+    _switchKnob.layer.cornerCurve  = kCACornerCurveContinuous;
+    _switchKnob.translatesAutoresizingMaskIntoConstraints = NO;
+    [_switchTrack addSubview:_switchKnob];
+
+    _switchKnobLead = [_switchKnob.leadingAnchor constraintEqualToAnchor:_switchTrack.leadingAnchor constant:2];
+
     // ── Preview button (chỉ khi có previewImageURL) ───────
     if (feature.previewImageURL.length) {
         _previewButton = [UIButton buttonWithType:UIButtonTypeSystem];
@@ -704,9 +730,8 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     [self refreshLanguage];
 
     // ── Auto-Layout ───────────────────────────────────────
-    // Tile height: 96pt priority High (750) — UIStackView FillEqually có thể override
-    // khi cần để 2 cột cùng chiều cao. Tap toàn tile để toggle (không có UISwitch).
-    NSLayoutConstraint *hc = [self.heightAnchor constraintEqualToConstant:96];
+    // Tile height: 104pt priority High (750) — chứa title 2 dòng + toggle
+    NSLayoutConstraint *hc = [self.heightAnchor constraintEqualToConstant:104];
     hc.priority = UILayoutPriorityDefaultHigh;  // 750, không conflict với FillEqually
     [NSLayoutConstraint activateConstraints:@[
         hc,
@@ -729,18 +754,29 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
         [iconIV.widthAnchor   constraintEqualToConstant:20],
         [iconIV.heightAnchor  constraintEqualToConstant:20],
 
-        // Status dot: top-right (✓/✕ feedback, ẩn lúc bình thường)
-        [_statusDot.trailingAnchor constraintEqualToAnchor:self.trailingAnchor constant:-10],
-        [_statusDot.topAnchor      constraintEqualToAnchor:self.topAnchor      constant:10],
+        // Toggle: top-right, glow khi ON
+        [_switchTrack.trailingAnchor constraintEqualToAnchor:self.trailingAnchor constant:-10],
+        [_switchTrack.centerYAnchor  constraintEqualToAnchor:_ledDot.centerYAnchor],
+        [_switchTrack.widthAnchor    constraintEqualToConstant:34],
+        [_switchTrack.heightAnchor   constraintEqualToConstant:20],
+
+        [_switchKnob.centerYAnchor constraintEqualToAnchor:_switchTrack.centerYAnchor],
+        [_switchKnobLead],
+        [_switchKnob.widthAnchor  constraintEqualToConstant:16],
+        [_switchKnob.heightAnchor constraintEqualToConstant:16],
+
+        // Status dot (✓/✕) — bên trái toggle, feedback ngắn
+        [_statusDot.trailingAnchor constraintEqualToAnchor:_switchTrack.leadingAnchor constant:-6],
+        [_statusDot.centerYAnchor  constraintEqualToAnchor:_switchTrack.centerYAnchor],
         [_statusDot.widthAnchor    constraintEqualToConstant:16],
 
         // Spinner: đè lên status dot
         [_spinner.centerXAnchor constraintEqualToAnchor:_statusDot.centerXAnchor],
         [_spinner.centerYAnchor constraintEqualToAnchor:_statusDot.centerYAnchor],
 
-        // Title: below icon row, full width
+        // Title: dưới icon, chừa khoảng cho toggle bên phải
         [titleLbl.leadingAnchor   constraintEqualToAnchor:self.leadingAnchor  constant:10],
-        [titleLbl.trailingAnchor  constraintEqualToAnchor:self.trailingAnchor constant:-10],
+        [titleLbl.trailingAnchor  constraintEqualToAnchor:_switchTrack.leadingAnchor constant:-8],
         [titleLbl.topAnchor       constraintEqualToAnchor:iconIV.bottomAnchor constant:7],
 
         // Subtitle: directly below title
@@ -802,6 +838,16 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
             ? [HUD_CYAN colorWithAlphaComponent:0.60].CGColor
             : [UIColor colorWithWhite:1 alpha:0.06].CGColor;
         self->_ledDot.backgroundColor = active ? HUD_CYAN : HUD_BORDER;
+
+        // Toggle switch glow
+        self->_switchKnobLead.constant    = active ? 16 : 2;
+        self->_switchTrack.backgroundColor = active ? HUD_CYAN : [UIColor colorWithWhite:1 alpha:0.12];
+        self->_switchKnob.backgroundColor  = active ? [UIColor whiteColor] : [UIColor colorWithWhite:1 alpha:0.6];
+        self->_switchTrack.layer.shadowOpacity = active ? 0.7 : 0.0;
+        self->_switchTrack.layer.borderColor   = active
+            ? [HUD_CYAN colorWithAlphaComponent:0.9].CGColor
+            : [UIColor colorWithWhite:1 alpha:0.12].CGColor;
+        [self layoutIfNeeded];
     } completion:nil];
 }
 
@@ -1378,7 +1424,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     // Dot-grid texture (very subtle)
     UIView *grid = [[UIView alloc] initWithFrame:self.view.bounds];
     grid.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
-    grid.backgroundColor = [self gridPatternColor];
+    grid.backgroundColor = DeltaCarbonTexture();
     grid.userInteractionEnabled = NO;
     [self.view addSubview:grid];
 
@@ -2144,8 +2190,7 @@ if (active) {
     // ── MỞ GAME sticky button ──────────────────────────────
     self.openGameButton = [UIButton buttonWithType:UIButtonTypeSystem];
     [self.openGameButton setTitle:LS(@"▶  MỞ GAME", @"▶  OPEN GAME") forState:UIControlStateNormal];
-    [self.openGameButton setTitleColor:[UIColor colorWithRed:0.039 green:0.043 blue:0.063 alpha:1.0]
-                              forState:UIControlStateNormal];
+    [self.openGameButton setTitleColor:HUD_CYAN forState:UIControlStateNormal];
     self.openGameButton.titleLabel.font   = DELTA_FONT(16,UIFontWeightSemibold);
     self.openGameButton.layer.cornerRadius = 16;
     self.openGameButton.layer.cornerCurve  = kCACornerCurveContinuous;
@@ -2153,9 +2198,16 @@ if (active) {
     self.openGameButton.translatesAutoresizingMaskIntoConstraints = NO;
     [self.openGameButton addTarget:self action:@selector(launchGame) forControlEvents:UIControlEventTouchUpInside];
 
-    // Primary CTA — light surface, dark text (iOS-like, không gradient/glow)
-    self.openGameButton.backgroundColor = BRAND_LIGHT;
+    // Primary CTA — dark glass + cyan glow text
+    self.openGameButton.backgroundColor = BRAND_TILE;
+    self.openGameButton.layer.borderColor  = [UIColor colorWithWhite:1 alpha:0.14].CGColor;
+    self.openGameButton.layer.borderWidth  = 1;
     self.openGameGradient = nil;
+    // Text glow (cyan)
+    self.openGameButton.titleLabel.layer.shadowColor   = HUD_CYAN.CGColor;
+    self.openGameButton.titleLabel.layer.shadowOpacity = 0.55;
+    self.openGameButton.titleLabel.layer.shadowRadius  = 5;
+    self.openGameButton.titleLabel.layer.shadowOffset  = CGSizeZero;
 
     // ── Constraints ────────────────────────────────────────
     [NSLayoutConstraint activateConstraints:@[
@@ -2251,13 +2303,13 @@ if (active) {
                     tutorialURL:(NSString * _Nullable)tutorialURL
                  outTitleLabel:(UILabel * __strong *)outTitleLabel {
 
-    // ── Outer shadow wrapper (neon glass glow) ─────────────
+    // ── Outer shadow wrapper (edge-glow cyan mềm) ─────────
     UIView *panelWrap = [[UIView alloc] init];
     panelWrap.backgroundColor = [UIColor clearColor];
-    panelWrap.layer.shadowColor   = [UIColor blackColor].CGColor;
-    panelWrap.layer.shadowOpacity = 0.18;
-    panelWrap.layer.shadowRadius  = 12;
-    panelWrap.layer.shadowOffset  = CGSizeMake(0, 2);
+    panelWrap.layer.shadowColor   = HUD_CYAN.CGColor;
+    panelWrap.layer.shadowOpacity = 0.10;
+    panelWrap.layer.shadowRadius  = 10;
+    panelWrap.layer.shadowOffset  = CGSizeZero;
     panelWrap.translatesAutoresizingMaskIntoConstraints = NO;
 
     // ── Solid card (no blur) ────────────────────────────────
