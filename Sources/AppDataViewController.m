@@ -681,13 +681,19 @@
 }
 
 - (void)refreshLocalizedStrings {
-    // Cập nhật label "Supported" / "Not Supported" (tag 998)
+    // Cập nhật cột "Tương thích" (dot tag 997 + label tag 998)
     BOOL supported = [self isIOSSupported];
+    UIColor *st = supported ? BRAND_CYAN : BRAND_YELLOW;
     UILabel *supportLabel = (UILabel *)[self.statsView viewWithTag:998];
     if (supportLabel) {
-        supportLabel.text = supported
-            ? LS(@"Có Hỗ Trợ", @"Supported")
-            : LS(@"Chưa Hỗ Trợ", @"Not Supported");
+        supportLabel.text = supported ? LS(@"Sẵn Sàng", @"Ready") : LS(@"Chưa Hỗ Trợ", @"Not Supported");
+        supportLabel.textColor = st;
+    }
+    UIView *dot = [self.statsView viewWithTag:997];
+    if (dot) {
+        dot.backgroundColor = st;
+        dot.layer.shadowColor = BRAND_CYAN.CGColor;
+        dot.layer.shadowOpacity = supported ? 0.7 : 0;
     }
     // Refresh keyBar labels
     [self.keyBar update];
@@ -1126,7 +1132,7 @@
     }
 }
 
-// ── OBSIDIAN slim status strip (44pt, monochrome pills) ──────────────
+// ── OBSIDIAN system strip — 3 cột dashboard (label trên / value dưới) ──
 - (void)createStatsStrip {
     self.statsView = [[UIView alloc] init];
     self.statsView.backgroundColor = [UIColor clearColor];
@@ -1136,7 +1142,7 @@
     UIVisualEffectView *strip = [[UIVisualEffectView alloc]
         initWithEffect:[UIBlurEffect effectWithStyle:UIBlurEffectStyleSystemThinMaterialDark]];
     strip.clipsToBounds = YES;
-    strip.layer.cornerRadius = 14;
+    strip.layer.cornerRadius = 12;
     strip.layer.cornerCurve  = kCACornerCurveContinuous;
     strip.layer.borderColor  = [UIColor colorWithWhite:1 alpha:0.07].CGColor;
     strip.layer.borderWidth  = 1;
@@ -1147,7 +1153,7 @@
         [self.statsView.topAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.topAnchor constant:6],
         [self.statsView.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor constant:16],
         [self.statsView.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor constant:-16],
-        [self.statsView.heightAnchor constraintEqualToConstant:44],
+        [self.statsView.heightAnchor constraintEqualToConstant:64],
 
         [strip.topAnchor constraintEqualToAnchor:self.statsView.topAnchor],
         [strip.leadingAnchor constraintEqualToAnchor:self.statsView.leadingAnchor],
@@ -1157,51 +1163,135 @@
 
     UIView *cc = strip.contentView;
 
-    // Pill: iOS version
-    UIStackView *iosPill = [self obsidianPillSymbol:@"applelogo" text:[NSString stringWithFormat:@"iOS %@", [[UIDevice currentDevice] systemVersion]]];
-    // Pill: device
-    UIStackView *devPill = [self obsidianPillSymbol:@"iphone" text:[self deviceModelName]];
+    // ── Cột 1: Thiết bị ────────────────────────────────────
+    UIView *c1 = [[UIView alloc] init];
+    c1.translatesAutoresizingMaskIntoConstraints = NO;
+    [cc addSubview:c1];
+    UILabel *t1 = [[UILabel alloc] init];
+    t1.text = [LS(@"Thiết Bị", @"Device") uppercaseString];
+    t1.font = DELTA_FONT(10,UIFontWeightSemibold);
+    t1.textColor = BRAND_MUTED;
+    t1.translatesAutoresizingMaskIntoConstraints = NO;
+    [c1 addSubview:t1];
+    UILabel *v1 = [[UILabel alloc] init];
+    v1.text = [self deviceModelName];
+    v1.font = DELTA_FONT(14,UIFontWeightSemibold);
+    v1.textColor = BRAND_TEXT;
+    v1.adjustsFontSizeToFitWidth = YES;
+    v1.minimumScaleFactor = 0.6;
+    v1.translatesAutoresizingMaskIntoConstraints = NO;
+    [c1 addSubview:v1];
 
-    // Pill: support (semantic dot)
+    // ── Cột 2: Hệ điều hành ────────────────────────────────
+    UIView *c2 = [[UIView alloc] init];
+    c2.translatesAutoresizingMaskIntoConstraints = NO;
+    [cc addSubview:c2];
+    UILabel *t2 = [[UILabel alloc] init];
+    t2.text = [LS(@"Hệ Điều Hành", @"Operating System") uppercaseString];
+    t2.font = DELTA_FONT(10,UIFontWeightSemibold);
+    t2.textColor = BRAND_MUTED;
+    t2.translatesAutoresizingMaskIntoConstraints = NO;
+    [c2 addSubview:t2];
+    UILabel *v2 = [[UILabel alloc] init];
+    v2.text = [NSString stringWithFormat:@"iOS %@", [[UIDevice currentDevice] systemVersion]];
+    v2.font = [UIFont monospacedSystemFontOfSize:14 weight:UIFontWeightSemibold];
+    v2.textColor = BRAND_TEXT;
+    v2.translatesAutoresizingMaskIntoConstraints = NO;
+    [c2 addSubview:v2];
+
+    // ── Cột 3: Tương thích ─────────────────────────────────
+    UIView *c3 = [[UIView alloc] init];
+    c3.translatesAutoresizingMaskIntoConstraints = NO;
+    [cc addSubview:c3];
+    UILabel *t3 = [[UILabel alloc] init];
+    t3.text = [LS(@"Tương Thích", @"Compatibility") uppercaseString];
+    t3.font = DELTA_FONT(10,UIFontWeightSemibold);
+    t3.textColor = BRAND_MUTED;
+    t3.translatesAutoresizingMaskIntoConstraints = NO;
+    [c3 addSubview:t3];
+
     BOOL supported = [self isIOSSupported];
-    UIColor *dotColor = supported ? BRAND_GREEN : BRAND_YELLOW;
     UIView *dot = [[UIView alloc] init];
-    dot.backgroundColor = dotColor;
+    dot.backgroundColor = supported ? BRAND_CYAN : BRAND_YELLOW;
     dot.layer.cornerRadius = 3;
+    dot.layer.shadowColor = BRAND_CYAN.CGColor;
+    dot.layer.shadowOpacity = supported ? 0.7 : 0;
+    dot.layer.shadowRadius = 4;
+    dot.layer.shadowOffset = CGSizeZero;
+    dot.tag = 997;
     dot.translatesAutoresizingMaskIntoConstraints = NO;
+    [c3 addSubview:dot];
 
-    UILabel *supportLabel = [[UILabel alloc] init];
-    supportLabel.tag = 998;
-    supportLabel.text = supported ? LS(@"Có Hỗ Trợ", @"Supported") : LS(@"Chưa Hỗ Trợ", @"Not Supported");
-    supportLabel.font = DELTA_FONT(12,UIFontWeightMedium);
-    supportLabel.textColor = BRAND_TEXT;
-    supportLabel.translatesAutoresizingMaskIntoConstraints = NO;
+    UILabel *v3 = [[UILabel alloc] init];
+    v3.tag = 998;
+    v3.text = supported ? LS(@"Sẵn Sàng", @"Ready") : LS(@"Chưa Hỗ Trợ", @"Not Supported");
+    v3.font = DELTA_FONT(13,UIFontWeightSemibold);
+    v3.textColor = supported ? BRAND_CYAN : BRAND_YELLOW;
+    v3.adjustsFontSizeToFitWidth = YES;
+    v3.minimumScaleFactor = 0.6;
+    v3.translatesAutoresizingMaskIntoConstraints = NO;
+    [c3 addSubview:v3];
 
-    UIStackView *supportPill = [[UIStackView alloc] initWithArrangedSubviews:@[dot, supportLabel]];
-    supportPill.axis = UILayoutConstraintAxisHorizontal;
-    supportPill.spacing = 7;
-    supportPill.alignment = UIStackViewAlignmentCenter;
-    supportPill.translatesAutoresizingMaskIntoConstraints = NO;
-
-    UIStackView *row = [[UIStackView alloc] initWithArrangedSubviews:@[iosPill, [self dotSeparator], devPill, supportPill]];
-    row.axis = UILayoutConstraintAxisHorizontal;
-    row.spacing = 12;
-    row.alignment = UIStackViewAlignmentCenter;
-    row.distribution = UIStackViewDistributionFill;
-    row.translatesAutoresizingMaskIntoConstraints = NO;
-    [cc addSubview:row];
+    // ── Vách hairline dọc ──────────────────────────────────
+    UIView *d1 = [[UIView alloc] init];
+    d1.backgroundColor = [UIColor colorWithWhite:1 alpha:0.07];
+    d1.translatesAutoresizingMaskIntoConstraints = NO;
+    [cc addSubview:d1];
+    UIView *d2 = [[UIView alloc] init];
+    d2.backgroundColor = [UIColor colorWithWhite:1 alpha:0.07];
+    d2.translatesAutoresizingMaskIntoConstraints = NO;
+    [cc addSubview:d2];
 
     [NSLayoutConstraint activateConstraints:@[
-        [row.leadingAnchor constraintEqualToAnchor:cc.leadingAnchor constant:16],
-        [row.trailingAnchor constraintLessThanOrEqualToAnchor:cc.trailingAnchor constant:-16],
-        [row.centerYAnchor constraintEqualToAnchor:cc.centerYAnchor],
+        // 3 cột bằng nhau, khít nhau
+        [c1.leadingAnchor constraintEqualToAnchor:cc.leadingAnchor constant:16],
+        [c1.topAnchor constraintEqualToAnchor:cc.topAnchor],
+        [c1.bottomAnchor constraintEqualToAnchor:cc.bottomAnchor],
+        [c2.leadingAnchor constraintEqualToAnchor:c1.trailingAnchor],
+        [c2.topAnchor constraintEqualToAnchor:cc.topAnchor],
+        [c2.bottomAnchor constraintEqualToAnchor:cc.bottomAnchor],
+        [c3.leadingAnchor constraintEqualToAnchor:c2.trailingAnchor],
+        [c3.trailingAnchor constraintEqualToAnchor:cc.trailingAnchor constant:-16],
+        [c3.topAnchor constraintEqualToAnchor:cc.topAnchor],
+        [c3.bottomAnchor constraintEqualToAnchor:cc.bottomAnchor],
+        [c1.widthAnchor constraintEqualToAnchor:c2.widthAnchor],
+        [c2.widthAnchor constraintEqualToAnchor:c3.widthAnchor],
+
+        // Vách chia cột
+        [d1.leadingAnchor constraintEqualToAnchor:c1.trailingAnchor],
+        [d1.topAnchor constraintEqualToAnchor:cc.topAnchor constant:12],
+        [d1.bottomAnchor constraintEqualToAnchor:cc.bottomAnchor constant:-12],
+        [d1.widthAnchor constraintEqualToConstant:1],
+        [d2.leadingAnchor constraintEqualToAnchor:c2.trailingAnchor],
+        [d2.topAnchor constraintEqualToAnchor:cc.topAnchor constant:12],
+        [d2.bottomAnchor constraintEqualToAnchor:cc.bottomAnchor constant:-12],
+        [d2.widthAnchor constraintEqualToConstant:1],
+
+        // Nội dung cột 1
+        [t1.leadingAnchor constraintEqualToAnchor:c1.leadingAnchor],
+        [t1.topAnchor constraintEqualToAnchor:c1.topAnchor constant:12],
+        [v1.leadingAnchor constraintEqualToAnchor:t1.leadingAnchor],
+        [v1.trailingAnchor constraintLessThanOrEqualToAnchor:c1.trailingAnchor],
+        [v1.topAnchor constraintEqualToAnchor:t1.bottomAnchor constant:4],
+
+        // Nội dung cột 2
+        [t2.leadingAnchor constraintEqualToAnchor:c2.leadingAnchor constant:14],
+        [t2.topAnchor constraintEqualToAnchor:c2.topAnchor constant:12],
+        [v2.leadingAnchor constraintEqualToAnchor:t2.leadingAnchor],
+        [v2.trailingAnchor constraintLessThanOrEqualToAnchor:c2.trailingAnchor],
+        [v2.topAnchor constraintEqualToAnchor:t2.bottomAnchor constant:4],
+
+        // Nội dung cột 3
+        [t3.leadingAnchor constraintEqualToAnchor:c3.leadingAnchor constant:14],
+        [t3.topAnchor constraintEqualToAnchor:c3.topAnchor constant:12],
+        [dot.leadingAnchor constraintEqualToAnchor:t3.leadingAnchor],
+        [dot.centerYAnchor constraintEqualToAnchor:c3.centerYAnchor],
         [dot.widthAnchor constraintEqualToConstant:6],
         [dot.heightAnchor constraintEqualToConstant:6],
-        [supportPill.widthAnchor constraintGreaterThanOrEqualToConstant:90],
-        [supportPill.trailingAnchor constraintEqualToAnchor:cc.trailingAnchor constant:-16],
+        [v3.leadingAnchor constraintEqualToAnchor:dot.trailingAnchor constant:7],
+        [v3.centerYAnchor constraintEqualToAnchor:dot.centerYAnchor],
+        [v3.trailingAnchor constraintLessThanOrEqualToAnchor:c3.trailingAnchor],
     ]];
-    [devPill setContentCompressionResistancePriority:UILayoutPriorityDefaultLow
-                                             forAxis:UILayoutConstraintAxisHorizontal];
 
     UILongPressGestureRecognizer *lp = [[UILongPressGestureRecognizer alloc]
         initWithTarget:self action:@selector(handleAdminLongPress:)];
@@ -1210,38 +1300,46 @@
     [self.statsView addGestureRecognizer:lp];
 }
 
-- (UIStackView *)obsidianPillSymbol:(NSString *)symbol text:(NSString *)text {
+- (UIView *)statChipIcon:(NSString *)symbol tint:(UIColor *)tint
+                    text:(NSString *)text iconTag:(NSInteger)iconTag labelTag:(NSInteger)labelTag {
+    UIView *chip = [[UIView alloc] init];
+    chip.backgroundColor    = [UIColor colorWithWhite:1 alpha:0.05];
+    chip.layer.cornerRadius = 10;
+    chip.layer.cornerCurve  = kCACornerCurveContinuous;
+    chip.layer.borderColor  = [UIColor colorWithWhite:1 alpha:0.09].CGColor;
+    chip.layer.borderWidth  = 1;
+    chip.translatesAutoresizingMaskIntoConstraints = NO;
+    [chip.heightAnchor constraintEqualToConstant:36].active = YES;
+
     UIImageSymbolConfiguration *cfg = [UIImageSymbolConfiguration
-        configurationWithPointSize:12 weight:UIImageSymbolWeightMedium];
+        configurationWithPointSize:13 weight:UIImageSymbolWeightSemibold];
     UIImageView *iv = [[UIImageView alloc] initWithImage:[UIImage systemImageNamed:symbol withConfiguration:cfg]];
-    iv.tintColor = BRAND_MUTED;
+    iv.tintColor = tint;
     iv.contentMode = UIViewContentModeScaleAspectFit;
-    [iv.widthAnchor constraintEqualToConstant:14].active = YES;
-    [iv.heightAnchor constraintEqualToConstant:14].active = YES;
+    if (iconTag) iv.tag = iconTag;
+    iv.translatesAutoresizingMaskIntoConstraints = NO;
+    [chip addSubview:iv];
 
     UILabel *lbl = [[UILabel alloc] init];
     lbl.text = text;
-    lbl.font = DELTA_FONT(12,UIFontWeightMedium);
+    lbl.font = DELTA_FONT(12.5,UIFontWeightMedium);
     lbl.textColor = BRAND_TEXT;
     lbl.adjustsFontSizeToFitWidth = YES;
-    lbl.minimumScaleFactor = 0.6;
-    [lbl setContentCompressionResistancePriority:UILayoutPriorityDefaultLow forAxis:UILayoutConstraintAxisHorizontal];
+    lbl.minimumScaleFactor = 0.55;
+    if (labelTag) lbl.tag = labelTag;
+    lbl.translatesAutoresizingMaskIntoConstraints = NO;
+    [chip addSubview:lbl];
 
-    UIStackView *pill = [[UIStackView alloc] initWithArrangedSubviews:@[iv, lbl]];
-    pill.axis = UILayoutConstraintAxisHorizontal;
-    pill.spacing = 6;
-    pill.alignment = UIStackViewAlignmentCenter;
-    return pill;
-}
-
-- (UIView *)dotSeparator {
-    UIView *d = [[UIView alloc] init];
-    d.backgroundColor = [UIColor colorWithWhite:1 alpha:0.15];
-    d.layer.cornerRadius = 1.5;
-    d.translatesAutoresizingMaskIntoConstraints = NO;
-    [d.widthAnchor constraintEqualToConstant:3].active = YES;
-    [d.heightAnchor constraintEqualToConstant:3].active = YES;
-    return d;
+    [NSLayoutConstraint activateConstraints:@[
+        [iv.leadingAnchor constraintEqualToAnchor:chip.leadingAnchor constant:10],
+        [iv.centerYAnchor constraintEqualToAnchor:chip.centerYAnchor],
+        [iv.widthAnchor constraintEqualToConstant:15],
+        [iv.heightAnchor constraintEqualToConstant:15],
+        [lbl.leadingAnchor constraintEqualToAnchor:iv.trailingAnchor constant:6],
+        [lbl.centerYAnchor constraintEqualToAnchor:chip.centerYAnchor],
+        [lbl.trailingAnchor constraintLessThanOrEqualToAnchor:chip.trailingAnchor constant:-10],
+    ]];
+    return chip;
 }
 
 // A stat row: [glass icon chip 38×38] label — Aurora Frost
