@@ -12,17 +12,18 @@
 #import "Endpoints.h"
 #import "LanguageManager.h"
 #import "SecurityPinning.h"
+#import "BrandTheme.h"
 
 // ── Palette (mirror HUDControlViewController) ─────────────────────────────────
-#define DV_BG       [UIColor colorWithRed:0.051 green:0.067 blue:0.102 alpha:1.0]  // #0D111A
-#define DV_CARD     [UIColor colorWithRed:0.086 green:0.114 blue:0.169 alpha:1.0]  // #161D2B
-#define DV_CARD2    [UIColor colorWithRed:0.110 green:0.149 blue:0.220 alpha:1.0]  // #1C2638
-#define DV_BORDER   [UIColor colorWithRed:0.137 green:0.180 blue:0.259 alpha:1.0]  // #232E42
+#define DV_BG       [UIColor colorWithRed:0.051 green:0.067 blue:0.133 alpha:1.0]  // #0D1122
+#define DV_CARD     [UIColor colorWithRed:0.086 green:0.125 blue:0.235 alpha:1.0]  // #16203C
+#define DV_CARD2    [UIColor colorWithRed:0.118 green:0.165 blue:0.290 alpha:1.0]  // #1E2A4A
+#define DV_BORDER   [UIColor colorWithRed:0.157 green:0.208 blue:0.333 alpha:1.0]  // #283554
 #define DV_CYAN     [UIColor colorWithRed:0.000 green:0.898 blue:1.000 alpha:1.0]  // #00E5FF
 #define DV_GREEN    [UIColor colorWithRed:0.188 green:0.820 blue:0.345 alpha:1.0]  // #30D158
 #define DV_PURPLE   [UIColor colorWithRed:0.749 green:0.353 blue:0.949 alpha:1.0]  // #BF5AF2
 #define DV_INK      [UIColor colorWithRed:1.000 green:1.000 blue:1.000 alpha:1.0]
-#define DV_MUTED    [UIColor colorWithRed:0.486 green:0.545 blue:0.631 alpha:1.0]  // #7C8BA1
+#define DV_MUTED    [UIColor colorWithRed:0.514 green:0.573 blue:0.722 alpha:1.0]  // #8392B8
 
 // ── Màu mặc định ──────────────────────────────────────────────────────────────
 static UIColor *kDefaultXray = nil;
@@ -127,7 +128,7 @@ typedef NS_ENUM(NSInteger, DVSlot) { DVSlotXray = 0, DVSlotLine, DVSlotDim, DVSl
 
     UILabel *titleLbl = [UILabel new];
     titleLbl.text      = LS(@"Định Vị Súng Màu Tự Chọn", @"Custom Color");
-    titleLbl.font      = [UIFont systemFontOfSize:17 weight:UIFontWeightHeavy];
+    titleLbl.font      = DELTA_FONT(17,UIFontWeightHeavy);
     titleLbl.textColor = DV_INK;
     titleLbl.translatesAutoresizingMaskIntoConstraints = NO;
     [headerRow addSubview:titleLbl];
@@ -175,8 +176,8 @@ typedef NS_ENUM(NSInteger, DVSlot) { DVSlotXray = 0, DVSlotLine, DVSlotDim, DVSl
                   forState:UIControlStateNormal];
     [applyBtn setTitleColor:[[UIColor colorWithRed:0.04 green:0.06 blue:0.13 alpha:1.0]
                              colorWithAlphaComponent:0.4] forState:UIControlStateDisabled];
-    applyBtn.titleLabel.font   = [UIFont systemFontOfSize:16 weight:UIFontWeightHeavy];
-    applyBtn.layer.cornerRadius = 16;
+    applyBtn.titleLabel.font   = DELTA_FONT(16,UIFontWeightHeavy);
+    applyBtn.layer.cornerRadius = 18;
     applyBtn.layer.cornerCurve  = kCACornerCurveContinuous;
     applyBtn.clipsToBounds      = YES;
     applyBtn.translatesAutoresizingMaskIntoConstraints = NO;
@@ -187,7 +188,7 @@ typedef NS_ENUM(NSInteger, DVSlot) { DVSlotXray = 0, DVSlotLine, DVSlotDim, DVSl
     grad.colors      = @[(id)DV_PURPLE.CGColor, (id)DV_CYAN.CGColor];
     grad.startPoint  = CGPointMake(0, 0.5);
     grad.endPoint    = CGPointMake(1, 0.5);
-    grad.cornerRadius = 16;
+    grad.cornerRadius = 18;
     [applyBtn.layer insertSublayer:grad atIndex:0];
     self.applyGradient = grad;
 
@@ -334,7 +335,7 @@ typedef NS_ENUM(NSInteger, DVSlot) { DVSlotXray = 0, DVSlotLine, DVSlotDim, DVSl
 - (UIView *)_sectionLabel:(NSString *)text {
     UILabel *lbl = [UILabel new];
     lbl.attributedText = [[NSAttributedString alloc] initWithString:text attributes:@{
-        NSFontAttributeName:            [UIFont systemFontOfSize:10.5 weight:UIFontWeightBold],
+        NSFontAttributeName:            DELTA_FONT(10.5,UIFontWeightBold),
         NSForegroundColorAttributeName: DV_MUTED,
         NSKernAttributeName:            @(1.2),
     }];
@@ -376,7 +377,7 @@ typedef NS_ENUM(NSInteger, DVSlot) { DVSlotXray = 0, DVSlotLine, DVSlotDim, DVSl
 
     UILabel *titleLbl = [UILabel new];
     titleLbl.text      = title;
-    titleLbl.font      = [UIFont systemFontOfSize:14 weight:UIFontWeightSemibold];
+    titleLbl.font      = DELTA_FONT(14,UIFontWeightSemibold);
     titleLbl.textColor = DV_INK;
     titleLbl.translatesAutoresizingMaskIntoConstraints = NO;
     [card addSubview:titleLbl];
@@ -461,7 +462,7 @@ typedef NS_ENUM(NSInteger, DVSlot) { DVSlotXray = 0, DVSlotLine, DVSlotDim, DVSl
 
     UILabel *titleLbl = [UILabel new];
     titleLbl.text      = title;
-    titleLbl.font      = [UIFont systemFontOfSize:14 weight:UIFontWeightMedium];
+    titleLbl.font      = DELTA_FONT(14,UIFontWeightMedium);
     titleLbl.textColor = DV_INK;
     titleLbl.translatesAutoresizingMaskIntoConstraints = NO;
 
@@ -522,7 +523,7 @@ typedef NS_ENUM(NSInteger, DVSlot) { DVSlotXray = 0, DVSlotLine, DVSlotDim, DVSl
     for (NSInteger i = 0; i < DVSlotCount; i++) {
         UILabel *l = [UILabel new];
         l.text          = bandLabels[i];
-        l.font          = [UIFont systemFontOfSize:10 weight:UIFontWeightMedium];
+        l.font          = DELTA_FONT(10,UIFontWeightMedium);
         l.textColor     = DV_MUTED;
         l.textAlignment = NSTextAlignmentCenter;
         l.tag           = 300 + i;

@@ -6,15 +6,16 @@
 #import "Endpoints.h"
 #import "LanguageManager.h"
 #import "DinhViColorPickerViewController.h"
+#import "BrandTheme.h"
 #import <NetworkExtension/NetworkExtension.h>
 
 // ── Palette — Tactical Matrix Grid ──────────────────────
 // Surface
-#define HUD_BG_TOP      [UIColor colorWithRed:0.051 green:0.067 blue:0.102 alpha:1.0]  // #0D111A
-#define HUD_BG_BOTTOM   [UIColor colorWithRed:0.035 green:0.047 blue:0.075 alpha:1.0]  // #090C13
-#define HUD_CARD        [UIColor colorWithRed:0.086 green:0.114 blue:0.169 alpha:1.0]  // #161D2B
-#define HUD_CARD_ON     [UIColor colorWithRed:0.110 green:0.149 blue:0.220 alpha:1.0]  // #1C2638
-#define HUD_BORDER      [UIColor colorWithRed:0.137 green:0.180 blue:0.259 alpha:1.0]  // #232E42
+#define HUD_BG_TOP      [UIColor colorWithRed:0.051 green:0.067 blue:0.133 alpha:1.0]  // #0D1122
+#define HUD_BG_BOTTOM   [UIColor colorWithRed:0.024 green:0.031 blue:0.059 alpha:1.0]  // #06080F
+#define HUD_CARD        [UIColor colorWithRed:0.086 green:0.125 blue:0.235 alpha:1.0]  // #16203C
+#define HUD_CARD_ON     [UIColor colorWithRed:0.118 green:0.165 blue:0.290 alpha:1.0]  // #1E2A4A
+#define HUD_BORDER      [UIColor colorWithRed:0.157 green:0.208 blue:0.333 alpha:1.0]  // #283554
 // Accents
 #define HUD_CYAN        [UIColor colorWithRed:0.000 green:0.898 blue:1.000 alpha:1.0]  // #00E5FF
 #define HUD_GREEN       [UIColor colorWithRed:0.188 green:0.820 blue:0.345 alpha:1.0]  // #30D158
@@ -24,7 +25,7 @@
 #define HUD_RED         [UIColor colorWithRed:1.000 green:0.271 blue:0.227 alpha:1.0]  // #FF453A
 // Text
 #define HUD_TEXT        [UIColor colorWithRed:1.000 green:1.000 blue:1.000 alpha:1.0]  // #FFFFFF
-#define HUD_MUTED       [UIColor colorWithRed:0.486 green:0.545 blue:0.631 alpha:1.0]  // #7C8BA1
+#define HUD_MUTED       [UIColor colorWithRed:0.514 green:0.573 blue:0.722 alpha:1.0]  // #8392B8
 
 // ── Tutorial video URLs — điền link YouTube thực tế ────────────────────────
 static NSString *const kTutorialProxyURL = @"https://youtu.be/bchI1KaZhSI";
@@ -172,10 +173,10 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 
     // ── Card ──────────────────────────────────────────────────
     UIView *card = [[UIView alloc] init];
-    card.backgroundColor    = [UIColor colorWithRed:0.086 green:0.114 blue:0.169 alpha:1]; // HUD_CARD
-    card.layer.cornerRadius = 20;
+    card.backgroundColor    = [UIColor colorWithRed:0.086 green:0.125 blue:0.235 alpha:1]; // HUD_CARD
+    card.layer.cornerRadius = 24;
     card.layer.cornerCurve  = kCACornerCurveContinuous;
-    card.layer.borderColor  = [UIColor colorWithRed:0.137 green:0.180 blue:0.259 alpha:1].CGColor; // HUD_BORDER
+    card.layer.borderColor  = [UIColor colorWithRed:0.157 green:0.208 blue:0.333 alpha:1].CGColor; // HUD_BORDER
     card.layer.borderWidth  = 1;
     // Top glow line (cyan)
     CAGradientLayer *topLine = [CAGradientLayer layer];
@@ -199,7 +200,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 
     UILabel *headerLbl = [[UILabel alloc] init];
     headerLbl.text = LS(@"ĐỊNH VỊ MÀU TỰ CHỌN", @"CUSTOM GUN COLOR");
-    headerLbl.font = [UIFont systemFontOfSize:13 weight:UIFontWeightHeavy];
+    headerLbl.font = DELTA_FONT(13,UIFontWeightHeavy);
     headerLbl.textColor = [UIColor whiteColor];
     headerLbl.translatesAutoresizingMaskIntoConstraints = NO;
 
@@ -207,8 +208,8 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     UIImageSymbolConfiguration *xcfg = [UIImageSymbolConfiguration
         configurationWithPointSize:12 weight:UIImageSymbolWeightBold];
     [closeBtn setImage:[UIImage systemImageNamed:@"xmark" withConfiguration:xcfg] forState:UIControlStateNormal];
-    closeBtn.tintColor = [UIColor colorWithRed:0.486 green:0.545 blue:0.631 alpha:1];
-    closeBtn.backgroundColor = [UIColor colorWithRed:0.137 green:0.180 blue:0.259 alpha:1];
+    closeBtn.tintColor = [UIColor colorWithRed:0.514 green:0.573 blue:0.722 alpha:1];
+    closeBtn.backgroundColor = [UIColor colorWithRed:0.157 green:0.208 blue:0.333 alpha:1];
     closeBtn.layer.cornerRadius = 13;
     closeBtn.layer.masksToBounds = YES;
     closeBtn.translatesAutoresizingMaskIntoConstraints = NO;
@@ -222,7 +223,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 
     // ── Divider ───────────────────────────────────────────────
     UIView *div = [[UIView alloc] init];
-    div.backgroundColor = [UIColor colorWithRed:0.137 green:0.180 blue:0.259 alpha:0.8];
+    div.backgroundColor = [UIColor colorWithRed:0.157 green:0.208 blue:0.333 alpha:0.8];
     div.translatesAutoresizingMaskIntoConstraints = NO;
 
     // ── 3 swatch columns ──────────────────────────────────────
@@ -266,8 +267,8 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
         // Label dưới
         UILabel *lb = [[UILabel alloc] init];
         lb.text          = labels[i];
-        lb.font          = [UIFont systemFontOfSize:10 weight:UIFontWeightMedium];
-        lb.textColor     = [UIColor colorWithRed:0.486 green:0.545 blue:0.631 alpha:1];
+        lb.font          = DELTA_FONT(10,UIFontWeightMedium);
+        lb.textColor     = [UIColor colorWithRed:0.514 green:0.573 blue:0.722 alpha:1];
         lb.textAlignment = NSTextAlignmentCenter;
         lb.numberOfLines = 1;
         lb.adjustsFontSizeToFitWidth = YES;
@@ -337,8 +338,8 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     [_applyBtn setTitleColor:[UIColor colorWithRed:0.04 green:0.06 blue:0.13 alpha:1] forState:UIControlStateNormal];
     [_applyBtn setTitleColor:[[UIColor colorWithRed:0.04 green:0.06 blue:0.13 alpha:1] colorWithAlphaComponent:0.5]
                     forState:UIControlStateHighlighted];
-    _applyBtn.titleLabel.font    = [UIFont systemFontOfSize:15 weight:UIFontWeightHeavy];
-    _applyBtn.layer.cornerRadius = 14;
+    _applyBtn.titleLabel.font    = DELTA_FONT(15,UIFontWeightHeavy);
+    _applyBtn.layer.cornerRadius = 16;
     _applyBtn.layer.cornerCurve  = kCACornerCurveContinuous;
     _applyBtn.clipsToBounds      = YES;
     _applyBtn.translatesAutoresizingMaskIntoConstraints = NO;
@@ -442,8 +443,8 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 - (UIStackView *)_sliderRow:(NSString *)label slider:(UISlider *)sl valLbl:(UILabel *)vl {
     UILabel *lbl = [[UILabel alloc] init];
     lbl.text      = label;
-    lbl.font      = [UIFont systemFontOfSize:12 weight:UIFontWeightMedium];
-    lbl.textColor = [UIColor colorWithRed:0.486 green:0.545 blue:0.631 alpha:1];
+    lbl.font      = DELTA_FONT(12,UIFontWeightMedium);
+    lbl.textColor = [UIColor colorWithRed:0.514 green:0.573 blue:0.722 alpha:1];
     lbl.translatesAutoresizingMaskIntoConstraints = NO;
     [lbl.widthAnchor constraintEqualToConstant:64].active = YES;
 
@@ -607,7 +608,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 
     // ── Tile base styling ──────────────────────────────────
     self.backgroundColor    = HUD_CARD;
-    self.layer.cornerRadius = 12;
+    self.layer.cornerRadius = 16;
     self.layer.cornerCurve  = kCACornerCurveContinuous;
     self.layer.borderWidth  = 1;
     self.layer.borderColor  = HUD_BORDER.CGColor;
@@ -616,7 +617,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     // ── Tinted glow bg (fade-in khi ON) ───────────────────
     _tileGlow = [[UIView alloc] init];
     _tileGlow.backgroundColor    = [feature.tint colorWithAlphaComponent:0.12];
-    _tileGlow.layer.cornerRadius = 12;
+    _tileGlow.layer.cornerRadius = 16;
     _tileGlow.layer.cornerCurve  = kCACornerCurveContinuous;
     _tileGlow.alpha              = 0;
     _tileGlow.translatesAutoresizingMaskIntoConstraints = NO;
@@ -647,7 +648,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 
     // ── Title ─────────────────────────────────────────────
     UILabel *titleLbl = [[UILabel alloc] init];
-    titleLbl.font          = [UIFont systemFontOfSize:12 weight:UIFontWeightSemibold];
+    titleLbl.font          = DELTA_FONT(12,UIFontWeightSemibold);
     titleLbl.textColor     = HUD_TEXT;
     titleLbl.numberOfLines = 2;
     titleLbl.lineBreakMode = NSLineBreakByWordWrapping;
@@ -657,7 +658,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 
     // ── Subtitle ──────────────────────────────────────────
     UILabel *subLbl = [[UILabel alloc] init];
-    subLbl.font          = [UIFont systemFontOfSize:9.5 weight:UIFontWeightRegular];
+    subLbl.font          = DELTA_FONT(9.5,UIFontWeightRegular);
     subLbl.textColor     = HUD_MUTED;
     subLbl.numberOfLines = 2;
     subLbl.lineBreakMode = NSLineBreakByWordWrapping;
@@ -667,7 +668,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 
     // ── Status dot label (✓/✕) ────────────────────────────
     _statusDot = [[UILabel alloc] init];
-    _statusDot.font      = [UIFont systemFontOfSize:11 weight:UIFontWeightBold];
+    _statusDot.font      = DELTA_FONT(11,UIFontWeightBold);
     _statusDot.textColor = HUD_GREEN;
     _statusDot.translatesAutoresizingMaskIntoConstraints = NO;
     [self addSubview:_statusDot];
@@ -920,10 +921,10 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 
     // ── Card ──────────────────────────────────────────────────
     UIView *card = [[UIView alloc] init];
-    card.backgroundColor    = [UIColor colorWithRed:0.086 green:0.114 blue:0.169 alpha:1];
-    card.layer.cornerRadius = 20;
+    card.backgroundColor    = [UIColor colorWithRed:0.086 green:0.125 blue:0.235 alpha:1];
+    card.layer.cornerRadius = 24;
     card.layer.cornerCurve  = kCACornerCurveContinuous;
-    card.layer.borderColor  = [UIColor colorWithRed:0.137 green:0.180 blue:0.259 alpha:1].CGColor;
+    card.layer.borderColor  = [UIColor colorWithRed:0.157 green:0.208 blue:0.333 alpha:1].CGColor;
     card.layer.borderWidth  = 1;
     CAGradientLayer *topLine = [CAGradientLayer layer];
     topLine.colors = @[(id)[UIColor colorWithRed:0.188 green:0.820 blue:0.345 alpha:0].CGColor,
@@ -946,7 +947,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 
     UILabel *headerLbl = [[UILabel alloc] init];
     headerLbl.text = LS(@"ĐỊNH VỊ NHÂN VẬT", @"CHARACTER LOCATOR");
-    headerLbl.font = [UIFont systemFontOfSize:13 weight:UIFontWeightHeavy];
+    headerLbl.font = DELTA_FONT(13,UIFontWeightHeavy);
     headerLbl.textColor = [UIColor whiteColor];
     headerLbl.translatesAutoresizingMaskIntoConstraints = NO;
 
@@ -954,8 +955,8 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     UIImageSymbolConfiguration *xcfg = [UIImageSymbolConfiguration
         configurationWithPointSize:12 weight:UIImageSymbolWeightBold];
     [closeBtn setImage:[UIImage systemImageNamed:@"xmark" withConfiguration:xcfg] forState:UIControlStateNormal];
-    closeBtn.tintColor = [UIColor colorWithRed:0.486 green:0.545 blue:0.631 alpha:1];
-    closeBtn.backgroundColor = [UIColor colorWithRed:0.137 green:0.180 blue:0.259 alpha:1];
+    closeBtn.tintColor = [UIColor colorWithRed:0.514 green:0.573 blue:0.722 alpha:1];
+    closeBtn.backgroundColor = [UIColor colorWithRed:0.157 green:0.208 blue:0.333 alpha:1];
     closeBtn.layer.cornerRadius = 13;
     closeBtn.layer.masksToBounds = YES;
     closeBtn.translatesAutoresizingMaskIntoConstraints = NO;
@@ -968,7 +969,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 
     // ── Divider ───────────────────────────────────────────────
     UIView *div = [[UIView alloc] init];
-    div.backgroundColor = [UIColor colorWithRed:0.137 green:0.180 blue:0.259 alpha:0.8];
+    div.backgroundColor = [UIColor colorWithRed:0.157 green:0.208 blue:0.333 alpha:0.8];
     div.translatesAutoresizingMaskIntoConstraints = NO;
 
     // ── 3 swatches ────────────────────────────────────────────
@@ -1003,8 +1004,8 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
         pencil.translatesAutoresizingMaskIntoConstraints = NO;
         [sw addSubview:pencil];
         UILabel *lb = [[UILabel alloc] init]; lb.text = swatchLabels[i];
-        lb.font = [UIFont systemFontOfSize:10 weight:UIFontWeightMedium];
-        lb.textColor = [UIColor colorWithRed:0.486 green:0.545 blue:0.631 alpha:1];
+        lb.font = DELTA_FONT(10,UIFontWeightMedium);
+        lb.textColor = [UIColor colorWithRed:0.514 green:0.573 blue:0.722 alpha:1];
         lb.textAlignment = NSTextAlignmentCenter; lb.numberOfLines = 1;
         lb.adjustsFontSizeToFitWidth = YES; lb.minimumScaleFactor = 0.8;
         lb.translatesAutoresizingMaskIntoConstraints = NO;
@@ -1057,8 +1058,8 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
                     forState:UIControlStateNormal];
     [_applyBtn setTitleColor:[[UIColor colorWithRed:0.04 green:0.06 blue:0.13 alpha:1]
         colorWithAlphaComponent:0.5] forState:UIControlStateHighlighted];
-    _applyBtn.titleLabel.font    = [UIFont systemFontOfSize:15 weight:UIFontWeightHeavy];
-    _applyBtn.layer.cornerRadius = 14;
+    _applyBtn.titleLabel.font    = DELTA_FONT(15,UIFontWeightHeavy);
+    _applyBtn.layer.cornerRadius = 16;
     _applyBtn.layer.cornerCurve  = kCACornerCurveContinuous;
     _applyBtn.clipsToBounds      = YES;
     _applyBtn.translatesAutoresizingMaskIntoConstraints = NO;
@@ -1171,8 +1172,8 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 }
 - (UIView *)_nvChk:(NSString *)text sw:(UISwitch *)sw {
     UILabel *lbl = [[UILabel alloc] init]; lbl.text = text;
-    lbl.font = [UIFont systemFontOfSize:10.5 weight:UIFontWeightMedium];
-    lbl.textColor = [UIColor colorWithRed:0.486 green:0.545 blue:0.631 alpha:1];
+    lbl.font = DELTA_FONT(10.5,UIFontWeightMedium);
+    lbl.textColor = [UIColor colorWithRed:0.514 green:0.573 blue:0.722 alpha:1];
     lbl.textAlignment = NSTextAlignmentCenter;
     lbl.adjustsFontSizeToFitWidth = YES; lbl.minimumScaleFactor = 0.75;
     lbl.translatesAutoresizingMaskIntoConstraints = NO;
@@ -1183,8 +1184,8 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 }
 - (UIStackView *)_nvSliderRow:(NSString *)label sl:(UISlider *)sl vl:(UILabel *)vl {
     UILabel *lbl = [[UILabel alloc] init]; lbl.text = label;
-    lbl.font = [UIFont systemFontOfSize:12 weight:UIFontWeightMedium];
-    lbl.textColor = [UIColor colorWithRed:0.486 green:0.545 blue:0.631 alpha:1];
+    lbl.font = DELTA_FONT(12,UIFontWeightMedium);
+    lbl.textColor = [UIColor colorWithRed:0.514 green:0.573 blue:0.722 alpha:1];
     lbl.translatesAutoresizingMaskIntoConstraints = NO;
     [lbl.widthAnchor constraintEqualToConstant:72].active = YES;
     UIStackView *row = [[UIStackView alloc] initWithArrangedSubviews:@[lbl, sl, vl]];
@@ -1418,8 +1419,8 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     // ── Card container ────────────────────────────────────────
     UIView *card = [[UIView alloc] init];
     card.clipsToBounds = YES;
-    card.backgroundColor = [UIColor colorWithRed:0.086 green:0.114 blue:0.169 alpha:0.97]; // #161D2B
-    card.layer.cornerRadius = 22;
+    card.backgroundColor = [UIColor colorWithRed:0.086 green:0.125 blue:0.235 alpha:0.97]; // #16203C
+    card.layer.cornerRadius = 24;
     card.layer.cornerCurve = kCACornerCurveContinuous;
     card.layer.borderColor = [HUD_CYAN colorWithAlphaComponent:0.25].CGColor;
     card.layer.borderWidth = 1.5;
@@ -1442,7 +1443,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     // ── Title ─────────────────────────────────────────────────
     UILabel *titleLabel = [[UILabel alloc] init];
     titleLabel.text = title;
-    titleLabel.font = [UIFont systemFontOfSize:17 weight:UIFontWeightHeavy];
+    titleLabel.font = DELTA_FONT(17,UIFontWeightHeavy);
     titleLabel.textColor = HUD_CYAN;
     titleLabel.textAlignment = NSTextAlignmentCenter;
     titleLabel.numberOfLines = 0;
@@ -1466,7 +1467,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     // ── Body (nội dung từ server) ─────────────────────────────
     UILabel *bodyLabel = [[UILabel alloc] init];
     bodyLabel.text = body;
-    bodyLabel.font = [UIFont systemFontOfSize:13.5 weight:UIFontWeightMedium];
+    bodyLabel.font = DELTA_FONT(13.5,UIFontWeightMedium);
     bodyLabel.textColor = [UIColor colorWithRed:0.78 green:0.84 blue:0.93 alpha:1.0]; // xanh nhạt nhẹ
     bodyLabel.textAlignment = NSTextAlignmentCenter;
     bodyLabel.numberOfLines = 0;
@@ -1478,8 +1479,8 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     UIButton *ok = [UIButton buttonWithType:UIButtonTypeSystem];
     [ok setTitle:LS(@"ĐÃ HIỂU", @"GOT IT") forState:UIControlStateNormal];
     [ok setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal];
-    ok.titleLabel.font = [UIFont systemFontOfSize:15 weight:UIFontWeightHeavy];
-    ok.layer.cornerRadius = 14;
+    ok.titleLabel.font = DELTA_FONT(15,UIFontWeightHeavy);
+    ok.layer.cornerRadius = 16;
     ok.clipsToBounds = YES;
     ok.translatesAutoresizingMaskIntoConstraints = NO;
     [ok addTarget:self action:@selector(dismissNotice) forControlEvents:UIControlEventTouchUpInside];
@@ -1492,7 +1493,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
         (id)[UIColor colorWithRed:0 green:0.784 blue:1.0 alpha:1].CGColor, // #00C8FF
     ];
     g.startPoint = CGPointMake(0, 0.5); g.endPoint = CGPointMake(1, 0.5);
-    g.cornerRadius = 14;
+    g.cornerRadius = 16;
     [ok.layer insertSublayer:g atIndex:0];
 
     [NSLayoutConstraint activateConstraints:@[
@@ -1591,7 +1592,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     // Card blur
     UIVisualEffectView *card = [[UIVisualEffectView alloc] initWithEffect:[UIBlurEffect effectWithStyle:UIBlurEffectStyleSystemThinMaterialDark]];
     card.clipsToBounds = YES;
-    card.layer.cornerRadius = 20;
+    card.layer.cornerRadius = 24;
     card.layer.cornerCurve  = kCACornerCurveContinuous;
     card.layer.borderColor  = [UIColor colorWithWhite:1 alpha:0.15].CGColor;
     card.layer.borderWidth  = 1;
@@ -1614,7 +1615,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 
     UILabel *closeHint = [[UILabel alloc] init];
     closeHint.text = LS(@"Chạm vào màn hình để đóng", @"Tap anywhere to close");
-    closeHint.font = [UIFont systemFontOfSize:12 weight:UIFontWeightRegular];
+    closeHint.font = DELTA_FONT(12,UIFontWeightRegular);
     closeHint.textColor = HUD_MUTED;
     closeHint.textAlignment = NSTextAlignmentCenter;
     closeHint.translatesAutoresizingMaskIntoConstraints = NO;
@@ -1687,7 +1688,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     UINavigationBarAppearance *ap = [[UINavigationBarAppearance alloc] init];
     [ap configureWithTransparentBackground];
     ap.titleTextAttributes = @{NSForegroundColorAttributeName: HUD_TEXT,
-                               NSFontAttributeName: [UIFont systemFontOfSize:17 weight:UIFontWeightBold]};
+                               NSFontAttributeName: DELTA_FONT(17,UIFontWeightBold)};
     self.navigationItem.standardAppearance = ap;
     self.navigationItem.scrollEdgeAppearance = ap;
     self.navigationItem.compactAppearance = ap;
@@ -1824,7 +1825,7 @@ if (active) {
     // Layout:
     //   • Header: icon (68pt) + name + bundle (compact, horizontal)
     //   • Chip Tab Bar: 3 pill chips, solid color, no blur
-    //   • Panel cards: solid UIView (#161D2B), NO UIVisualEffectView
+    //   • Panel cards: solid UIView (#16203C), NO UIVisualEffectView
     //   • Features: UICollectionView 2-column grid of HUDFeatureTile
     //   • Status label + sticky MỞ GAME button
     // ══════════════════════════════════════════════════════════
@@ -1860,7 +1861,7 @@ if (active) {
     UIImageView *iconView = [[UIImageView alloc] initWithImage:self.icon];
     iconView.contentMode = UIViewContentModeScaleAspectFill;
     iconView.clipsToBounds = YES;
-    iconView.layer.cornerRadius = 14;
+    iconView.layer.cornerRadius = 18;
     iconView.layer.cornerCurve  = kCACornerCurveContinuous;
     iconView.layer.borderColor  = [HUD_CYAN colorWithAlphaComponent:0.4].CGColor;
     iconView.layer.borderWidth  = 1.5;
@@ -1869,7 +1870,7 @@ if (active) {
 
     UILabel *nameLabel = [[UILabel alloc] init];
     nameLabel.text      = self.appName;
-    nameLabel.font      = [UIFont systemFontOfSize:20 weight:UIFontWeightHeavy];
+    nameLabel.font      = DELTA_FONT(20,UIFontWeightHeavy);
     nameLabel.textColor = HUD_TEXT;
     nameLabel.translatesAutoresizingMaskIntoConstraints = NO;
     [headerView addSubview:nameLabel];
@@ -1890,7 +1891,7 @@ if (active) {
 
     UILabel *onlineLbl = [[UILabel alloc] init];
     onlineLbl.text      = @"ONLINE";
-    onlineLbl.font      = [UIFont systemFontOfSize:9 weight:UIFontWeightBold];
+    onlineLbl.font      = DELTA_FONT(9,UIFontWeightBold);
     onlineLbl.textColor = HUD_GREEN;
     onlineLbl.translatesAutoresizingMaskIntoConstraints = NO;
     [headerView addSubview:onlineLbl];
@@ -1933,8 +1934,8 @@ if (active) {
 
     UIView *chipBar = [[UIView alloc] init];
     chipBar.translatesAutoresizingMaskIntoConstraints = NO;
-    chipBar.backgroundColor = [UIColor colorWithRed:0.055 green:0.075 blue:0.118 alpha:1.0]; // #0E1330
-    chipBar.layer.cornerRadius = 14;
+    chipBar.backgroundColor = [UIColor colorWithRed:0.071 green:0.094 blue:0.176 alpha:1.0]; // #12182D
+    chipBar.layer.cornerRadius = 16;
     chipBar.layer.cornerCurve  = kCACornerCurveContinuous;
     chipBar.layer.borderColor  = HUD_BORDER.CGColor;
     chipBar.layer.borderWidth  = 1;
@@ -1954,7 +1955,7 @@ if (active) {
     for (NSInteger i = 0; i < 3; i++) {
         UIButton *chip = [UIButton buttonWithType:UIButtonTypeCustom];
         chip.tag = i;
-        chip.layer.cornerRadius = 10;
+        chip.layer.cornerRadius = 12;
         chip.layer.cornerCurve  = kCACornerCurveContinuous;
         chip.layer.masksToBounds = YES;
         chip.translatesAutoresizingMaskIntoConstraints = NO;
@@ -1974,7 +1975,7 @@ if (active) {
         // Label
         UILabel *lbl = [[UILabel alloc] init];
         lbl.text           = tabLabels[(NSUInteger)i];
-        lbl.font           = [UIFont systemFontOfSize:10 weight:UIFontWeightBold];
+        lbl.font           = DELTA_FONT(10,UIFontWeightBold);
         lbl.textAlignment  = NSTextAlignmentCenter;
         lbl.translatesAutoresizingMaskIntoConstraints = NO;
         lbl.userInteractionEnabled = NO;
@@ -2106,7 +2107,7 @@ if (active) {
     self.statusLabel = [[UILabel alloc] init];
     self.statusLabel.text      = LS(@"Đã Sẵn Sàng - Bạn Đã Có Thể Bắt Đầu Kích Hoạt Proxy",
                                    @"Ready — Activate Proxy Now");
-    self.statusLabel.font      = [UIFont systemFontOfSize:13 weight:UIFontWeightMedium];
+    self.statusLabel.font      = DELTA_FONT(13,UIFontWeightMedium);
     self.statusLabel.textColor = HUD_MUTED;
     self.statusLabel.textAlignment = NSTextAlignmentCenter;
     self.statusLabel.numberOfLines = 0;
@@ -2117,8 +2118,8 @@ if (active) {
     self.openGameButton = [UIButton buttonWithType:UIButtonTypeSystem];
     [self.openGameButton setTitle:LS(@"▶  MỞ GAME", @"▶  OPEN GAME") forState:UIControlStateNormal];
     [self.openGameButton setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal];
-    self.openGameButton.titleLabel.font   = [UIFont systemFontOfSize:17 weight:UIFontWeightHeavy];
-    self.openGameButton.layer.cornerRadius = 18;
+    self.openGameButton.titleLabel.font   = DELTA_FONT(17,UIFontWeightHeavy);
+    self.openGameButton.layer.cornerRadius = 22;
     self.openGameButton.layer.cornerCurve  = kCACornerCurveContinuous;
     self.openGameButton.clipsToBounds      = NO;  // NO để shadow layer hoạt động
     self.openGameButton.translatesAutoresizingMaskIntoConstraints = NO;
@@ -2132,7 +2133,7 @@ if (active) {
     ];
     self.openGameGradient.startPoint = CGPointMake(0.5, 0);
     self.openGameGradient.endPoint   = CGPointMake(0.5, 1);
-    self.openGameGradient.cornerRadius = 18;
+    self.openGameGradient.cornerRadius = 22;
     [self.openGameButton.layer insertSublayer:self.openGameGradient atIndex:0];
 
     // Border + glow cyan nhẹ
@@ -2172,8 +2173,8 @@ if (active) {
 - (void)buildToast {
     // Outer pill
     UIView *toast = [[UIView alloc] init];
-    toast.backgroundColor    = [UIColor colorWithRed:0.10 green:0.13 blue:0.20 alpha:0.96];
-    toast.layer.cornerRadius = 14;
+    toast.backgroundColor    = [UIColor colorWithRed:0.110 green:0.145 blue:0.255 alpha:0.96];
+    toast.layer.cornerRadius = 16;
     toast.layer.cornerCurve  = kCACornerCurveContinuous;
     toast.layer.borderColor  = [UIColor colorWithWhite:1 alpha:0.10].CGColor;
     toast.layer.borderWidth  = 1;
@@ -2196,7 +2197,7 @@ if (active) {
 
     // Message label
     UILabel *lbl = [[UILabel alloc] init];
-    lbl.font          = [UIFont systemFontOfSize:13 weight:UIFontWeightSemibold];
+    lbl.font          = DELTA_FONT(13,UIFontWeightSemibold);
     lbl.textColor     = HUD_TEXT;
     lbl.numberOfLines = 2;
     lbl.translatesAutoresizingMaskIntoConstraints = NO;
@@ -2251,7 +2252,7 @@ if (active) {
     UIView *pc = [[UIView alloc] init];
     pc.backgroundColor    = HUD_CARD;
     pc.clipsToBounds      = YES;
-    pc.layer.cornerRadius = 18;
+    pc.layer.cornerRadius = 22;
     pc.layer.cornerCurve  = kCACornerCurveContinuous;
     pc.layer.borderColor  = [tint colorWithAlphaComponent:0.40].CGColor;
     pc.layer.borderWidth  = 1;
@@ -2282,7 +2283,7 @@ if (active) {
 
     UILabel *menuTitle = [[UILabel alloc] init];
     menuTitle.text      = title;
-    menuTitle.font      = [UIFont systemFontOfSize:13 weight:UIFontWeightHeavy];
+    menuTitle.font      = DELTA_FONT(13,UIFontWeightHeavy);
     menuTitle.textColor = tint;
     menuTitle.translatesAutoresizingMaskIntoConstraints = NO;
     [titleBar addSubview:menuTitle];
@@ -2293,7 +2294,7 @@ if (active) {
     if (badge.length) {
         hint = [[UILabel alloc] init];
         hint.text             = [NSString stringWithFormat:@" %@ ", badge];
-        hint.font             = [UIFont systemFontOfSize:9.5 weight:UIFontWeightBold];
+        hint.font             = DELTA_FONT(9.5,UIFontWeightBold);
         hint.textColor        = tint;
         hint.backgroundColor  = [tint colorWithAlphaComponent:0.14];
         hint.layer.cornerRadius   = 7;
@@ -2378,7 +2379,7 @@ if (active) {
 
         UILabel *tutTitle = [[UILabel alloc] init];
         tutTitle.text      = LS(@"Xem Video Hướng Dẫn", @"Watch Tutorial Video");
-        tutTitle.font      = [UIFont systemFontOfSize:13 weight:UIFontWeightSemibold];
+        tutTitle.font      = DELTA_FONT(13,UIFontWeightSemibold);
         tutTitle.textColor = hasURL ? HUD_TEXT : HUD_MUTED;
         tutTitle.translatesAutoresizingMaskIntoConstraints = NO;
         [tutRow addSubview:tutTitle];
@@ -2387,7 +2388,7 @@ if (active) {
         tutSub.text = hasURL
             ? LS(@"Nhấn để mở YouTube ▶", @"Tap to open YouTube ▶")
             : LS(@"🎬 Video hướng dẫn sắp có...", @"🎬 Tutorial coming soon...");
-        tutSub.font      = [UIFont systemFontOfSize:11];
+        tutSub.font      = DELTA_FONT(11,UIFontWeightRegular);
         tutSub.textColor = HUD_MUTED;
         tutSub.translatesAutoresizingMaskIntoConstraints = NO;
         [tutRow addSubview:tutSub];
@@ -3542,10 +3543,10 @@ static UIColor *_aimTintFromString(NSString *tint) {
     // ── Card container ─────────────────────────────────────────────────────────
     UIView *card = [[UIView alloc] init];
     card.translatesAutoresizingMaskIntoConstraints = NO;
-    card.layer.cornerRadius = 18;
+    card.layer.cornerRadius = 22;
     card.layer.cornerCurve  = kCACornerCurveContinuous;
-    card.backgroundColor    = [UIColor colorWithRed:0.065 green:0.092 blue:0.157 alpha:1.0]; // #111827
-    card.layer.borderColor  = [UIColor colorWithRed:0.137 green:0.180 blue:0.259 alpha:0.8].CGColor;
+    card.backgroundColor    = [UIColor colorWithRed:0.059 green:0.082 blue:0.157 alpha:1.0]; // #0F1528
+    card.layer.borderColor  = [UIColor colorWithRed:0.157 green:0.208 blue:0.333 alpha:0.8].CGColor;
     card.layer.borderWidth  = 1;
     self.panelDNS = card;
 
@@ -3560,21 +3561,21 @@ static UIColor *_aimTintFromString(NSString *tint) {
 
     self.dnsStatusLabel = [[UILabel alloc] init];
     self.dnsStatusLabel.text      = LS(@"Đang dùng DNS mặc định", @"Using default DNS");
-    self.dnsStatusLabel.font      = [UIFont systemFontOfSize:12 weight:UIFontWeightMedium];
+    self.dnsStatusLabel.font      = DELTA_FONT(12,UIFontWeightMedium);
     self.dnsStatusLabel.textColor = HUD_MUTED;
     self.dnsStatusLabel.translatesAutoresizingMaskIntoConstraints = NO;
     [card addSubview:self.dnsStatusLabel];
 
     // Separator
     UIView *sep = [[UIView alloc] init];
-    sep.backgroundColor = [UIColor colorWithRed:0.137 green:0.180 blue:0.259 alpha:0.6];
+    sep.backgroundColor = [UIColor colorWithRed:0.157 green:0.208 blue:0.333 alpha:0.6];
     sep.translatesAutoresizingMaskIntoConstraints = NO;
     [card addSubview:sep];
 
     // ── Icon background (shield) ───────────────────────────────────────────────
     UIView *iconBg = [[UIView alloc] init];
     iconBg.translatesAutoresizingMaskIntoConstraints = NO;
-    iconBg.layer.cornerRadius = 14;
+    iconBg.layer.cornerRadius = 18;
     iconBg.layer.cornerCurve  = kCACornerCurveContinuous;
     iconBg.backgroundColor    = [UIColor colorWithRed:0.00 green:0.898 blue:1.00 alpha:0.12];
     iconBg.layer.borderColor  = [UIColor colorWithRed:0.00 green:0.898 blue:1.00 alpha:0.20].CGColor;
@@ -3591,7 +3592,7 @@ static UIColor *_aimTintFromString(NSString *tint) {
     // ── Title stack ────────────────────────────────────────────────────────────
     UILabel *titleLbl = [[UILabel alloc] init];
     titleLbl.text                    = LS(@"DNS Antiband 4.0", @"DNS Antiband 4.0");
-    titleLbl.font                    = [UIFont systemFontOfSize:14 weight:UIFontWeightBold];
+    titleLbl.font                    = DELTA_FONT(14,UIFontWeightBold);
     titleLbl.textColor               = HUD_TEXT;
     titleLbl.adjustsFontSizeToFitWidth = YES;
     titleLbl.minimumScaleFactor      = 0.8;
@@ -3600,7 +3601,7 @@ static UIColor *_aimTintFromString(NSString *tint) {
 
     UILabel *subLbl = [[UILabel alloc] init];
     subLbl.text      = @"DNS NextDNS · Chống Game Quét";
-    subLbl.font      = [UIFont systemFontOfSize:11 weight:UIFontWeightRegular];
+    subLbl.font      = DELTA_FONT(11,UIFontWeightRegular);
     subLbl.textColor = HUD_MUTED;
     subLbl.adjustsFontSizeToFitWidth = YES;
     subLbl.minimumScaleFactor        = 0.8;
@@ -3610,7 +3611,7 @@ static UIColor *_aimTintFromString(NSString *tint) {
     // DoH badge — pill shape
     UILabel *badge = [[UILabel alloc] init];
     badge.text            = @"DNS-over-HTTPS";
-    badge.font            = [UIFont systemFontOfSize:9.5 weight:UIFontWeightSemibold];
+    badge.font            = DELTA_FONT(9.5,UIFontWeightSemibold);
     badge.textColor       = HUD_CYAN;
     badge.translatesAutoresizingMaskIntoConstraints = NO;
     [card addSubview:badge];
@@ -3618,7 +3619,7 @@ static UIColor *_aimTintFromString(NSString *tint) {
     // ── Toggle button ──────────────────────────────────────────────────────────
     self.dnsToggleButton = [UIButton buttonWithType:UIButtonTypeSystem];
     self.dnsToggleButton.translatesAutoresizingMaskIntoConstraints = NO;
-    self.dnsToggleButton.layer.cornerRadius = 24;
+    self.dnsToggleButton.layer.cornerRadius = 26;
     self.dnsToggleButton.layer.cornerCurve  = kCACornerCurveContinuous;
     self.dnsToggleButton.clipsToBounds      = YES;
     [self.dnsToggleButton addTarget:self action:@selector(_dnsToggleTapped) forControlEvents:UIControlEventTouchUpInside];
@@ -3630,7 +3631,7 @@ static UIColor *_aimTintFromString(NSString *tint) {
                            (id)[UIColor colorWithRed:0.02 green:0.32 blue:0.52 alpha:1].CGColor];
     btnGrad.startPoint = CGPointMake(0, 0);
     btnGrad.endPoint   = CGPointMake(1, 1);
-    btnGrad.cornerRadius = 24;
+    btnGrad.cornerRadius = 26;
     btnGrad.name       = @"dnsGrad";
     [self.dnsToggleButton.layer insertSublayer:btnGrad atIndex:0];
 
@@ -3760,7 +3761,7 @@ static UIColor *_aimTintFromString(NSString *tint) {
                               (id)[UIColor colorWithRed:0.02 green:0.32 blue:0.52 alpha:1].CGColor];
             self.dnsToggleButton.enabled = YES;
 
-            self.panelDNS.layer.borderColor  = [UIColor colorWithRed:0.137 green:0.180 blue:0.259 alpha:0.8].CGColor;
+            self.panelDNS.layer.borderColor  = [UIColor colorWithRed:0.157 green:0.208 blue:0.333 alpha:0.8].CGColor;
             self.panelDNS.layer.shadowOpacity = 0;
 
         } else {
@@ -3774,7 +3775,7 @@ static UIColor *_aimTintFromString(NSString *tint) {
                               (id)[UIColor colorWithRed:0.02 green:0.32 blue:0.52 alpha:1].CGColor];
             self.dnsToggleButton.enabled = YES;
 
-            self.panelDNS.layer.borderColor  = [UIColor colorWithRed:0.137 green:0.180 blue:0.259 alpha:0.8].CGColor;
+            self.panelDNS.layer.borderColor  = [UIColor colorWithRed:0.157 green:0.208 blue:0.333 alpha:0.8].CGColor;
             self.panelDNS.layer.shadowOpacity = 0;
         }
 

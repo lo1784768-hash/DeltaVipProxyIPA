@@ -66,7 +66,7 @@ static NSString *const kShareURL = @"https://getuid.vip/proxy-delta.html";
     _chipGrad.colors      = @[(id)light.CGColor, (id)dark.CGColor];
     _chipGrad.startPoint  = CGPointMake(0, 0);
     _chipGrad.endPoint    = CGPointMake(1, 1);
-    _chipGrad.cornerRadius = 10;
+    _chipGrad.cornerRadius = 12;
     [_chipView.layer insertSublayer:_chipGrad atIndex:0];
 
     UIImageSymbolConfiguration *symCfg = [UIImageSymbolConfiguration configurationWithPointSize:15 weight:UIImageSymbolWeightBold];
@@ -79,7 +79,7 @@ static NSString *const kShareURL = @"https://getuid.vip/proxy-delta.html";
     // Title
     UILabel *titleLbl = [[UILabel alloc] init];
     titleLbl.text      = title;
-    titleLbl.font      = [UIFont systemFontOfSize:15 weight:UIFontWeightSemibold];
+    titleLbl.font      = DELTA_FONT(15,UIFontWeightSemibold);
     titleLbl.textColor = BRAND_TEXT;
     titleLbl.translatesAutoresizingMaskIntoConstraints = NO;
     [self addSubview:titleLbl];
@@ -87,7 +87,7 @@ static NSString *const kShareURL = @"https://getuid.vip/proxy-delta.html";
     // Subtitle
     UILabel *subLbl = [[UILabel alloc] init];
     subLbl.text      = subtitle;
-    subLbl.font      = [UIFont systemFontOfSize:11 weight:UIFontWeightRegular];
+    subLbl.font      = DELTA_FONT(11,UIFontWeightRegular);
     subLbl.textColor = BRAND_MUTED;
     subLbl.translatesAutoresizingMaskIntoConstraints = NO;
     [self addSubview:subLbl];
@@ -208,7 +208,7 @@ static NSString *const kShareURL = @"https://getuid.vip/proxy-delta.html";
 
     // Icon chip
     _chipView = [[UIView alloc] init];
-    _chipView.layer.cornerRadius = 10;
+    _chipView.layer.cornerRadius = 12;
     _chipView.layer.cornerCurve  = kCACornerCurveContinuous;
     _chipView.layer.shadowColor  = tint.CGColor;
     _chipView.layer.shadowOpacity = 0.55;
@@ -222,7 +222,7 @@ static NSString *const kShareURL = @"https://getuid.vip/proxy-delta.html";
                              (id)[UIColor colorWithRed:0.04 green:0.51 blue:0.34 alpha:1].CGColor];
     _chipGrad.startPoint = CGPointMake(0, 0);
     _chipGrad.endPoint   = CGPointMake(1, 1);
-    _chipGrad.cornerRadius = 10;
+    _chipGrad.cornerRadius = 12;
     [_chipView.layer insertSublayer:_chipGrad atIndex:0];
 
     UIImageSymbolConfiguration *symCfg = [UIImageSymbolConfiguration configurationWithPointSize:15 weight:UIImageSymbolWeightBold];
@@ -235,7 +235,7 @@ static NSString *const kShareURL = @"https://getuid.vip/proxy-delta.html";
     // Title
     UILabel *titleLbl = [[UILabel alloc] init];
     titleLbl.text      = LS(@"Chặn Quảng Cáo", @"Block Ads & Trackers");
-    titleLbl.font      = [UIFont systemFontOfSize:15 weight:UIFontWeightSemibold];
+    titleLbl.font      = DELTA_FONT(15,UIFontWeightSemibold);
     titleLbl.textColor = BRAND_TEXT;
     titleLbl.translatesAutoresizingMaskIntoConstraints = NO;
     [self addSubview:titleLbl];
@@ -243,7 +243,7 @@ static NSString *const kShareURL = @"https://getuid.vip/proxy-delta.html";
     // Subtitle
     _subtitleLbl = [[UILabel alloc] init];
     _subtitleLbl.text      = LS(@"Đang tải...", @"Loading...");
-    _subtitleLbl.font      = [UIFont systemFontOfSize:11 weight:UIFontWeightRegular];
+    _subtitleLbl.font      = DELTA_FONT(11,UIFontWeightRegular);
     _subtitleLbl.textColor = BRAND_MUTED;
     _subtitleLbl.translatesAutoresizingMaskIntoConstraints = NO;
     [self addSubview:_subtitleLbl];
@@ -347,7 +347,7 @@ static NSString *const kShareURL = @"https://getuid.vip/proxy-delta.html";
 
     // Dark overlay
     UIView *overlay = [[UIView alloc] init];
-    overlay.backgroundColor = [UIColor colorWithRed:0.04 green:0.05 blue:0.10 alpha:0.65];
+    overlay.backgroundColor = [UIColor colorWithRed:0.043 green:0.059 blue:0.118 alpha:0.65];
     overlay.translatesAutoresizingMaskIntoConstraints = NO;
     [blur.contentView addSubview:overlay];
     [NSLayoutConstraint activateConstraints:@[
@@ -361,7 +361,7 @@ static NSString *const kShareURL = @"https://getuid.vip/proxy-delta.html";
 
     // ── Header ──────────────────────────────────────────────────────────────
     UIView *headerChip = [[UIView alloc] init];
-    headerChip.layer.cornerRadius = 14;
+    headerChip.layer.cornerRadius = 16;
     headerChip.layer.cornerCurve = kCACornerCurveContinuous;
     headerChip.translatesAutoresizingMaskIntoConstraints = NO;
     [root addSubview:headerChip];
@@ -370,7 +370,7 @@ static NSString *const kShareURL = @"https://getuid.vip/proxy-delta.html";
     chipGrad.colors      = @[(id)BRAND_PURPLE.CGColor, (id)[BRAND_PURPLE colorWithAlphaComponent:0.5].CGColor];
     chipGrad.startPoint  = CGPointMake(0, 0);
     chipGrad.endPoint    = CGPointMake(1, 1);
-    chipGrad.cornerRadius = 14;
+    chipGrad.cornerRadius = 16;
     [headerChip.layer insertSublayer:chipGrad atIndex:0];
 
     UIImageSymbolConfiguration *gearCfg = [UIImageSymbolConfiguration configurationWithPointSize:22 weight:UIImageSymbolWeightBold];
@@ -382,7 +382,7 @@ static NSString *const kShareURL = @"https://getuid.vip/proxy-delta.html";
 
     UILabel *titleLbl = [[UILabel alloc] init];
     titleLbl.text      = @"Cài Đặt";
-    titleLbl.font      = [UIFont systemFontOfSize:22 weight:UIFontWeightHeavy];
+    titleLbl.font      = DELTA_FONT(22,UIFontWeightHeavy);
     titleLbl.textColor = BRAND_TEXT;
     titleLbl.translatesAutoresizingMaskIntoConstraints = NO;
     [root addSubview:titleLbl];
@@ -390,7 +390,7 @@ static NSString *const kShareURL = @"https://getuid.vip/proxy-delta.html";
     NSString *appVer = [NSBundle mainBundle].infoDictionary[@"CFBundleShortVersionString"] ?: @"1.4.7";
     UILabel *verLbl = [[UILabel alloc] init];
     verLbl.text      = [NSString stringWithFormat:@"DELTA IPA VN  v%@", appVer];
-    verLbl.font      = [UIFont systemFontOfSize:12 weight:UIFontWeightMedium];
+    verLbl.font      = DELTA_FONT(12,UIFontWeightMedium);
     verLbl.textColor = BRAND_MUTED;
     verLbl.translatesAutoresizingMaskIntoConstraints = NO;
     [root addSubview:verLbl];
@@ -399,7 +399,7 @@ static NSString *const kShareURL = @"https://getuid.vip/proxy-delta.html";
     UIVisualEffectView *card = [[UIVisualEffectView alloc]
         initWithEffect:[UIBlurEffect effectWithStyle:UIBlurEffectStyleSystemThinMaterialDark]];
     card.clipsToBounds    = YES;
-    card.layer.cornerRadius = 20;
+    card.layer.cornerRadius = 24;
     card.layer.cornerCurve  = kCACornerCurveContinuous;
     card.layer.borderColor  = [UIColor colorWithWhite:1 alpha:0.10].CGColor;
     card.layer.borderWidth  = 1;

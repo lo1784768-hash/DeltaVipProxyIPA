@@ -131,7 +131,7 @@
     self.backgroundColor = [UIColor clearColor];
     self.layer.borderColor = [UIColor colorWithWhite:1 alpha:0.10].CGColor;
     self.layer.borderWidth = 1;
-    self.layer.cornerRadius = 24;
+    self.layer.cornerRadius = 28;
     self.layer.cornerCurve = kCACornerCurveContinuous;
     self.layer.masksToBounds = YES;
 
@@ -157,13 +157,13 @@
     [self addSubview:_dot];
 
     _titleLabel = [[UILabel alloc] init];
-    _titleLabel.font = [UIFont systemFontOfSize:13 weight:UIFontWeightBold];
+    _titleLabel.font = DELTA_FONT(13,UIFontWeightBold);
     _titleLabel.textColor = KB_TEXT;
     _titleLabel.translatesAutoresizingMaskIntoConstraints = NO;
     [self addSubview:_titleLabel];
 
     _subLabel = [[UILabel alloc] init];
-    _subLabel.font = [UIFont systemFontOfSize:11 weight:UIFontWeightMedium];
+    _subLabel.font = DELTA_FONT(11,UIFontWeightMedium);
     _subLabel.textColor = KB_MUTED;
     _subLabel.translatesAutoresizingMaskIntoConstraints = NO;
     [self addSubview:_subLabel];
@@ -187,10 +187,10 @@
 
     // Add key button (gradient capsule)
     _addButton = [UIButton buttonWithType:UIButtonTypeSystem];
-    _addButton.titleLabel.font = [UIFont systemFontOfSize:13 weight:UIFontWeightHeavy];
+    _addButton.titleLabel.font = DELTA_FONT(13,UIFontWeightHeavy);
     [_addButton setTitleColor:[UIColor colorWithRed:0.04 green:0.06 blue:0.13 alpha:1.0]
                      forState:UIControlStateNormal];
-    _addButton.layer.cornerRadius = 12;
+    _addButton.layer.cornerRadius = 15;
     _addButton.layer.cornerCurve = kCACornerCurveContinuous;
     _addButton.clipsToBounds = YES;
     _addButton.contentEdgeInsets = UIEdgeInsetsMake(0, 14, 0, 14);
@@ -199,7 +199,7 @@
     [self addSubview:_addButton];
 
     _addGradient = BrandGradient();
-    _addGradient.cornerRadius = 12;
+    _addGradient.cornerRadius = 15;
     [_addButton.layer insertSublayer:_addGradient atIndex:0];
 
     // Info button (i)

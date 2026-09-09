@@ -3,13 +3,13 @@
 #import "LanguageManager.h"
 
 // ── Palette ──────────────────────────────────────────────────────────────────
-#define PV_BG       [UIColor colorWithRed:0.032 green:0.036 blue:0.063 alpha:1.0]
+#define PV_BG       [UIColor colorWithRed:0.020 green:0.024 blue:0.055 alpha:1.0]
 #define PV_CYAN     BRAND_CYAN
 #define PV_PURPLE   BRAND_PURPLE
 #define PV_GREEN    BRAND_GREEN
 #define PV_TEXT     BRAND_TEXT
 #define PV_MUTED    BRAND_MUTED
-#define PV_CARD     [UIColor colorWithRed:0.055 green:0.06 blue:0.11 alpha:0.65]
+#define PV_CARD     [UIColor colorWithRed:0.055 green:0.075 blue:0.149 alpha:0.65]
 
 static NSString *const kPolicyAcceptedKey = @"policy_accepted";
 
@@ -56,7 +56,7 @@ static NSString *const kPolicyAcceptedKey = @"policy_accepted";
     // Icon chip
     UIView *chip = [[UIView alloc] init];
     chip.backgroundColor = [section.accentColor colorWithAlphaComponent:0.18];
-    chip.layer.cornerRadius = 10;
+    chip.layer.cornerRadius = 12;
     chip.layer.cornerCurve = kCACornerCurveContinuous;
     chip.layer.borderColor = [section.accentColor colorWithAlphaComponent:0.40].CGColor;
     chip.layer.borderWidth = 1;
@@ -72,7 +72,7 @@ static NSString *const kPolicyAcceptedKey = @"policy_accepted";
 
     UILabel *titleLabel = [[UILabel alloc] init];
     titleLabel.text = section.title;
-    titleLabel.font = [UIFont systemFontOfSize:14 weight:UIFontWeightSemibold];
+    titleLabel.font = DELTA_FONT(14,UIFontWeightSemibold);
     titleLabel.textColor = PV_TEXT;
     titleLabel.translatesAutoresizingMaskIntoConstraints = NO;
     [_headerRow addSubview:titleLabel];
@@ -88,7 +88,7 @@ static NSString *const kPolicyAcceptedKey = @"policy_accepted";
     // ── Body ─────────────────────────────────────────────────────────────────
     _bodyLabel = [[UILabel alloc] init];
     _bodyLabel.text = section.body;
-    _bodyLabel.font = [UIFont systemFontOfSize:13 weight:UIFontWeightRegular];
+    _bodyLabel.font = DELTA_FONT(13,UIFontWeightRegular);
     _bodyLabel.textColor = [PV_TEXT colorWithAlphaComponent:0.80];
     _bodyLabel.numberOfLines = 0;
     _bodyLabel.translatesAutoresizingMaskIntoConstraints = NO;
@@ -286,7 +286,7 @@ static NSString *const kPolicyAcceptedKey = @"policy_accepted";
 
     // Subtle dark overlay
     UIView *overlay = [[UIView alloc] init];
-    overlay.backgroundColor = [UIColor colorWithRed:0.032 green:0.036 blue:0.063 alpha:0.72];
+    overlay.backgroundColor = [UIColor colorWithRed:0.020 green:0.024 blue:0.055 alpha:0.72];
     overlay.translatesAutoresizingMaskIntoConstraints = NO;
     [self.view addSubview:overlay];
     [NSLayoutConstraint activateConstraints:@[
@@ -321,7 +321,7 @@ static NSString *const kPolicyAcceptedKey = @"policy_accepted";
 
     UILabel *headerTitle = [[UILabel alloc] init];
     headerTitle.text = LS(@"CHÍNH SÁCH & ĐIỀU KHOẢN\nSỬ DỤNG", @"TERMS & POLICY");
-    headerTitle.font = [UIFont systemFontOfSize:18 weight:UIFontWeightHeavy];
+    headerTitle.font = DELTA_FONT(18,UIFontWeightHeavy);
     headerTitle.textColor = PV_TEXT;
     headerTitle.textAlignment = NSTextAlignmentCenter;
     headerTitle.numberOfLines = 2;
@@ -330,7 +330,7 @@ static NSString *const kPolicyAcceptedKey = @"policy_accepted";
     UILabel *headerSub = [[UILabel alloc] init];
     headerSub.text = LS(@"Vui lòng đọc kỹ trước khi sử dụng dịch vụ",
                         @"Please read carefully before using the service");
-    headerSub.font = [UIFont systemFontOfSize:12 weight:UIFontWeightMedium];
+    headerSub.font = DELTA_FONT(12,UIFontWeightMedium);
     headerSub.textColor = PV_MUTED;
     headerSub.textAlignment = NSTextAlignmentCenter;
     headerSub.translatesAutoresizingMaskIntoConstraints = NO;
@@ -350,7 +350,7 @@ static NSString *const kPolicyAcceptedKey = @"policy_accepted";
     UIVisualEffectView *card = [[UIVisualEffectView alloc]
         initWithEffect:[UIBlurEffect effectWithStyle:UIBlurEffectStyleSystemThinMaterialDark]];
     card.clipsToBounds = YES;
-    card.layer.cornerRadius = 20;
+    card.layer.cornerRadius = 24;
     card.layer.cornerCurve = kCACornerCurveContinuous;
     card.layer.borderColor = [UIColor colorWithWhite:1 alpha:0.10].CGColor;
     card.layer.borderWidth = 1;
@@ -378,8 +378,8 @@ static NSString *const kPolicyAcceptedKey = @"policy_accepted";
                       forState:UIControlStateNormal];
     [self.agreeButton setTitleColor:[UIColor colorWithRed:0.04 green:0.06 blue:0.13 alpha:1.0]
                            forState:UIControlStateNormal];
-    self.agreeButton.titleLabel.font = [UIFont systemFontOfSize:16 weight:UIFontWeightHeavy];
-    self.agreeButton.layer.cornerRadius = 16;
+    self.agreeButton.titleLabel.font = DELTA_FONT(16,UIFontWeightHeavy);
+    self.agreeButton.layer.cornerRadius = 18;
     self.agreeButton.layer.cornerCurve = kCACornerCurveContinuous;
     self.agreeButton.clipsToBounds = YES;
     self.agreeButton.layer.shadowColor = PV_CYAN.CGColor;
@@ -392,7 +392,7 @@ static NSString *const kPolicyAcceptedKey = @"policy_accepted";
     [self.view addSubview:self.agreeButton];
 
     self.agreeGradient = BrandGradient();
-    self.agreeGradient.cornerRadius = 16;
+    self.agreeGradient.cornerRadius = 18;
     [self.agreeButton.layer insertSublayer:self.agreeGradient atIndex:0];
 
     // ── Constraints ───────────────────────────────────────────────────────

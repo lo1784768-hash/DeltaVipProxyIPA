@@ -4,6 +4,7 @@
 #import "DebugLogger.h"
 #import "AppPaths.h"
 #import "BadQueryManager.h"
+#import "BrandTheme.h"
 #import <Foundation/Foundation.h>
 
 @interface DeviceStorageViewController ()
@@ -54,6 +55,25 @@
 
 - (void)viewDidLoad {
     [super viewDidLoad];
+
+    // Aurora Frost: nền tối + glass rows
+    self.view.backgroundColor = BRAND_BG;
+    self.tableView.backgroundColor = BRAND_BG;
+    self.tableView.separatorColor = [UIColor colorWithWhite:1 alpha:0.06];
+    self.tableView.separatorInset = UIEdgeInsetsMake(0, 20, 0, 20);
+    self.tableView.indicatorStyle = UIScrollViewIndicatorStyleWhite;
+    self.tableView.keyboardDismissMode = UIScrollViewKeyboardDismissModeOnDrag;
+
+    UINavigationBarAppearance *app = [[UINavigationBarAppearance alloc] init];
+    [app configureWithTransparentBackground];
+    app.titleTextAttributes = @{
+        NSForegroundColorAttributeName: BRAND_TEXT,
+        NSFontAttributeName: DELTA_FONT(17,UIFontWeightBold)
+    };
+    self.navigationItem.standardAppearance = app;
+    self.navigationItem.scrollEdgeAppearance = app;
+    self.navigationItem.compactAppearance = app;
+    self.navigationController.navigationBar.tintColor = BRAND_CYAN;
 
     // Create toolbar with multiple buttons
     UIBarButtonItem *refreshButton = [[UIBarButtonItem alloc]
@@ -250,7 +270,10 @@
     if (!cell) {
         // UITableViewCellStyleSubtitle + textLabel/detailTextLabel removed in iOS 26 SDK
         cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleDefault reuseIdentifier:@"cell"];
+        cell.backgroundColor = [UIColor clearColor];
     }
+    cell.backgroundColor = [UIColor clearColor];
+    cell.selectionStyle = UITableViewCellSelectionStyleNone;
 
     NSDictionary *section = self.sections[indexPath.row];
     NSString *icon = section[@"icon"] ?: @"📁";
@@ -259,8 +282,10 @@
     UIListContentConfiguration *config = [cell defaultContentConfiguration];
     config.text = [NSString stringWithFormat:@"%@ %@", icon, section[@"name"]];
     config.secondaryText = section[@"description"];
-    config.textProperties.color = [UIColor colorWithRed:0.94 green:0.94 blue:0.96 alpha:1.0];
-    config.secondaryTextProperties.color = [UIColor colorWithRed:0.6 green:0.6 blue:0.65 alpha:1.0];
+    config.textProperties.color = [UIColor colorWithRed:0.953 green:0.957 blue:0.988 alpha:1.0];
+    config.textProperties.font = DELTA_FONT(16,UIFontWeightSemibold);
+    config.secondaryTextProperties.color = [UIColor colorWithRed:0.545 green:0.584 blue:0.741 alpha:1.0];
+    config.secondaryTextProperties.font = DELTA_FONT(12.5,UIFontWeightRegular);
     [cell setContentConfiguration:config];
 
     cell.accessoryType = UITableViewCellAccessoryDisclosureIndicator;

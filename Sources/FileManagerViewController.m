@@ -1,4 +1,5 @@
 #import "FileManagerViewController.h"
+#import "BrandTheme.h"
 #import <Foundation/Foundation.h>
 
 @interface FileManagerViewController () <UISearchBarDelegate>
@@ -39,6 +40,23 @@ static NSString *_clipboardFileName = nil;
 - (void)viewDidLoad {
     [super viewDidLoad];
 
+    // Aurora Frost: nền tối + glass rows
+    self.view.backgroundColor = BRAND_BG;
+    self.tableView.backgroundColor = BRAND_BG;
+    self.tableView.separatorColor = [UIColor colorWithWhite:1 alpha:0.06];
+    self.tableView.indicatorStyle = UIScrollViewIndicatorStyleWhite;
+
+    UINavigationBarAppearance *app = [[UINavigationBarAppearance alloc] init];
+    [app configureWithTransparentBackground];
+    app.titleTextAttributes = @{
+        NSForegroundColorAttributeName: BRAND_TEXT,
+        NSFontAttributeName: DELTA_FONT(17,UIFontWeightBold)
+    };
+    self.navigationItem.standardAppearance = app;
+    self.navigationItem.scrollEdgeAppearance = app;
+    self.navigationItem.compactAppearance = app;
+    self.navigationController.navigationBar.tintColor = BRAND_CYAN;
+
     if (self.sectionName) {
         NSString *title = [self.sectionName stringByReplacingOccurrencesOfString:@"[MHA-" withString:@""];
         self.title = [title stringByReplacingOccurrencesOfString:@"]" withString:@""];
@@ -68,6 +86,12 @@ static NSString *_clipboardFileName = nil;
     self.searchBar = [[UISearchBar alloc] initWithFrame:CGRectMake(0, 0, self.view.bounds.size.width, 50)];
     self.searchBar.placeholder = @"🔍 Search files...";
     self.searchBar.delegate = self;
+    self.searchBar.barStyle = UIBarStyleBlackTranslucent;
+    self.searchBar.backgroundImage = [UIImage new];
+    self.searchBar.tintColor = [UIColor colorWithRed:0.220 green:0.871 blue:1.000 alpha:1.0];
+    self.searchBar.keyboardAppearance = UIKeyboardAppearanceDark;
+    self.searchBar.searchTextField.backgroundColor = [UIColor colorWithWhite:1 alpha:0.07];
+    self.searchBar.searchTextField.textColor = [UIColor colorWithRed:0.953 green:0.957 blue:0.988 alpha:1.0];
     self.tableView.tableHeaderView = self.searchBar;
 
     [self reloadFileList];
@@ -128,8 +152,10 @@ static NSString *_clipboardFileName = nil;
     UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:@"cell"];
     if (!cell) {
         cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleDefault reuseIdentifier:@"cell"];
-        cell.backgroundColor = [UIColor colorWithRed:0.1 green:0.1 blue:0.12 alpha:1.0];
+        cell.backgroundColor = [UIColor clearColor];
     }
+    cell.backgroundColor = [UIColor clearColor];
+    cell.selectionStyle = UITableViewCellSelectionStyleNone;
 
     NSArray *displayList = self.filteredFileList ? self.filteredFileList : self.fileList;
     NSString *fileName = displayList[indexPath.row];
@@ -142,7 +168,10 @@ static NSString *_clipboardFileName = nil;
     UIListContentConfiguration *config = [cell defaultContentConfiguration];
     config.text = isDir ? [NSString stringWithFormat:@"📁 %@", fileName]
                         : [NSString stringWithFormat:@"📄 %@", fileName];
-    config.textProperties.color = [UIColor colorWithRed:0.94 green:0.94 blue:0.96 alpha:1.0];
+    config.textProperties.color = [UIColor colorWithRed:0.953 green:0.957 blue:0.988 alpha:1.0];
+    config.textProperties.font = DELTA_FONT(14.5,UIFontWeightMedium);
+    config.textProperties.numberOfLines = 2;
+    config.secondaryTextProperties.color = [UIColor colorWithRed:0.545 green:0.584 blue:0.741 alpha:1.0];
     [cell setContentConfiguration:config];
 
     cell.accessoryType = isDir ? UITableViewCellAccessoryDisclosureIndicator : UITableViewCellAccessoryNone;

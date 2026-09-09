@@ -63,13 +63,13 @@
     // Default idle border
     self.layer.borderColor = [UIColor colorWithWhite:1 alpha:0.10].CGColor;
     self.layer.borderWidth = 1;
-    self.layer.cornerRadius = 20;
+    self.layer.cornerRadius = 24;
     self.layer.cornerCurve  = kCACornerCurveContinuous;
 
     // Flag
     UILabel *flagLbl = [[UILabel alloc] init];
     flagLbl.text = flag;
-    flagLbl.font = [UIFont systemFontOfSize:54];
+    flagLbl.font = DELTA_FONT(54,UIFontWeightRegular);
     flagLbl.textAlignment = NSTextAlignmentCenter;
     flagLbl.translatesAutoresizingMaskIntoConstraints = NO;
     [glass.contentView addSubview:flagLbl];
@@ -77,7 +77,7 @@
     // Name
     UILabel *nameLbl = [[UILabel alloc] init];
     nameLbl.text = name;
-    nameLbl.font = [UIFont systemFontOfSize:15 weight:UIFontWeightBold];
+    nameLbl.font = DELTA_FONT(15,UIFontWeightBold);
     nameLbl.textColor = BRAND_TEXT;
     nameLbl.textAlignment = NSTextAlignmentCenter;
     nameLbl.translatesAutoresizingMaskIntoConstraints = NO;
@@ -193,7 +193,7 @@
 
 - (void)viewDidLoad {
     [super viewDidLoad];
-    self.view.backgroundColor = [UIColor colorWithRed:0.04 green:0.05 blue:0.10 alpha:1.0];
+    self.view.backgroundColor = [UIColor colorWithRed:0.043 green:0.059 blue:0.118 alpha:1.0];
     _pending = [LanguageManager shared].language;
     [self buildUI];
 }
@@ -206,7 +206,7 @@
     [self.view addSubview:blur];
 
     UIView *overlay = [[UIView alloc] init];
-    overlay.backgroundColor = [UIColor colorWithRed:0.04 green:0.05 blue:0.10 alpha:0.60];
+    overlay.backgroundColor = [UIColor colorWithRed:0.043 green:0.059 blue:0.118 alpha:0.60];
     overlay.translatesAutoresizingMaskIntoConstraints = NO;
     [blur.contentView addSubview:overlay];
 
@@ -226,7 +226,7 @@
 
     // ── Globe chip (gradient purple→cyan) ─────────────────────────────────────
     _globeChip = [[UIView alloc] init];
-    _globeChip.layer.cornerRadius  = 14;
+    _globeChip.layer.cornerRadius  = 16;
     _globeChip.layer.cornerCurve   = kCACornerCurveContinuous;
     _globeChip.layer.masksToBounds = YES;
     _globeChip.translatesAutoresizingMaskIntoConstraints = NO;
@@ -236,7 +236,7 @@
     _chipGrad.colors      = @[(id)BRAND_PURPLE.CGColor, (id)BRAND_CYAN.CGColor];
     _chipGrad.startPoint  = CGPointMake(0, 0);
     _chipGrad.endPoint    = CGPointMake(1, 1);
-    _chipGrad.cornerRadius = 14;
+    _chipGrad.cornerRadius = 16;
     [_globeChip.layer insertSublayer:_chipGrad atIndex:0];
 
     UIImageSymbolConfiguration *gCfg = [UIImageSymbolConfiguration
@@ -251,14 +251,14 @@
     // ── Titles ────────────────────────────────────────────────────────────────
     UILabel *title1 = [[UILabel alloc] init];
     title1.text      = @"Chọn Ngôn Ngữ";
-    title1.font      = [UIFont systemFontOfSize:22 weight:UIFontWeightHeavy];
+    title1.font      = DELTA_FONT(22,UIFontWeightHeavy);
     title1.textColor = BRAND_TEXT;
     title1.translatesAutoresizingMaskIntoConstraints = NO;
     [R addSubview:title1];
 
     UILabel *title2 = [[UILabel alloc] init];
     title2.text      = @"Choose Your Language";
-    title2.font      = [UIFont systemFontOfSize:13 weight:UIFontWeightRegular];
+    title2.font      = DELTA_FONT(13,UIFontWeightRegular);
     title2.textColor = BRAND_MUTED;
     title2.translatesAutoresizingMaskIntoConstraints = NO;
     [R addSubview:title2];
@@ -302,7 +302,7 @@
     _confirmBtn.layer.cornerCurve   = kCACornerCurveContinuous;
     _confirmBtn.layer.masksToBounds = YES;
     [_confirmBtn setTitle:@"Xác Nhận  /  Confirm" forState:UIControlStateNormal];
-    _confirmBtn.titleLabel.font = [UIFont systemFontOfSize:15 weight:UIFontWeightHeavy];
+    _confirmBtn.titleLabel.font = DELTA_FONT(15,UIFontWeightHeavy);
     [_confirmBtn setTitleColor:[UIColor colorWithRed:0.04 green:0.06 blue:0.13 alpha:1]
                       forState:UIControlStateNormal];
     [_confirmBtn addTarget:self action:@selector(confirmTapped)
@@ -310,7 +310,7 @@
     [R addSubview:_confirmBtn];
 
     _btnGrad = BrandGradient();
-    _btnGrad.cornerRadius = 16;
+    _btnGrad.cornerRadius = 18;
     [_confirmBtn.layer insertSublayer:_btnGrad atIndex:0];
 
     // ── Layout constraints ────────────────────────────────────────────────────

@@ -27,7 +27,7 @@
 - (instancetype)initWithFrame:(CGRect)frame {
     self = [super initWithFrame:frame];
     if (self) {
-        self.backgroundColor = [UIColor colorWithRed:0.055 green:0.06 blue:0.11 alpha:0.55];
+        self.backgroundColor = [UIColor colorWithRed:0.055 green:0.075 blue:0.149 alpha:0.55];
         self.layer.borderColor = [UIColor colorWithWhite:1 alpha:0.11].CGColor;
         self.layer.borderWidth = 1;
         self.layer.cornerCurve = kCACornerCurveContinuous;
@@ -80,7 +80,7 @@
 
     // Frosted glass card
     self.cardView = [[GlassView alloc] init];
-    self.cardView.layer.cornerRadius = 24;
+    self.cardView.layer.cornerRadius = 28;
     self.cardView.layer.shadowColor = BRAND_PURPLE.CGColor;
     self.cardView.layer.shadowOpacity = 0.35;
     self.cardView.layer.shadowOffset = CGSizeZero;
@@ -97,7 +97,7 @@
 
     // ── Banner (gradient, không flat) ──────────────────────────────────────
     UIView *bannerView = [[UIView alloc] init];
-    bannerView.layer.cornerRadius = 24;
+    bannerView.layer.cornerRadius = 28;
     bannerView.layer.cornerCurve = kCACornerCurveContinuous;
     bannerView.layer.maskedCorners = kCALayerMinXMinYCorner | kCALayerMaxXMinYCorner;
     bannerView.clipsToBounds = YES;
@@ -156,7 +156,7 @@
     self.iconView = [[UIImageView alloc] init];
     self.iconView.contentMode = UIViewContentModeScaleAspectFill;
     self.iconView.clipsToBounds = YES;
-    self.iconView.layer.cornerRadius = 20;
+    self.iconView.layer.cornerRadius = 24;
     self.iconView.layer.cornerCurve = kCACornerCurveContinuous;
     self.iconView.layer.borderColor = [UIColor colorWithWhite:1 alpha:0.35].CGColor;
     self.iconView.layer.borderWidth = 1.5;
@@ -179,8 +179,8 @@
 
     // ── App name ───────────────────────────────────────────────────────────
     self.nameLabel = [[UILabel alloc] init];
-    self.nameLabel.font = [UIFont systemFontOfSize:15 weight:UIFontWeightBold];
-    self.nameLabel.textColor = [UIColor colorWithRed:0.941 green:0.941 blue:0.961 alpha:1.0];
+    self.nameLabel.font = DELTA_FONT(15,UIFontWeightBold);
+    self.nameLabel.textColor = [UIColor colorWithRed:0.953 green:0.957 blue:0.988 alpha:1.0];
     self.nameLabel.textAlignment = NSTextAlignmentCenter;
     self.nameLabel.numberOfLines = 2;
     self.nameLabel.adjustsFontSizeToFitWidth = YES;
@@ -197,7 +197,7 @@
     // ── Bundle ID ──────────────────────────────────────────────────────────
     self.bundleLabel = [[UILabel alloc] init];
     self.bundleLabel.font = [UIFont monospacedSystemFontOfSize:9.5 weight:UIFontWeightRegular];
-    self.bundleLabel.textColor = [UIColor colorWithRed:0.50 green:0.50 blue:0.60 alpha:1.0];
+    self.bundleLabel.textColor = [UIColor colorWithRed:0.514 green:0.573 blue:0.722 alpha:1.0];
     self.bundleLabel.textAlignment = NSTextAlignmentCenter;
     self.bundleLabel.numberOfLines = 1;
     self.bundleLabel.adjustsFontSizeToFitWidth = YES;
@@ -420,7 +420,7 @@
     // ── Gradient title "DELTA IPA VN" ─────────────────────────────────────
     UILabel *titleLabel = [[UILabel alloc] init];
     titleLabel.text = @"DELTA IPA VN";
-    titleLabel.font = [UIFont systemFontOfSize:17 weight:UIFontWeightHeavy];
+    titleLabel.font = DELTA_FONT(17,UIFontWeightHeavy);
     titleLabel.textColor = [UIColor whiteColor];
     [titleLabel sizeToFit];
     // Gradient mask: purple → cyan
@@ -439,10 +439,10 @@
     UILabel *badge = [[UILabel alloc] init];
     NSString *_bdgVer = [[NSBundle mainBundle] objectForInfoDictionaryKey:@"CFBundleShortVersionString"] ?: @"1.4.7";
     badge.text = [NSString stringWithFormat:@"  v%@  ", _bdgVer];
-    badge.font = [UIFont systemFontOfSize:10 weight:UIFontWeightBold];
+    badge.font = DELTA_FONT(10,UIFontWeightBold);
     badge.textColor = BRAND_CYAN;
     badge.backgroundColor = [BRAND_CYAN colorWithAlphaComponent:0.12];
-    badge.layer.cornerRadius = 7;
+    badge.layer.cornerRadius = 8;
     badge.layer.masksToBounds = YES;
     badge.layer.borderColor = [BRAND_CYAN colorWithAlphaComponent:0.35].CGColor;
     badge.layer.borderWidth = 1;
@@ -486,8 +486,8 @@
 
     // Gradient nền
     CAGradientLayer *bg = [CAGradientLayer layer];
-    bg.colors = @[(id)[UIColor colorWithRed:0.032 green:0.036 blue:0.063 alpha:1.0].CGColor,
-                  (id)[UIColor colorWithRed:0.035 green:0.043 blue:0.078 alpha:1.0].CGColor];
+    bg.colors = @[(id)[UIColor colorWithRed:0.020 green:0.024 blue:0.055 alpha:1.0].CGColor,
+                  (id)[UIColor colorWithRed:0.024 green:0.031 blue:0.059 alpha:1.0].CGColor];
     bg.startPoint = CGPointMake(0.5, 0.0);
     bg.endPoint   = CGPointMake(0.5, 1.0);
     bg.frame = self.view.bounds;
@@ -877,7 +877,7 @@
     UIVisualEffectView *glassCard = [[UIVisualEffectView alloc]
         initWithEffect:[UIBlurEffect effectWithStyle:UIBlurEffectStyleSystemThinMaterialDark]];
     glassCard.clipsToBounds = YES;
-    glassCard.layer.cornerRadius = 20;
+    glassCard.layer.cornerRadius = 24;
     glassCard.layer.cornerCurve  = kCACornerCurveContinuous;
     glassCard.layer.borderColor  = [UIColor colorWithWhite:1 alpha:0.11].CGColor;
     glassCard.layer.borderWidth  = 1;
@@ -975,7 +975,7 @@
     UILabel *supportLabel = [[UILabel alloc] init];
     supportLabel.tag = 998;
     supportLabel.text = supported ? LS(@"Có Hỗ Trợ", @"Supported") : LS(@"Chưa Hỗ Trợ", @"Not Supported");
-    supportLabel.font = [UIFont systemFontOfSize:13 weight:UIFontWeightSemibold];
+    supportLabel.font = DELTA_FONT(13,UIFontWeightSemibold);
     supportLabel.textColor = supportTint;
     supportLabel.translatesAutoresizingMaskIntoConstraints = NO;
     [supportRow addSubview:supportLabel];
@@ -1028,7 +1028,7 @@
     [row addSubview:icon];
 
     UILabel *label = [[UILabel alloc] init];
-    label.font = [UIFont systemFontOfSize:13 weight:UIFontWeightMedium];
+    label.font = DELTA_FONT(13,UIFontWeightMedium);
     label.textColor = valueColor;
     label.text = text;
     if (tag) label.tag = tag;
@@ -1281,7 +1281,7 @@
     // Gradient nền giống app
     CAGradientLayer *grad = [CAGradientLayer layer];
     grad.colors = @[(id)BRAND_BG.CGColor,
-                    (id)[UIColor colorWithRed:0.035 green:0.043 blue:0.078 alpha:1.0].CGColor];
+                    (id)[UIColor colorWithRed:0.024 green:0.031 blue:0.059 alpha:1.0].CGColor];
     grad.startPoint = CGPointMake(0.5, 0.0);
     grad.endPoint   = CGPointMake(0.5, 1.0);
     grad.frame = overlay.bounds;
@@ -1290,8 +1290,8 @@
     // Logo / tên app
     UILabel *title = [[UILabel alloc] init];
     title.text = @"DELTA PROXY VN";
-    title.font = [UIFont systemFontOfSize:22 weight:UIFontWeightBold];
-    title.textColor = [UIColor colorWithRed:0.941 green:0.941 blue:0.961 alpha:1.0];
+    title.font = DELTA_FONT(22,UIFontWeightBold);
+    title.textColor = [UIColor colorWithRed:0.953 green:0.957 blue:0.988 alpha:1.0];
     title.textAlignment = NSTextAlignmentCenter;
     title.translatesAutoresizingMaskIntoConstraints = NO;
     [overlay addSubview:title];
@@ -1299,7 +1299,7 @@
     // Spinner màu CYAN
     UIActivityIndicatorView *spinner = [[UIActivityIndicatorView alloc]
         initWithActivityIndicatorStyle:UIActivityIndicatorViewStyleMedium];
-    spinner.color = [UIColor colorWithRed:0 green:0.831 blue:1 alpha:1.0];  // BRAND_CYAN
+    spinner.color = [UIColor colorWithRed:0.220 green:0.871 blue:1.000 alpha:1.0];  // BRAND_CYAN
     spinner.translatesAutoresizingMaskIntoConstraints = NO;
     [spinner startAnimating];
     [overlay addSubview:spinner];
@@ -1307,8 +1307,8 @@
     // Subtitle
     UILabel *sub = [[UILabel alloc] init];
     sub.text = @"Starting up...";
-    sub.font = [UIFont systemFontOfSize:13 weight:UIFontWeightRegular];
-    sub.textColor = [UIColor colorWithRed:0.561 green:0.561 blue:0.659 alpha:1.0];
+    sub.font = DELTA_FONT(13,UIFontWeightRegular);
+    sub.textColor = [UIColor colorWithRed:0.545 green:0.584 blue:0.741 alpha:1.0];
     sub.textAlignment = NSTextAlignmentCenter;
     sub.translatesAutoresizingMaskIntoConstraints = NO;
     [overlay addSubview:sub];
