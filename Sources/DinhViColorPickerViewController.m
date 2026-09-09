@@ -14,16 +14,16 @@
 #import "SecurityPinning.h"
 #import "BrandTheme.h"
 
-// ── Palette (mirror HUDControlViewController) ─────────────────────────────────
-#define DV_BG       [UIColor colorWithRed:0.051 green:0.067 blue:0.133 alpha:1.0]  // #0D1122
-#define DV_CARD     [UIColor colorWithRed:0.086 green:0.125 blue:0.235 alpha:1.0]  // #16203C
-#define DV_CARD2    [UIColor colorWithRed:0.118 green:0.165 blue:0.290 alpha:1.0]  // #1E2A4A
-#define DV_BORDER   [UIColor colorWithRed:0.157 green:0.208 blue:0.333 alpha:1.0]  // #283554
-#define DV_CYAN     [UIColor colorWithRed:0.000 green:0.898 blue:1.000 alpha:1.0]  // #00E5FF
-#define DV_GREEN    [UIColor colorWithRed:0.188 green:0.820 blue:0.345 alpha:1.0]  // #30D158
-#define DV_PURPLE   [UIColor colorWithRed:0.749 green:0.353 blue:0.949 alpha:1.0]  // #BF5AF2
-#define DV_INK      [UIColor colorWithRed:1.000 green:1.000 blue:1.000 alpha:1.0]
-#define DV_MUTED    [UIColor colorWithRed:0.514 green:0.573 blue:0.722 alpha:1.0]  // #8392B8
+// ── Palette — OBSIDIAN (mirror HUDControlViewController) ─────────────────────
+#define DV_BG       [UIColor colorWithRed:0.039 green:0.043 blue:0.063 alpha:1.0]  // #0A0B10
+#define DV_CARD     [UIColor colorWithRed:0.075 green:0.082 blue:0.114 alpha:1.0]  // #13151D
+#define DV_CARD2    [UIColor colorWithRed:0.106 green:0.118 blue:0.153 alpha:1.0]  // #1B1E27
+#define DV_BORDER   [UIColor colorWithRed:0.106 green:0.118 blue:0.153 alpha:1.0]  // #1B1E27
+#define DV_CYAN     [UIColor colorWithRed:0.208 green:0.839 blue:1.000 alpha:1.0]  // #35D6FF accent
+#define DV_GREEN    [UIColor colorWithRed:0.208 green:0.839 blue:1.000 alpha:1.0]  // single accent
+#define DV_PURPLE   [UIColor colorWithRed:0.431 green:0.455 blue:0.529 alpha:1.0]  // #6E7487 idle
+#define DV_INK      [UIColor colorWithRed:0.961 green:0.965 blue:0.980 alpha:1.0]  // #F5F6FA
+#define DV_MUTED    [UIColor colorWithRed:0.541 green:0.565 blue:0.635 alpha:1.0]  // #8A90A2
 
 // ── Màu mặc định ──────────────────────────────────────────────────────────────
 static UIColor *kDefaultXray = nil;
@@ -185,7 +185,8 @@ typedef NS_ENUM(NSInteger, DVSlot) { DVSlotXray = 0, DVSlotLine, DVSlotDim, DVSl
     self.applyButton = applyBtn;
 
     CAGradientLayer *grad = [CAGradientLayer layer];
-    grad.colors      = @[(id)DV_PURPLE.CGColor, (id)DV_CYAN.CGColor];
+    grad.colors      = @[(id)[UIColor colorWithRed:0.910 green:0.918 blue:0.949 alpha:1].CGColor,
+                         (id)[UIColor colorWithRed:0.800 green:0.820 blue:0.870 alpha:1].CGColor];
     grad.startPoint  = CGPointMake(0, 0.5);
     grad.endPoint    = CGPointMake(1, 0.5);
     grad.cornerRadius = 18;

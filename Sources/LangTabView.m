@@ -2,9 +2,9 @@
 #import "LanguageManager.h"
 
 // Colors (duplicated from BrandTheme to avoid import cycle)
-#define LT_CYAN  [UIColor colorWithRed:0.220 green:0.871 blue:1.000 alpha:1.0]
-#define LT_GREEN [UIColor colorWithRed:0.204 green:0.780 blue:0.349 alpha:1.0]
-#define LT_BG    [UIColor colorWithRed:0.071 green:0.094 blue:0.176 alpha:0.94]
+#define LT_CYAN  [UIColor colorWithRed:0.208 green:0.839 blue:1.000 alpha:1.0]
+#define LT_GREEN [UIColor colorWithRed:0.204 green:0.827 blue:0.600 alpha:1.0]
+#define LT_BG    [UIColor colorWithRed:0.075 green:0.082 blue:0.114 alpha:0.94]
 
 @implementation LangTabView {
     UILabel *_textLabel;

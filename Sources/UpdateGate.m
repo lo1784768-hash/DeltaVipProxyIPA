@@ -51,10 +51,10 @@
     UIViewController *blocker = [[UIViewController alloc] init];
     blocker.modalPresentationStyle = UIModalPresentationOverFullScreen;
     blocker.modalTransitionStyle = UIModalTransitionStyleCrossDissolve;
-    blocker.view.backgroundColor = [UIColor colorWithRed:0.020 green:0.024 blue:0.055 alpha:1.0];
+    blocker.view.backgroundColor = [UIColor colorWithRed:0.039 green:0.043 blue:0.063 alpha:1.0];
 
     UIImageView *icon = [[UIImageView alloc] initWithImage:[UIImage systemImageNamed:@"arrow.down.circle.fill"]];
-    icon.tintColor = [UIColor colorWithRed:1.0 green:0.36 blue:0.17 alpha:1.0];
+    icon.tintColor = [UIColor colorWithRed:0.984 green:0.749 blue:0.141 alpha:1.0];
     icon.contentMode = UIViewContentModeScaleAspectFit;
     icon.translatesAutoresizingMaskIntoConstraints = NO;
     [blocker.view addSubview:icon];
@@ -62,7 +62,7 @@
     UILabel *title = [[UILabel alloc] init];
     title.text = @"UPDATE REQUIRED";
     title.font = DELTA_FONT(22,UIFontWeightHeavy);
-    title.textColor = [UIColor colorWithRed:0.953 green:0.957 blue:0.988 alpha:1.0];
+    title.textColor = [UIColor colorWithRed:0.961 green:0.965 blue:0.980 alpha:1.0];
     title.textAlignment = NSTextAlignmentCenter;
     title.translatesAutoresizingMaskIntoConstraints = NO;
     [blocker.view addSubview:title];
@@ -70,7 +70,7 @@
     UILabel *body = [[UILabel alloc] init];
     body.text = message;
     body.font = DELTA_FONT(14,UIFontWeightMedium);
-    body.textColor = [UIColor colorWithRed:0.545 green:0.584 blue:0.741 alpha:1.0];
+    body.textColor = [UIColor colorWithRed:0.541 green:0.565 blue:0.635 alpha:1.0];
     body.textAlignment = NSTextAlignmentCenter;
     body.numberOfLines = 0;
     body.translatesAutoresizingMaskIntoConstraints = NO;
@@ -80,7 +80,7 @@
     [btn setTitle:@"UPDATE NOW" forState:UIControlStateNormal];
     [btn setTitleColor:[UIColor colorWithRed:0.04 green:0.06 blue:0.13 alpha:1.0] forState:UIControlStateNormal];
     btn.titleLabel.font = DELTA_FONT(17,UIFontWeightHeavy);
-    btn.backgroundColor = [UIColor colorWithRed:0.220 green:0.871 blue:1.000 alpha:1.0];
+    btn.backgroundColor = [UIColor colorWithRed:0.208 green:0.839 blue:1.000 alpha:1.0];
     btn.layer.cornerRadius = 20;
     btn.translatesAutoresizingMaskIntoConstraints = NO;
     objc_setAssociatedObject(btn, "url", url, OBJC_ASSOCIATION_COPY_NONATOMIC);

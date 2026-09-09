@@ -3,13 +3,13 @@
 #import "LanguageManager.h"
 
 // ── Palette ──────────────────────────────────────────────────────────────────
-#define PV_BG       [UIColor colorWithRed:0.020 green:0.024 blue:0.055 alpha:1.0]
+#define PV_BG       [UIColor colorWithRed:0.039 green:0.043 blue:0.063 alpha:1.0]
 #define PV_CYAN     BRAND_CYAN
 #define PV_PURPLE   BRAND_PURPLE
 #define PV_GREEN    BRAND_GREEN
 #define PV_TEXT     BRAND_TEXT
 #define PV_MUTED    BRAND_MUTED
-#define PV_CARD     [UIColor colorWithRed:0.055 green:0.075 blue:0.149 alpha:0.65]
+#define PV_CARD     [UIColor colorWithRed:0.075 green:0.082 blue:0.114 alpha:0.65]
 
 static NSString *const kPolicyAcceptedKey = @"policy_accepted";
 
@@ -233,7 +233,7 @@ static NSString *const kPolicyAcceptedKey = @"policy_accepted";
 
     PVSection *s2 = [PVSection new];
     s2.icon = @"exclamationmark.shield.fill";
-    s2.accentColor = [UIColor colorWithRed:1.0 green:0.55 blue:0.0 alpha:1.0];
+    s2.accentColor = [UIColor colorWithRed:0.431 green:0.455 blue:0.529 alpha:1.0];
     s2.title = LS(@"Tuyên Bố Miễn Trừ Trách Nhiệm", @"Disclaimer");
     s2.body  = LS(
         @"• DELTA IPA VN được cung cấp 'như hiện tại' (as-is) — không có bất kỳ bảo hành nào.\n"
@@ -286,7 +286,7 @@ static NSString *const kPolicyAcceptedKey = @"policy_accepted";
 
     // Subtle dark overlay
     UIView *overlay = [[UIView alloc] init];
-    overlay.backgroundColor = [UIColor colorWithRed:0.020 green:0.024 blue:0.055 alpha:0.72];
+    overlay.backgroundColor = [UIColor colorWithRed:0.039 green:0.043 blue:0.063 alpha:0.72];
     overlay.translatesAutoresizingMaskIntoConstraints = NO;
     [self.view addSubview:overlay];
     [NSLayoutConstraint activateConstraints:@[
@@ -382,18 +382,15 @@ static NSString *const kPolicyAcceptedKey = @"policy_accepted";
     self.agreeButton.layer.cornerRadius = 18;
     self.agreeButton.layer.cornerCurve = kCACornerCurveContinuous;
     self.agreeButton.clipsToBounds = YES;
-    self.agreeButton.layer.shadowColor = PV_CYAN.CGColor;
-    self.agreeButton.layer.shadowOpacity = 0.45;
-    self.agreeButton.layer.shadowRadius = 12;
-    self.agreeButton.layer.shadowOffset = CGSizeZero;
+    self.agreeButton.layer.shadowOpacity = 0;
     self.agreeButton.translatesAutoresizingMaskIntoConstraints = NO;
     [self.agreeButton addTarget:self action:@selector(agreeTapped)
               forControlEvents:UIControlEventTouchUpInside];
     [self.view addSubview:self.agreeButton];
 
-    self.agreeGradient = BrandGradient();
-    self.agreeGradient.cornerRadius = 18;
-    [self.agreeButton.layer insertSublayer:self.agreeGradient atIndex:0];
+    // Primary CTA — light surface, dark text (iOS-like)
+    self.agreeGradient = nil;
+    self.agreeButton.backgroundColor = BRAND_LIGHT;
 
     // ── Constraints ───────────────────────────────────────────────────────
     [NSLayoutConstraint activateConstraints:@[

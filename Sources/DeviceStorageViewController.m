@@ -276,16 +276,20 @@
     cell.selectionStyle = UITableViewCellSelectionStyleNone;
 
     NSDictionary *section = self.sections[indexPath.row];
-    NSString *icon = section[@"icon"] ?: @"📁";
+    static NSArray<NSString *> *syms = nil;
+    if (!syms) syms = @[@"folder.fill", @"square.stack.3d.up.fill", @"gearshape.fill", @"internaldrive.fill", @"lock.fill"];
 
     // Use UIListContentConfiguration (iOS 14+) instead of removed textLabel/detailTextLabel
     UIListContentConfiguration *config = [cell defaultContentConfiguration];
-    config.text = [NSString stringWithFormat:@"%@ %@", icon, section[@"name"]];
+    config.image = [UIImage systemImageNamed:syms[(NSUInteger)(indexPath.row % syms.count)]];
+    config.imageProperties.tintColor = BRAND_MUTED;
+    config.text = section[@"name"];
     config.secondaryText = section[@"description"];
-    config.textProperties.color = [UIColor colorWithRed:0.953 green:0.957 blue:0.988 alpha:1.0];
+    config.textProperties.color = [UIColor colorWithRed:0.961 green:0.965 blue:0.980 alpha:1.0];
     config.textProperties.font = DELTA_FONT(16,UIFontWeightSemibold);
-    config.secondaryTextProperties.color = [UIColor colorWithRed:0.545 green:0.584 blue:0.741 alpha:1.0];
+    config.secondaryTextProperties.color = [UIColor colorWithRed:0.541 green:0.565 blue:0.635 alpha:1.0];
     config.secondaryTextProperties.font = DELTA_FONT(12.5,UIFontWeightRegular);
+    config.imageToTextPadding = 14;
     [cell setContentConfiguration:config];
 
     cell.accessoryType = UITableViewCellAccessoryDisclosureIndicator;

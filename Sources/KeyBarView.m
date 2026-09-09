@@ -3,8 +3,8 @@
 #import "BrandTheme.h"
 #import "LanguageManager.h"
 
-#define KB_GREEN  [UIColor colorWithRed:0.204 green:0.780 blue:0.349 alpha:1.0]
-#define KB_RED    [UIColor colorWithRed:1.000 green:0.231 blue:0.322 alpha:1.0]
+#define KB_GREEN  [UIColor colorWithRed:0.204 green:0.827 blue:0.600 alpha:1.0]
+#define KB_RED    [UIColor colorWithRed:0.973 green:0.443 blue:0.443 alpha:1.0]
 #define KB_ORANGE [UIColor colorWithRed:1.000 green:0.58  blue:0.0   alpha:1.0]
 #define KB_CYAN   BRAND_CYAN
 #define KB_MUTED  BRAND_MUTED
@@ -129,23 +129,23 @@
         [blur.bottomAnchor constraintEqualToAnchor:self.bottomAnchor],
     ]];
     self.backgroundColor = [UIColor clearColor];
-    self.layer.borderColor = [UIColor colorWithWhite:1 alpha:0.10].CGColor;
+    self.layer.borderColor = [UIColor colorWithWhite:1 alpha:0.07].CGColor;
     self.layer.borderWidth = 1;
-    self.layer.cornerRadius = 28;
+    self.layer.cornerRadius = 16;
     self.layer.cornerCurve = kCACornerCurveContinuous;
     self.layer.masksToBounds = YES;
 
-    // Neon stroke gradient overlay (top line tím→cyan)
+    // Hairline accent (neutral, không neon)
     _topLine = [[UIView alloc] init];
     _topLine.backgroundColor = [UIColor clearColor];
     _topLine.translatesAutoresizingMaskIntoConstraints = NO;
     [self addSubview:_topLine];
     _lineGradient = [CAGradientLayer layer];
     _lineGradient.colors = @[
-        (id)[BRAND_PURPLE colorWithAlphaComponent:0.0].CGColor,
-        (id)BRAND_PURPLE.CGColor,
-        (id)BRAND_CYAN.CGColor,
-        (id)[BRAND_CYAN colorWithAlphaComponent:0.0].CGColor
+        (id)[UIColor colorWithWhite:1 alpha:0.0].CGColor,
+        (id)[UIColor colorWithWhite:1 alpha:0.10].CGColor,
+        (id)[UIColor colorWithWhite:1 alpha:0.10].CGColor,
+        (id)[UIColor colorWithWhite:1 alpha:0.0].CGColor
     ];
     _lineGradient.startPoint = CGPointMake(0, 0.5);
     _lineGradient.endPoint   = CGPointMake(1, 0.5);
@@ -173,11 +173,11 @@
     UIImageSymbolConfiguration *shCfg = [UIImageSymbolConfiguration configurationWithPointSize:16 weight:UIImageSymbolWeightMedium];
     [_policyButton setImage:[UIImage systemImageNamed:@"shield.lefthalf.filled" withConfiguration:shCfg]
                    forState:UIControlStateNormal];
-    _policyButton.tintColor = [KB_CYAN colorWithAlphaComponent:0.75];
-    _policyButton.backgroundColor = [KB_CYAN colorWithAlphaComponent:0.10];
-    _policyButton.layer.cornerRadius = 14;
+    _policyButton.tintColor = KB_TEXT;
+    _policyButton.backgroundColor = [UIColor colorWithWhite:1 alpha:0.06];
+    _policyButton.layer.cornerRadius = 10;
     _policyButton.layer.cornerCurve = kCACornerCurveContinuous;
-    _policyButton.layer.borderColor = [KB_CYAN colorWithAlphaComponent:0.25].CGColor;
+    _policyButton.layer.borderColor = [UIColor colorWithWhite:1 alpha:0.10].CGColor;
     _policyButton.layer.borderWidth = 1;
     _policyButton.layer.masksToBounds = YES;
     _policyButton.translatesAutoresizingMaskIntoConstraints = NO;
@@ -185,22 +185,20 @@
             forControlEvents:UIControlEventTouchUpInside];
     [self addSubview:_policyButton];
 
-    // Add key button (gradient capsule)
+    // Add key button — light surface, text (iOS-like, không gradient)
     _addButton = [UIButton buttonWithType:UIButtonTypeSystem];
-    _addButton.titleLabel.font = DELTA_FONT(13,UIFontWeightHeavy);
-    [_addButton setTitleColor:[UIColor colorWithRed:0.04 green:0.06 blue:0.13 alpha:1.0]
+    _addButton.titleLabel.font = DELTA_FONT(13,UIFontWeightSemibold);
+    [_addButton setTitleColor:[UIColor colorWithRed:0.039 green:0.043 blue:0.063 alpha:1.0]
                      forState:UIControlStateNormal];
-    _addButton.layer.cornerRadius = 15;
+    _addButton.backgroundColor = BRAND_LIGHT;
+    _addButton.layer.cornerRadius = 10;
     _addButton.layer.cornerCurve = kCACornerCurveContinuous;
     _addButton.clipsToBounds = YES;
     _addButton.contentEdgeInsets = UIEdgeInsetsMake(0, 14, 0, 14);
     _addButton.translatesAutoresizingMaskIntoConstraints = NO;
     [_addButton addTarget:self action:@selector(addTapped) forControlEvents:UIControlEventTouchUpInside];
     [self addSubview:_addButton];
-
-    _addGradient = BrandGradient();
-    _addGradient.cornerRadius = 15;
-    [_addButton.layer insertSublayer:_addGradient atIndex:0];
+    _addGradient = nil;
 
     // Info button (i)
     UIButton *infoBtn = [UIButton buttonWithType:UIButtonTypeSystem];

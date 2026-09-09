@@ -27,7 +27,7 @@
 - (instancetype)initWithFrame:(CGRect)frame {
     self = [super initWithFrame:frame];
     if (self) {
-        self.backgroundColor = [UIColor colorWithRed:0.055 green:0.075 blue:0.149 alpha:0.55];
+        self.backgroundColor = [UIColor colorWithRed:0.075 green:0.082 blue:0.114 alpha:0.55];
         self.layer.borderColor = [UIColor colorWithWhite:1 alpha:0.11].CGColor;
         self.layer.borderWidth = 1;
         self.layer.cornerCurve = kCACornerCurveContinuous;
@@ -180,7 +180,7 @@
     // ── App name ───────────────────────────────────────────────────────────
     self.nameLabel = [[UILabel alloc] init];
     self.nameLabel.font = DELTA_FONT(15,UIFontWeightBold);
-    self.nameLabel.textColor = [UIColor colorWithRed:0.953 green:0.957 blue:0.988 alpha:1.0];
+    self.nameLabel.textColor = [UIColor colorWithRed:0.961 green:0.965 blue:0.980 alpha:1.0];
     self.nameLabel.textAlignment = NSTextAlignmentCenter;
     self.nameLabel.numberOfLines = 2;
     self.nameLabel.adjustsFontSizeToFitWidth = YES;
@@ -197,7 +197,7 @@
     // ── Bundle ID ──────────────────────────────────────────────────────────
     self.bundleLabel = [[UILabel alloc] init];
     self.bundleLabel.font = [UIFont monospacedSystemFontOfSize:9.5 weight:UIFontWeightRegular];
-    self.bundleLabel.textColor = [UIColor colorWithRed:0.514 green:0.573 blue:0.722 alpha:1.0];
+    self.bundleLabel.textColor = [UIColor colorWithRed:0.541 green:0.565 blue:0.635 alpha:1.0];
     self.bundleLabel.textAlignment = NSTextAlignmentCenter;
     self.bundleLabel.numberOfLines = 1;
     self.bundleLabel.adjustsFontSizeToFitWidth = YES;
@@ -398,6 +398,130 @@
 
 @end
 
+// ══════════════════════════════════════════════════════════════════════
+//  AppDataRowCell — OBSIDIAN full-width row (enterprise)
+//  [icon 64] name + bundle ···· status chip ›
+// ══════════════════════════════════════════════════════════════════════
+@interface AppDataRowCell : UICollectionViewCell
+@property (nonatomic, strong) UIImageView *iconView;
+@property (nonatomic, strong) UILabel *nameLabel;
+@property (nonatomic, strong) UILabel *bundleLabel;
+@property (nonatomic, strong) UILabel *statusChip;
+- (void)setReady:(BOOL)ready;
+@end
+
+@implementation AppDataRowCell
+
+- (instancetype)initWithFrame:(CGRect)frame {
+    self = [super initWithFrame:frame];
+    if (self) {
+        self.backgroundColor = [UIColor clearColor];
+        self.contentView.backgroundColor = [UIColor clearColor];
+
+        UIView *card = [[UIView alloc] init];
+        card.backgroundColor    = BRAND_SURFACE;
+        card.layer.cornerRadius = 16;
+        card.layer.cornerCurve  = kCACornerCurveContinuous;
+        card.layer.borderColor  = [UIColor colorWithWhite:1 alpha:0.07].CGColor;
+        card.layer.borderWidth  = 1;
+        card.layer.masksToBounds = YES;
+        card.translatesAutoresizingMaskIntoConstraints = NO;
+        [self.contentView addSubview:card];
+
+        // Icon tile 64pt
+        self.iconView = [[UIImageView alloc] init];
+        self.iconView.contentMode = UIViewContentModeScaleAspectFill;
+        self.iconView.clipsToBounds = YES;
+        self.iconView.layer.cornerRadius = 16;
+        self.iconView.layer.cornerCurve  = kCACornerCurveContinuous;
+        self.iconView.layer.borderColor  = [UIColor colorWithWhite:1 alpha:0.10].CGColor;
+        self.iconView.layer.borderWidth  = 1;
+        self.iconView.layer.magnificationFilter = kCAFilterTrilinear;
+        self.iconView.layer.minificationFilter = kCAFilterTrilinear;
+        self.iconView.translatesAutoresizingMaskIntoConstraints = NO;
+        [card addSubview:self.iconView];
+
+        self.nameLabel = [[UILabel alloc] init];
+        self.nameLabel.font = DELTA_FONT(15,UIFontWeightSemibold);
+        self.nameLabel.textColor = BRAND_TEXT;
+        self.nameLabel.numberOfLines = 1;
+        self.nameLabel.adjustsFontSizeToFitWidth = YES;
+        self.nameLabel.minimumScaleFactor = 0.7;
+        self.nameLabel.translatesAutoresizingMaskIntoConstraints = NO;
+        [card addSubview:self.nameLabel];
+
+        self.bundleLabel = [[UILabel alloc] init];
+        self.bundleLabel.font = [UIFont monospacedSystemFontOfSize:11 weight:UIFontWeightRegular];
+        self.bundleLabel.textColor = BRAND_MUTED;
+        self.bundleLabel.numberOfLines = 1;
+        self.bundleLabel.adjustsFontSizeToFitWidth = YES;
+        self.bundleLabel.minimumScaleFactor = 0.7;
+        self.bundleLabel.translatesAutoresizingMaskIntoConstraints = NO;
+        [card addSubview:self.bundleLabel];
+
+        // Status chip
+        self.statusChip = [[UILabel alloc] init];
+        self.statusChip.font = [UIFont monospacedSystemFontOfSize:10 weight:UIFontWeightSemibold];
+        self.statusChip.textColor = BRAND_CYAN;
+        self.statusChip.backgroundColor = [UIColor colorWithWhite:1 alpha:0.06];
+        self.statusChip.layer.cornerRadius = 6;
+        self.statusChip.layer.cornerCurve = kCACornerCurveContinuous;
+        self.statusChip.layer.borderColor = [UIColor colorWithWhite:1 alpha:0.10].CGColor;
+        self.statusChip.layer.borderWidth = 1;
+        self.statusChip.layer.masksToBounds = YES;
+        self.statusChip.translatesAutoresizingMaskIntoConstraints = NO;
+        [card addSubview:self.statusChip];
+
+        UIImageView *chevron = [[UIImageView alloc]
+            initWithImage:[UIImage systemImageNamed:@"chevron.right"]];
+        UIImageSymbolConfiguration *cfg = [UIImageSymbolConfiguration
+            configurationWithPointSize:13 weight:UIImageSymbolWeightSemibold];
+        chevron.image = [UIImage systemImageNamed:@"chevron.right" withConfiguration:cfg];
+        chevron.tintColor = BRAND_MUTED;
+        chevron.contentMode = UIViewContentModeScaleAspectFit;
+        chevron.translatesAutoresizingMaskIntoConstraints = NO;
+        [card addSubview:chevron];
+
+        [NSLayoutConstraint activateConstraints:@[
+            [card.topAnchor constraintEqualToAnchor:self.contentView.topAnchor],
+            [card.leadingAnchor constraintEqualToAnchor:self.contentView.leadingAnchor],
+            [card.trailingAnchor constraintEqualToAnchor:self.contentView.trailingAnchor],
+            [card.bottomAnchor constraintEqualToAnchor:self.contentView.bottomAnchor],
+
+            [self.iconView.leadingAnchor constraintEqualToAnchor:card.leadingAnchor constant:14],
+            [self.iconView.centerYAnchor constraintEqualToAnchor:card.centerYAnchor],
+            [self.iconView.widthAnchor constraintEqualToConstant:64],
+            [self.iconView.heightAnchor constraintEqualToConstant:64],
+
+            [self.nameLabel.leadingAnchor constraintEqualToAnchor:self.iconView.trailingAnchor constant:14],
+            [self.nameLabel.trailingAnchor constraintLessThanOrEqualToAnchor:self.statusChip.leadingAnchor constant:-12],
+            [self.nameLabel.topAnchor constraintEqualToAnchor:card.topAnchor constant:24],
+            [self.nameLabel.heightAnchor constraintEqualToConstant:20],
+
+            [self.bundleLabel.leadingAnchor constraintEqualToAnchor:self.nameLabel.leadingAnchor],
+            [self.bundleLabel.trailingAnchor constraintLessThanOrEqualToAnchor:card.trailingAnchor constant:-90],
+            [self.bundleLabel.topAnchor constraintEqualToAnchor:self.nameLabel.bottomAnchor constant:4],
+
+            [self.statusChip.trailingAnchor constraintEqualToAnchor:chevron.leadingAnchor constant:-10],
+            [self.statusChip.centerYAnchor constraintEqualToAnchor:card.centerYAnchor],
+            [self.statusChip.heightAnchor constraintEqualToConstant:26],
+
+            [chevron.trailingAnchor constraintEqualToAnchor:card.trailingAnchor constant:-16],
+            [chevron.centerYAnchor constraintEqualToAnchor:card.centerYAnchor],
+            [chevron.widthAnchor constraintEqualToConstant:12],
+            [chevron.heightAnchor constraintEqualToConstant:16],
+        ]];
+    }
+    return self;
+}
+
+- (void)setReady:(BOOL)ready {
+    self.statusChip.textColor = ready ? BRAND_CYAN : BRAND_MUTED;
+    self.statusChip.text = ready ? @"  READY  " : @"  OFFLINE  ";
+}
+
+@end
+
 @interface AppDataViewController () <UICollectionViewDataSource, UICollectionViewDelegate>
 @property (nonatomic, strong) UICollectionView *collectionView;
 @property (nonatomic, strong) NSArray<NSString *> *appIDs;
@@ -417,34 +541,23 @@
 - (void)viewDidLoad {
     [super viewDidLoad];
 
-    // ── Gradient title "DELTA IPA VN" ─────────────────────────────────────
+    // ── Clean title "DELTA IPA VN" + version pill ─────────────────────────
     UILabel *titleLabel = [[UILabel alloc] init];
     titleLabel.text = @"DELTA IPA VN";
     titleLabel.font = DELTA_FONT(17,UIFontWeightHeavy);
-    titleLabel.textColor = [UIColor whiteColor];
+    titleLabel.textColor = BRAND_TEXT;
     [titleLabel sizeToFit];
-    // Gradient mask: purple → cyan
-    CAGradientLayer *tg = [CAGradientLayer layer];
-    tg.colors = @[(id)BRAND_PURPLE.CGColor, (id)BRAND_CYAN.CGColor];
-    tg.startPoint = CGPointMake(0, 0.5);
-    tg.endPoint   = CGPointMake(1, 0.5);
-    tg.frame = titleLabel.bounds;
-    UIGraphicsBeginImageContextWithOptions(titleLabel.bounds.size, NO, 0);
-    [tg renderInContext:UIGraphicsGetCurrentContext()];
-    UIImage *gradImg = UIGraphicsGetImageFromCurrentImageContext();
-    UIGraphicsEndImageContext();
-    titleLabel.textColor = [UIColor colorWithPatternImage:gradImg];
 
-    // Version badge
+    // Version pill — trung tính (không glow)
     UILabel *badge = [[UILabel alloc] init];
     NSString *_bdgVer = [[NSBundle mainBundle] objectForInfoDictionaryKey:@"CFBundleShortVersionString"] ?: @"1.4.7";
     badge.text = [NSString stringWithFormat:@"  v%@  ", _bdgVer];
-    badge.font = DELTA_FONT(10,UIFontWeightBold);
-    badge.textColor = BRAND_CYAN;
-    badge.backgroundColor = [BRAND_CYAN colorWithAlphaComponent:0.12];
-    badge.layer.cornerRadius = 8;
+    badge.font = [UIFont monospacedSystemFontOfSize:10 weight:UIFontWeightMedium];
+    badge.textColor = BRAND_MUTED;
+    badge.backgroundColor = [UIColor colorWithWhite:1 alpha:0.06];
+    badge.layer.cornerRadius = 7;
     badge.layer.masksToBounds = YES;
-    badge.layer.borderColor = [BRAND_CYAN colorWithAlphaComponent:0.35].CGColor;
+    badge.layer.borderColor = [UIColor colorWithWhite:1 alpha:0.10].CGColor;
     badge.layer.borderWidth = 1;
 
     UIStackView *titleStack = [[UIStackView alloc] initWithArrangedSubviews:@[titleLabel, badge]];
@@ -484,21 +597,15 @@
     };
     self.view.backgroundColor = BRAND_BG;
 
-    // Gradient nền
+    // Gradient nền — OBSIDIAN: #0A0B10 → #0E1017
     CAGradientLayer *bg = [CAGradientLayer layer];
-    bg.colors = @[(id)[UIColor colorWithRed:0.020 green:0.024 blue:0.055 alpha:1.0].CGColor,
-                  (id)[UIColor colorWithRed:0.024 green:0.031 blue:0.059 alpha:1.0].CGColor];
+    bg.colors = @[(id)[UIColor colorWithRed:0.039 green:0.043 blue:0.063 alpha:1.0].CGColor,
+                  (id)[UIColor colorWithRed:0.055 green:0.063 blue:0.090 alpha:1.0].CGColor];
     bg.startPoint = CGPointMake(0.5, 0.0);
     bg.endPoint   = CGPointMake(0.5, 1.0);
     bg.frame = self.view.bounds;
     [self.view.layer insertSublayer:bg atIndex:0];
     self.bgGradient = bg;
-
-    // Glow layers — aurora mạnh hơn
-    self.purpleGlow = BrandRadialGlow([BRAND_PURPLE colorWithAlphaComponent:0.40]);
-    self.cyanGlow   = BrandRadialGlow([BRAND_CYAN   colorWithAlphaComponent:0.28]);
-    [self.view.layer insertSublayer:self.purpleGlow above:bg];
-    [self.view.layer insertSublayer:self.cyanGlow above:self.purpleGlow];
 
     UIView *grid = [[UIView alloc] initWithFrame:self.view.bounds];
     grid.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
@@ -513,15 +620,16 @@
     self.navigationItem.scrollEdgeAppearance = ap;
     self.navigationController.navigationBar.tintColor = BRAND_CYAN;
 
-    // Stats (device info card)
-    [self createStatsView];
+    // Stats (device info strip)
+    [self createStatsStrip];
 
-    // Collection view
+    // Collection view — OBSIDIAN: full-width rows
     UICollectionViewFlowLayout *layout = [[UICollectionViewFlowLayout alloc] init];
-    layout.itemSize = CGSizeMake((self.view.bounds.size.width - 48) / 2, 198);
-    layout.minimumLineSpacing      = 16;
-    layout.minimumInteritemSpacing = 16;
-    layout.sectionInset = UIEdgeInsetsMake(12, 16, 16, 16);
+    CGFloat rowWidth = self.view.bounds.size.width - 32;
+    layout.itemSize = CGSizeMake(rowWidth, 88);
+    layout.minimumLineSpacing      = 12;
+    layout.minimumInteritemSpacing = 12;
+    layout.sectionInset = UIEdgeInsetsMake(8, 16, 16, 16);
 
     self.collectionView = [[UICollectionView alloc] initWithFrame:self.view.bounds
                                               collectionViewLayout:layout];
@@ -529,17 +637,13 @@
     self.collectionView.dataSource = self;
     self.collectionView.delegate = self;
     self.collectionView.contentInset = UIEdgeInsetsMake(0, 0, 110, 0); // room for floating pill
-    [self.collectionView registerClass:[AppDataCell class] forCellWithReuseIdentifier:@"AppCell"];
+    [self.collectionView registerClass:[AppDataRowCell class] forCellWithReuseIdentifier:@"AppCell"];
     self.collectionView.translatesAutoresizingMaskIntoConstraints = NO;
     [self.view addSubview:self.collectionView];
 
     // ── Floating Pill KeyBar ───────────────────────────────────────────────
     self.keyBar = [[KeyBarView alloc] init];
     self.keyBar.translatesAutoresizingMaskIntoConstraints = NO;
-    self.keyBar.layer.shadowColor  = BRAND_PURPLE.CGColor;
-    self.keyBar.layer.shadowOpacity = 0.40;
-    self.keyBar.layer.shadowRadius  = 18;
-    self.keyBar.layer.shadowOffset  = CGSizeZero;
     [self.view addSubview:self.keyBar];
 
     __weak typeof(self) weakSelf = self;
@@ -919,7 +1023,7 @@
     BOOL supported = [self isIOSSupported];
     UIColor *supportTint = supported
         ? [UIColor colorWithRed:0.2 green:0.85 blue:0.4 alpha:1.0]
-        : [UIColor colorWithRed:1.0 green:0.55 blue:0.0 alpha:1.0];
+        : [UIColor colorWithRed:0.431 green:0.455 blue:0.529 alpha:1.0];
 
     UIView *supportRow = [[UIView alloc] init];
     supportRow.translatesAutoresizingMaskIntoConstraints = NO;
@@ -1017,6 +1121,123 @@
     if (gr.state == UIGestureRecognizerStateBegan) {
         [self showAdminReset];
     }
+}
+
+// ── OBSIDIAN slim status strip (44pt, monochrome pills) ──────────────
+- (void)createStatsStrip {
+    self.statsView = [[UIView alloc] init];
+    self.statsView.backgroundColor = [UIColor clearColor];
+    self.statsView.translatesAutoresizingMaskIntoConstraints = NO;
+    [self.view addSubview:self.statsView];
+
+    UIVisualEffectView *strip = [[UIVisualEffectView alloc]
+        initWithEffect:[UIBlurEffect effectWithStyle:UIBlurEffectStyleSystemThinMaterialDark]];
+    strip.clipsToBounds = YES;
+    strip.layer.cornerRadius = 14;
+    strip.layer.cornerCurve  = kCACornerCurveContinuous;
+    strip.layer.borderColor  = [UIColor colorWithWhite:1 alpha:0.07].CGColor;
+    strip.layer.borderWidth  = 1;
+    strip.translatesAutoresizingMaskIntoConstraints = NO;
+    [self.statsView addSubview:strip];
+
+    [NSLayoutConstraint activateConstraints:@[
+        [self.statsView.topAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.topAnchor constant:6],
+        [self.statsView.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor constant:16],
+        [self.statsView.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor constant:-16],
+        [self.statsView.heightAnchor constraintEqualToConstant:44],
+
+        [strip.topAnchor constraintEqualToAnchor:self.statsView.topAnchor],
+        [strip.leadingAnchor constraintEqualToAnchor:self.statsView.leadingAnchor],
+        [strip.trailingAnchor constraintEqualToAnchor:self.statsView.trailingAnchor],
+        [strip.bottomAnchor constraintEqualToAnchor:self.statsView.bottomAnchor],
+    ]];
+
+    UIView *cc = strip.contentView;
+
+    // Pill: iOS version
+    UIStackView *iosPill = [self obsidianPillSymbol:@"applelogo" text:[NSString stringWithFormat:@"iOS %@", [[UIDevice currentDevice] systemVersion]]];
+    // Pill: device
+    UIStackView *devPill = [self obsidianPillSymbol:@"iphone" text:[self deviceModelName]];
+
+    // Pill: support (semantic dot)
+    BOOL supported = [self isIOSSupported];
+    UIColor *dotColor = supported ? BRAND_GREEN : BRAND_YELLOW;
+    UIView *dot = [[UIView alloc] init];
+    dot.backgroundColor = dotColor;
+    dot.layer.cornerRadius = 3;
+    dot.translatesAutoresizingMaskIntoConstraints = NO;
+
+    UILabel *supportLabel = [[UILabel alloc] init];
+    supportLabel.tag = 998;
+    supportLabel.text = supported ? LS(@"Có Hỗ Trợ", @"Supported") : LS(@"Chưa Hỗ Trợ", @"Not Supported");
+    supportLabel.font = DELTA_FONT(12,UIFontWeightMedium);
+    supportLabel.textColor = BRAND_TEXT;
+    supportLabel.translatesAutoresizingMaskIntoConstraints = NO;
+
+    UIStackView *supportPill = [[UIStackView alloc] initWithArrangedSubviews:@[dot, supportLabel]];
+    supportPill.axis = UILayoutConstraintAxisHorizontal;
+    supportPill.spacing = 7;
+    supportPill.alignment = UIStackViewAlignmentCenter;
+    supportPill.translatesAutoresizingMaskIntoConstraints = NO;
+
+    UIStackView *row = [[UIStackView alloc] initWithArrangedSubviews:@[iosPill, [self dotSeparator], devPill, supportPill]];
+    row.axis = UILayoutConstraintAxisHorizontal;
+    row.spacing = 12;
+    row.alignment = UIStackViewAlignmentCenter;
+    row.distribution = UIStackViewDistributionFill;
+    row.translatesAutoresizingMaskIntoConstraints = NO;
+    [cc addSubview:row];
+
+    [NSLayoutConstraint activateConstraints:@[
+        [row.leadingAnchor constraintEqualToAnchor:cc.leadingAnchor constant:16],
+        [row.trailingAnchor constraintLessThanOrEqualToAnchor:cc.trailingAnchor constant:-16],
+        [row.centerYAnchor constraintEqualToAnchor:cc.centerYAnchor],
+        [dot.widthAnchor constraintEqualToConstant:6],
+        [dot.heightAnchor constraintEqualToConstant:6],
+        [supportPill.widthAnchor constraintGreaterThanOrEqualToConstant:90],
+        [supportPill.trailingAnchor constraintEqualToAnchor:cc.trailingAnchor constant:-16],
+        [devPill setContentCompressionResistancePriority:UILayoutPriorityDefaultLow forAxis:UILayoutConstraintAxisHorizontal],
+    ]];
+
+    UILongPressGestureRecognizer *lp = [[UILongPressGestureRecognizer alloc]
+        initWithTarget:self action:@selector(handleAdminLongPress:)];
+    lp.minimumPressDuration = 1.2;
+    self.statsView.userInteractionEnabled = YES;
+    [self.statsView addGestureRecognizer:lp];
+}
+
+- (UIStackView *)obsidianPillSymbol:(NSString *)symbol text:(NSString *)text {
+    UIImageSymbolConfiguration *cfg = [UIImageSymbolConfiguration
+        configurationWithPointSize:12 weight:UIImageSymbolWeightMedium];
+    UIImageView *iv = [[UIImageView alloc] initWithImage:[UIImage systemImageNamed:symbol withConfiguration:cfg]];
+    iv.tintColor = BRAND_MUTED;
+    iv.contentMode = UIViewContentModeScaleAspectFit;
+    [iv.widthAnchor constraintEqualToConstant:14].active = YES;
+    [iv.heightAnchor constraintEqualToConstant:14].active = YES;
+
+    UILabel *lbl = [[UILabel alloc] init];
+    lbl.text = text;
+    lbl.font = DELTA_FONT(12,UIFontWeightMedium);
+    lbl.textColor = BRAND_TEXT;
+    lbl.adjustsFontSizeToFitWidth = YES;
+    lbl.minimumScaleFactor = 0.6;
+    [lbl setContentCompressionResistancePriority:UILayoutPriorityDefaultLow forAxis:UILayoutConstraintAxisHorizontal];
+
+    UIStackView *pill = [[UIStackView alloc] initWithArrangedSubviews:@[iv, lbl]];
+    pill.axis = UILayoutConstraintAxisHorizontal;
+    pill.spacing = 6;
+    pill.alignment = UIStackViewAlignmentCenter;
+    return pill;
+}
+
+- (UIView *)dotSeparator {
+    UIView *d = [[UIView alloc] init];
+    d.backgroundColor = [UIColor colorWithWhite:1 alpha:0.15];
+    d.layer.cornerRadius = 1.5;
+    d.translatesAutoresizingMaskIntoConstraints = NO;
+    [d.widthAnchor constraintEqualToConstant:3].active = YES;
+    [d.heightAnchor constraintEqualToConstant:3].active = YES;
+    return d;
 }
 
 // A stat row: [glass icon chip 38×38] label — Aurora Frost
@@ -1301,7 +1522,7 @@
     // Gradient nền giống app
     CAGradientLayer *grad = [CAGradientLayer layer];
     grad.colors = @[(id)BRAND_BG.CGColor,
-                    (id)[UIColor colorWithRed:0.024 green:0.031 blue:0.059 alpha:1.0].CGColor];
+                    (id)[UIColor colorWithRed:0.039 green:0.043 blue:0.063 alpha:1.0].CGColor];
     grad.startPoint = CGPointMake(0.5, 0.0);
     grad.endPoint   = CGPointMake(0.5, 1.0);
     grad.frame = overlay.bounds;
@@ -1311,7 +1532,7 @@
     UILabel *title = [[UILabel alloc] init];
     title.text = @"DELTA PROXY VN";
     title.font = DELTA_FONT(22,UIFontWeightBold);
-    title.textColor = [UIColor colorWithRed:0.953 green:0.957 blue:0.988 alpha:1.0];
+    title.textColor = [UIColor colorWithRed:0.961 green:0.965 blue:0.980 alpha:1.0];
     title.textAlignment = NSTextAlignmentCenter;
     title.translatesAutoresizingMaskIntoConstraints = NO;
     [overlay addSubview:title];
@@ -1319,7 +1540,7 @@
     // Spinner màu CYAN
     UIActivityIndicatorView *spinner = [[UIActivityIndicatorView alloc]
         initWithActivityIndicatorStyle:UIActivityIndicatorViewStyleMedium];
-    spinner.color = [UIColor colorWithRed:0.220 green:0.871 blue:1.000 alpha:1.0];  // BRAND_CYAN
+    spinner.color = [UIColor colorWithRed:0.208 green:0.839 blue:1.000 alpha:1.0];  // BRAND_CYAN
     spinner.translatesAutoresizingMaskIntoConstraints = NO;
     [spinner startAnimating];
     [overlay addSubview:spinner];
@@ -1328,7 +1549,7 @@
     UILabel *sub = [[UILabel alloc] init];
     sub.text = @"Starting up...";
     sub.font = DELTA_FONT(13,UIFontWeightRegular);
-    sub.textColor = [UIColor colorWithRed:0.545 green:0.584 blue:0.741 alpha:1.0];
+    sub.textColor = [UIColor colorWithRed:0.541 green:0.565 blue:0.635 alpha:1.0];
     sub.textAlignment = NSTextAlignmentCenter;
     sub.translatesAutoresizingMaskIntoConstraints = NO;
     [overlay addSubview:sub];
@@ -1406,33 +1627,9 @@
 
 - (UICollectionViewCell *)collectionView:(UICollectionView *)collectionView
                   cellForItemAtIndexPath:(NSIndexPath *)indexPath {
-    AppDataCell *cell = [collectionView dequeueReusableCellWithReuseIdentifier:@"AppCell" forIndexPath:indexPath];
+    AppDataRowCell *cell = [collectionView dequeueReusableCellWithReuseIdentifier:@"AppCell" forIndexPath:indexPath];
 
     NSString *appID = self.appIDs[indexPath.item];
-
-    // ── Banner gradient + accent per app ──────────────────────────────────
-    UIColor *accent;
-    UIColor *gradTop;
-    UIColor *gradBot;
-    if ([appID isEqualToString:@"com.dts.freefiremax"]) {
-        // Bright ocean blue → cobalt
-        gradTop = [UIColor colorWithRed:0.18 green:0.56 blue:1.00 alpha:1.0];
-        gradBot = [UIColor colorWithRed:0.06 green:0.28 blue:0.78 alpha:1.0];
-        accent  = [UIColor colorWithRed:0.20 green:0.55 blue:1.00 alpha:1.0];
-    } else if ([appID isEqualToString:@"com.dts.freefireth"]) {
-        // Vivid amber → burnt orange
-        gradTop = [UIColor colorWithRed:1.00 green:0.60 blue:0.08 alpha:1.0];
-        gradBot = [UIColor colorWithRed:0.82 green:0.28 blue:0.02 alpha:1.0];
-        accent  = [UIColor colorWithRed:1.00 green:0.58 blue:0.15 alpha:1.0];
-    } else {
-        gradTop = [UIColor colorWithRed:0.00 green:0.82 blue:0.90 alpha:1.0];
-        gradBot = [UIColor colorWithRed:0.00 green:0.50 blue:0.65 alpha:1.0];
-        accent  = BRAND_CYAN;
-    }
-    cell.accentColor = accent;
-    [cell applyBannerGradientTop:gradTop bottom:gradBot];
-    cell.cardView.layer.shadowColor = accent.CGColor;
-    cell.cardView.layer.borderColor = [accent colorWithAlphaComponent:0.28].CGColor;
 
     // Priority order:
     // 1. Downloaded cached images (FreeFireMax.png / FreeFireTH.png)
@@ -1452,24 +1649,24 @@
 
     if (downloadedImage) {
         cell.iconView.image = downloadedImage;
-        cell.iconView.tintColor = [UIColor whiteColor];
     } else {
         // Try custom image
         UIImage *customImage = [self loadCustomImageForApp:appID];
         if (customImage) {
             cell.iconView.image = customImage;
-            cell.iconView.tintColor = [UIColor whiteColor];
         } else {
             // Try to get app's actual icon
             AppStatusChecker *checker = [AppStatusChecker sharedChecker];
             UIImage *icon = [checker iconForApp:appID];
             if (icon) {
                 cell.iconView.image = icon;
-                cell.iconView.tintColor = [UIColor whiteColor];
             } else {
                 // Fallback to game controller icon
-                cell.iconView.image = [UIImage systemImageNamed:@"gamecontroller.fill"];
-                cell.iconView.tintColor = [UIColor whiteColor];
+                UIImageSymbolConfiguration *cfg = [UIImageSymbolConfiguration
+                    configurationWithPointSize:28 weight:UIImageSymbolWeightMedium];
+                cell.iconView.image = [UIImage systemImageNamed:@"gamecontroller.fill" withConfiguration:cfg];
+                cell.iconView.tintColor = BRAND_MUTED;
+                cell.iconView.backgroundColor = BRAND_TILE;
             }
         }
     }
@@ -1478,10 +1675,7 @@
     NSString *displayName = self.appDisplayNames[appID] ?: appID;
     cell.nameLabel.text   = displayName;
     cell.bundleLabel.text = appID;
-
-    // Start idle animations (shimmer + breathing glow)
-    [cell stopIdleAnimations];
-    [cell startIdleAnimations];
+    [cell setReady:[self isIOSSupported]];
 
     return cell;
 }
@@ -1493,7 +1687,7 @@
 
     NSString *appID = self.appIDs[indexPath.item];
     NSString *displayName = self.appDisplayNames[appID] ?: appID;
-    AppDataCell *cell = (AppDataCell *)[collectionView cellForItemAtIndexPath:indexPath];
+    AppDataRowCell *cell = (AppDataRowCell *)[collectionView cellForItemAtIndexPath:indexPath];
     [self openHUDForAppID:appID displayName:displayName icon:cell.iconView.image];
 }
 

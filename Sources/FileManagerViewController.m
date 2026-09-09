@@ -84,14 +84,14 @@ static NSString *_clipboardFileName = nil;
 
     // Add search bar
     self.searchBar = [[UISearchBar alloc] initWithFrame:CGRectMake(0, 0, self.view.bounds.size.width, 50)];
-    self.searchBar.placeholder = @"🔍 Search files...";
+    self.searchBar.placeholder = @"Search files...";
     self.searchBar.delegate = self;
     self.searchBar.barStyle = UIBarStyleBlackTranslucent;
     self.searchBar.backgroundImage = [UIImage new];
-    self.searchBar.tintColor = [UIColor colorWithRed:0.220 green:0.871 blue:1.000 alpha:1.0];
+    self.searchBar.tintColor = [UIColor colorWithRed:0.208 green:0.839 blue:1.000 alpha:1.0];
     self.searchBar.keyboardAppearance = UIKeyboardAppearanceDark;
     self.searchBar.searchTextField.backgroundColor = [UIColor colorWithWhite:1 alpha:0.07];
-    self.searchBar.searchTextField.textColor = [UIColor colorWithRed:0.953 green:0.957 blue:0.988 alpha:1.0];
+    self.searchBar.searchTextField.textColor = [UIColor colorWithRed:0.961 green:0.965 blue:0.980 alpha:1.0];
     self.tableView.tableHeaderView = self.searchBar;
 
     [self reloadFileList];
@@ -166,12 +166,14 @@ static NSString *_clipboardFileName = nil;
 
     // textLabel removed in iOS 26 SDK — use UIListContentConfiguration instead
     UIListContentConfiguration *config = [cell defaultContentConfiguration];
-    config.text = isDir ? [NSString stringWithFormat:@"📁 %@", fileName]
-                        : [NSString stringWithFormat:@"📄 %@", fileName];
-    config.textProperties.color = [UIColor colorWithRed:0.953 green:0.957 blue:0.988 alpha:1.0];
+    config.image = [UIImage systemImageNamed:isDir ? @"folder.fill" : @"doc.fill"];
+    config.imageProperties.tintColor = isDir ? BRAND_TEXT : BRAND_MUTED;
+    config.imageToTextPadding = 12;
+    config.text = fileName;
+    config.textProperties.color = [UIColor colorWithRed:0.961 green:0.965 blue:0.980 alpha:1.0];
     config.textProperties.font = DELTA_FONT(14.5,UIFontWeightMedium);
     config.textProperties.numberOfLines = 2;
-    config.secondaryTextProperties.color = [UIColor colorWithRed:0.545 green:0.584 blue:0.741 alpha:1.0];
+    config.secondaryTextProperties.color = [UIColor colorWithRed:0.541 green:0.565 blue:0.635 alpha:1.0];
     [cell setContentConfiguration:config];
 
     cell.accessoryType = isDir ? UITableViewCellAccessoryDisclosureIndicator : UITableViewCellAccessoryNone;

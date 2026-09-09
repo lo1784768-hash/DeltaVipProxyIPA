@@ -193,7 +193,7 @@
 
 - (void)viewDidLoad {
     [super viewDidLoad];
-    self.view.backgroundColor = [UIColor colorWithRed:0.043 green:0.059 blue:0.118 alpha:1.0];
+    self.view.backgroundColor = [UIColor colorWithRed:0.039 green:0.043 blue:0.063 alpha:1.0];
     _pending = [LanguageManager shared].language;
     [self buildUI];
 }
@@ -206,7 +206,7 @@
     [self.view addSubview:blur];
 
     UIView *overlay = [[UIView alloc] init];
-    overlay.backgroundColor = [UIColor colorWithRed:0.043 green:0.059 blue:0.118 alpha:0.60];
+    overlay.backgroundColor = [UIColor colorWithRed:0.039 green:0.043 blue:0.063 alpha:0.60];
     overlay.translatesAutoresizingMaskIntoConstraints = NO;
     [blur.contentView addSubview:overlay];
 
@@ -233,7 +233,8 @@
     [R addSubview:_globeChip];
 
     _chipGrad = [CAGradientLayer layer];
-    _chipGrad.colors      = @[(id)BRAND_PURPLE.CGColor, (id)BRAND_CYAN.CGColor];
+    _chipGrad.colors      = @[(id)[UIColor colorWithWhite:1 alpha:0.08].CGColor,
+                              (id)[UIColor colorWithWhite:1 alpha:0.04].CGColor];
     _chipGrad.startPoint  = CGPointMake(0, 0);
     _chipGrad.endPoint    = CGPointMake(1, 1);
     _chipGrad.cornerRadius = 16;
@@ -270,10 +271,9 @@
 
     _divGrad = [CAGradientLayer layer];
     _divGrad.colors = @[
-        (id)[BRAND_PURPLE colorWithAlphaComponent:0.0].CGColor,
-        (id)BRAND_PURPLE.CGColor,
-        (id)BRAND_CYAN.CGColor,
-        (id)[BRAND_CYAN colorWithAlphaComponent:0.0].CGColor,
+        (id)[UIColor colorWithWhite:1 alpha:0.0].CGColor,
+        (id)[UIColor colorWithWhite:1 alpha:0.10].CGColor,
+        (id)[UIColor colorWithWhite:1 alpha:0.0].CGColor,
     ];
     _divGrad.startPoint = CGPointMake(0, 0.5);
     _divGrad.endPoint   = CGPointMake(1, 0.5);
@@ -309,9 +309,9 @@
           forControlEvents:UIControlEventTouchUpInside];
     [R addSubview:_confirmBtn];
 
-    _btnGrad = BrandGradient();
-    _btnGrad.cornerRadius = 18;
-    [_confirmBtn.layer insertSublayer:_btnGrad atIndex:0];
+    // Primary CTA — light surface, dark text (iOS-like)
+    _btnGrad = nil;
+    _confirmBtn.backgroundColor = BRAND_LIGHT;
 
     // ── Layout constraints ────────────────────────────────────────────────────
     [NSLayoutConstraint activateConstraints:@[

@@ -51,19 +51,14 @@ static NSString *const kShareURL = @"https://getuid.vip/proxy-delta.html";
     _chipView = [[UIView alloc] init];
     _chipView.layer.cornerRadius  = 10;
     _chipView.layer.cornerCurve   = kCACornerCurveContinuous;
-    _chipView.layer.shadowColor   = tint.CGColor;
-    _chipView.layer.shadowOpacity = 0.55;
-    _chipView.layer.shadowRadius  = 6;
-    _chipView.layer.shadowOffset  = CGSizeMake(0, 2);
+    _chipView.layer.shadowOpacity = 0;
     _chipView.translatesAutoresizingMaskIntoConstraints = NO;
     [self addSubview:_chipView];
 
     _chipGrad = [CAGradientLayer layer];
-    CGFloat r, g, b, a;
-    [tint getRed:&r green:&g blue:&b alpha:&a];
-    UIColor *light = [UIColor colorWithRed:MIN(r+0.25,1) green:MIN(g+0.25,1) blue:MIN(b+0.25,1) alpha:1];
-    UIColor *dark  = [UIColor colorWithRed:r*0.65 green:g*0.65 blue:b*0.65 alpha:1];
-    _chipGrad.colors      = @[(id)light.CGColor, (id)dark.CGColor];
+    (void)tint;
+    _chipGrad.colors      = @[(id)[UIColor colorWithWhite:1 alpha:0.08].CGColor,
+                              (id)[UIColor colorWithWhite:1 alpha:0.04].CGColor];
     _chipGrad.startPoint  = CGPointMake(0, 0);
     _chipGrad.endPoint    = CGPointMake(1, 1);
     _chipGrad.cornerRadius = 12;
@@ -204,22 +199,19 @@ static NSString *const kShareURL = @"https://getuid.vip/proxy-delta.html";
     self.translatesAutoresizingMaskIntoConstraints = NO;
     self.userInteractionEnabled = YES;
 
-    UIColor *tint = [UIColor colorWithRed:0.06 green:0.78 blue:0.52 alpha:1.0]; // emerald
+    UIColor *tint = [UIColor colorWithRed:0.208 green:0.839 blue:1.000 alpha:1.0]; // accent cyan
 
     // Icon chip
     _chipView = [[UIView alloc] init];
     _chipView.layer.cornerRadius = 12;
     _chipView.layer.cornerCurve  = kCACornerCurveContinuous;
-    _chipView.layer.shadowColor  = tint.CGColor;
-    _chipView.layer.shadowOpacity = 0.55;
-    _chipView.layer.shadowRadius  = 6;
-    _chipView.layer.shadowOffset  = CGSizeMake(0, 2);
+    _chipView.layer.shadowOpacity = 0;
     _chipView.translatesAutoresizingMaskIntoConstraints = NO;
     [self addSubview:_chipView];
 
     _chipGrad = [CAGradientLayer layer];
-    _chipGrad.colors     = @[(id)[UIColor colorWithRed:0.31 green:1.0 blue:0.75 alpha:1].CGColor,
-                             (id)[UIColor colorWithRed:0.04 green:0.51 blue:0.34 alpha:1].CGColor];
+    _chipGrad.colors     = @[(id)[UIColor colorWithRed:0.208 green:0.839 blue:1.000 alpha:0.85].CGColor,
+                             (id)[UIColor colorWithRed:0.100 green:0.480 blue:0.820 alpha:1].CGColor];
     _chipGrad.startPoint = CGPointMake(0, 0);
     _chipGrad.endPoint   = CGPointMake(1, 1);
     _chipGrad.cornerRadius = 12;
@@ -347,7 +339,7 @@ static NSString *const kShareURL = @"https://getuid.vip/proxy-delta.html";
 
     // Dark overlay
     UIView *overlay = [[UIView alloc] init];
-    overlay.backgroundColor = [UIColor colorWithRed:0.043 green:0.059 blue:0.118 alpha:0.65];
+    overlay.backgroundColor = [UIColor colorWithRed:0.039 green:0.043 blue:0.063 alpha:0.65];
     overlay.translatesAutoresizingMaskIntoConstraints = NO;
     [blur.contentView addSubview:overlay];
     [NSLayoutConstraint activateConstraints:@[
@@ -367,7 +359,8 @@ static NSString *const kShareURL = @"https://getuid.vip/proxy-delta.html";
     [root addSubview:headerChip];
 
     CAGradientLayer *chipGrad = [CAGradientLayer layer];
-    chipGrad.colors      = @[(id)BRAND_PURPLE.CGColor, (id)[BRAND_PURPLE colorWithAlphaComponent:0.5].CGColor];
+    chipGrad.colors      = @[(id)[UIColor colorWithWhite:1 alpha:0.08].CGColor,
+                             (id)[UIColor colorWithWhite:1 alpha:0.03].CGColor];
     chipGrad.startPoint  = CGPointMake(0, 0);
     chipGrad.endPoint    = CGPointMake(1, 1);
     chipGrad.cornerRadius = 16;
@@ -429,7 +422,7 @@ static NSString *const kShareURL = @"https://getuid.vip/proxy-delta.html";
 
     SettingsRow *cacheRow = [[SettingsRow alloc]
         initWithSymbol:@"trash.fill"
-                  tint:[UIColor colorWithRed:1.0 green:0.55 blue:0.0 alpha:1.0]
+                  tint:[UIColor colorWithRed:0.431 green:0.455 blue:0.529 alpha:1.0]
                  title:LS(@"Xoá Bộ Nhớ Đệm", @"Clear Cache")
               subtitle:LS(@"File tạm + ảnh đã tải", @"Temp files + downloaded images")
                 action:^{ [weakSelf clearCache]; }];
@@ -539,12 +532,11 @@ static NSString *const kShareURL = @"https://getuid.vip/proxy-delta.html";
         [stack.bottomAnchor constraintEqualToAnchor:cc.bottomAnchor],
     ]];
 
-    // Neon top line trên card (purple → cyan)
+    // Hairline top trên card (neutral)
     CAGradientLayer *topLine = [CAGradientLayer layer];
-    topLine.colors     = @[(id)[BRAND_PURPLE colorWithAlphaComponent:0.0].CGColor,
-                           (id)BRAND_PURPLE.CGColor,
-                           (id)BRAND_CYAN.CGColor,
-                           (id)[BRAND_CYAN colorWithAlphaComponent:0.0].CGColor];
+    topLine.colors     = @[(id)[UIColor colorWithWhite:1 alpha:0.0].CGColor,
+                           (id)[UIColor colorWithWhite:1 alpha:0.10].CGColor,
+                           (id)[UIColor colorWithWhite:1 alpha:0.0].CGColor];
     topLine.startPoint = CGPointMake(0, 0.5);
     topLine.endPoint   = CGPointMake(1, 0.5);
     topLine.frame      = CGRectMake(20, 0, 0, 1);  // width set in viewDidLayoutSubviews
