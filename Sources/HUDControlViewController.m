@@ -1429,7 +1429,6 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     [self.view addSubview:grid];
 
     [self setupNavBarAppearance];
-    [self setupCircleBackButton];
     [self buildUI];
     [self buildToast];
     [self fetchAndShowNotice];
@@ -1748,28 +1747,6 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     self.navigationItem.standardAppearance = ap;
     self.navigationItem.scrollEdgeAppearance = ap;
     self.navigationItem.compactAppearance = ap;
-}
-
-// Back button 40×40 circle (không viền ring — tránh lozenge/leaf shape hệ thống)
-- (void)setupCircleBackButton {
-    self.navigationItem.hidesBackButton = YES;   // ẩn hẳn back indicator mặc định
-    UIButton *btn = [UIButton buttonWithType:UIButtonTypeCustom];
-    btn.frame = CGRectMake(0, 0, 40, 40);
-    btn.backgroundColor = BRAND_TILE;
-    btn.layer.cornerRadius = 20;
-    btn.layer.cornerCurve  = kCACornerCurveContinuous;
-    btn.layer.masksToBounds = YES;
-    UIImageSymbolConfiguration *cfg = [UIImageSymbolConfiguration
-        configurationWithPointSize:17 weight:UIImageSymbolWeightSemibold];
-    [btn setImage:[UIImage systemImageNamed:@"chevron.left" withConfiguration:cfg]
-         forState:UIControlStateNormal];
-    btn.tintColor = HUD_TEXT;
-    [btn addTarget:self action:@selector(backTapped) forControlEvents:UIControlEventTouchUpInside];
-    self.navigationItem.leftBarButtonItem = [[UIBarButtonItem alloc] initWithCustomView:btn];
-}
-
-- (void)backTapped {
-    [self.navigationController popViewControllerAnimated:YES];
 }
 
 - (void)viewWillAppear:(BOOL)animated {
