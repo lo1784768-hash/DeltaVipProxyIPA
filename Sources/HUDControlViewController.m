@@ -799,7 +799,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
                      animations:^{
         self->_tileGlow.alpha       = active ? 1 : 0;
         self.layer.borderColor      = active
-            ? [tint colorWithAlphaComponent:0.55].CGColor
+            ? [tint colorWithAlphaComponent:0.85].CGColor
             : HUD_BORDER.CGColor;
         self->_ledDot.backgroundColor = active ? tint : HUD_BORDER;
     } completion:nil];
@@ -1322,6 +1322,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 @property (nonatomic, strong) UIView    *segmentBar;
 @property (nonatomic, assign) NSInteger  pendingThumbTab;  // compat stub; no-op
 @property (nonatomic, strong) NSMutableArray<UILabel *> *segLabels;
+@property (nonatomic, strong) NSMutableArray<CAGradientLayer *> *tabGrads;  // gradient capsule mỗi chip
 // Toast
 @property (nonatomic, strong) UIView    *toastView;
 @property (nonatomic, strong) UILabel   *toastLabel;
@@ -1362,10 +1363,10 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     self.bgGradient.endPoint   = CGPointMake(0.5, 1.0);
     [self.view.layer insertSublayer:self.bgGradient atIndex:0];
 
-    // Subtle purple radial glow (top-center) — static, không animate
+    // Aurora radial glow (top-center) — static, không animate
     self.radialGlow = [CAGradientLayer layer];
     self.radialGlow.type = kCAGradientLayerRadial;
-    self.radialGlow.colors = @[(id)[HUD_PURPLE colorWithAlphaComponent:0.20].CGColor,
+    self.radialGlow.colors = @[(id)[HUD_PURPLE colorWithAlphaComponent:0.34].CGColor,
                                (id)[HUD_PURPLE colorWithAlphaComponent:0.0].CGColor];
     self.radialGlow.startPoint = CGPointMake(0.5, 0.5);
     self.radialGlow.endPoint   = CGPointMake(1.0, 1.0);
@@ -1551,6 +1552,18 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
     CGFloat top = self.view.safeAreaInsets.top;
     self.radialGlow.frame = CGRectMake(self.view.bounds.size.width/2 - 240, top - 60, 480, 480);
     self.openGameGradient.frame = self.openGameButton.bounds;
+
+    // Đồng bộ frame gradient capsule tab khi chip có kích thước thật
+    [self.tabGrads enumerateObjectsUsingBlock:^(CAGradientLayer *g, NSUInteger idx, BOOL *stop) {
+        if (idx >= self.tabButtons.count) return;
+        UIView *chip = self.tabButtons[idx];
+        if (chip.bounds.size.width > 1 && chip.bounds.size.height > 1) {
+            [CATransaction begin];
+            [CATransaction setDisableActions:YES];
+            g.frame = chip.bounds;
+            [CATransaction commit];
+        }
+    }];
 
     // Once the segmented bar has real size, place the thumb at the correct slot
     if (self.pendingThumbTab >= 0 && self.segmentBar.bounds.size.width > 1) {
@@ -1824,7 +1837,7 @@ if (active) {
     // TACTICAL MATRIX GRID — buildUI
     // Layout:
     //   • Header: icon (68pt) + name + bundle (compact, horizontal)
-    //   • Chip Tab Bar: 3 pill chips, solid color, no blur
+    //   • Chip Tab Bar: 3 chips — gradient capsule khi active (neon glass)
     //   • Panel cards: solid UIView (#16203C), NO UIVisualEffectView
     //   • Features: UICollectionView 2-column grid of HUDFeatureTile
     //   • Status label + sticky MỞ GAME button
@@ -1923,7 +1936,7 @@ if (active) {
     ]];
 
     // ── Chip Tab Bar ───────────────────────────────────────
-    // 3 pill chips — solid fill, no blur, no sliding thumb
+    // 3 chips — gradient capsule (opacity 0 khi tắt), border + glow khi active
     NSArray<NSString *> *tabSyms   = @[@"bolt.fill", @"location.fill", @"person.fill.badge.plus"];
     NSArray<NSString *> *tabLabels = @[
         LS(@"Proxy",   @"Proxy"),
@@ -1934,10 +1947,10 @@ if (active) {
 
     UIView *chipBar = [[UIView alloc] init];
     chipBar.translatesAutoresizingMaskIntoConstraints = NO;
-    chipBar.backgroundColor = [UIColor colorWithRed:0.071 green:0.094 blue:0.176 alpha:1.0]; // #12182D
+    chipBar.backgroundColor = [UIColor colorWithRed:0.071 green:0.094 blue:0.176 alpha:0.55]; // #12182D glass
     chipBar.layer.cornerRadius = 16;
     chipBar.layer.cornerCurve  = kCACornerCurveContinuous;
-    chipBar.layer.borderColor  = HUD_BORDER.CGColor;
+    chipBar.layer.borderColor  = [UIColor colorWithWhite:1 alpha:0.10].CGColor;
     chipBar.layer.borderWidth  = 1;
     [content addSubview:chipBar];
     self.segmentBar = chipBar;
@@ -1959,6 +1972,24 @@ if (active) {
         chip.layer.cornerCurve  = kCACornerCurveContinuous;
         chip.layer.masksToBounds = YES;
         chip.translatesAutoresizingMaskIntoConstraints = NO;
+
+        // ── Gradient capsule (neon glass): dọc tint → đậm, opacity 0 khi tắt
+        CAGradientLayer *chipGrad = [CAGradientLayer layer];
+        chipGrad.startPoint    = CGPointMake(0, 0);
+        chipGrad.endPoint      = CGPointMake(0, 1);
+        chipGrad.cornerRadius  = 12;
+        chipGrad.cornerCurve   = kCACornerCurveContinuous;
+        UIColor *chipTint      = self.tabTints[(NSUInteger)i];
+        chipGrad.colors = @[
+            (id)[chipTint colorWithAlphaComponent:0.95].CGColor,
+            (id)HUDDarken(chipTint, 0.50).CGColor,
+        ];
+        chipGrad.opacity = 0;
+        chipGrad.frame   = chip.bounds;
+        [chip.layer insertSublayer:chipGrad atIndex:0];
+        if (!self.tabGrads) self.tabGrads = [NSMutableArray array];
+        [self.tabGrads addObject:chipGrad];
+
         [chip addTarget:self action:@selector(tabButtonTapped:) forControlEvents:UIControlEventTouchUpInside];
 
         // Icon
@@ -2125,23 +2156,23 @@ if (active) {
     self.openGameButton.translatesAutoresizingMaskIntoConstraints = NO;
     [self.openGameButton addTarget:self action:@selector(launchGame) forControlEvents:UIControlEventTouchUpInside];
 
-    // Gradient sáng — electric blue đúng chất game
+    // Gradient thương hiệu — violet → cyan (Aurora Frost)
     self.openGameGradient = [CAGradientLayer layer];
     self.openGameGradient.colors = @[
-        (id)[UIColor colorWithRed:0.118 green:0.471 blue:0.847 alpha:1].CGColor,  // #1E78D8 blue sáng
-        (id)[UIColor colorWithRed:0.059 green:0.369 blue:0.686 alpha:1].CGColor,  // #0F5EAF blue đậm
+        (id)BRAND_PURPLE.CGColor,
+        (id)BRAND_CYAN.CGColor,
     ];
-    self.openGameGradient.startPoint = CGPointMake(0.5, 0);
-    self.openGameGradient.endPoint   = CGPointMake(0.5, 1);
+    self.openGameGradient.startPoint = CGPointMake(0, 0);
+    self.openGameGradient.endPoint   = CGPointMake(1, 1);
     self.openGameGradient.cornerRadius = 22;
     [self.openGameButton.layer insertSublayer:self.openGameGradient atIndex:0];
 
-    // Border + glow cyan nhẹ
-    self.openGameButton.layer.borderColor = [HUD_CYAN colorWithAlphaComponent:0.28].CGColor;
+    // Border + glow cyan neon
+    self.openGameButton.layer.borderColor = [UIColor colorWithWhite:1 alpha:0.25].CGColor;
     self.openGameButton.layer.borderWidth = 1.5;
-    self.openGameButton.layer.shadowColor = [UIColor colorWithRed:0.118 green:0.471 blue:0.847 alpha:1].CGColor;
-    self.openGameButton.layer.shadowOpacity = 0.55;
-    self.openGameButton.layer.shadowRadius  = 10;
+    self.openGameButton.layer.shadowColor = BRAND_CYAN.CGColor;
+    self.openGameButton.layer.shadowOpacity = 0.65;
+    self.openGameButton.layer.shadowRadius  = 14;
     self.openGameButton.layer.shadowOffset  = CGSizeMake(0, 4);
     self.openGameButton.clipsToBounds = NO;  // cần NO để shadow hiện
 
@@ -2239,13 +2270,13 @@ if (active) {
                     tutorialURL:(NSString * _Nullable)tutorialURL
                  outTitleLabel:(UILabel * __strong *)outTitleLabel {
 
-    // ── Outer shadow wrapper ────────────────────────────────
+    // ── Outer shadow wrapper (neon glass glow) ─────────────
     UIView *panelWrap = [[UIView alloc] init];
     panelWrap.backgroundColor = [UIColor clearColor];
-    panelWrap.layer.shadowColor   = [tint colorWithAlphaComponent:0.5].CGColor;
-    panelWrap.layer.shadowOpacity = 0.22;
-    panelWrap.layer.shadowRadius  = 14;
-    panelWrap.layer.shadowOffset  = CGSizeMake(0, 4);
+    panelWrap.layer.shadowColor   = [tint colorWithAlphaComponent:0.6].CGColor;
+    panelWrap.layer.shadowOpacity = 0.34;
+    panelWrap.layer.shadowRadius  = 18;
+    panelWrap.layer.shadowOffset  = CGSizeMake(0, 6);
     panelWrap.translatesAutoresizingMaskIntoConstraints = NO;
 
     // ── Solid card (no blur) ────────────────────────────────
@@ -2254,14 +2285,14 @@ if (active) {
     pc.clipsToBounds      = YES;
     pc.layer.cornerRadius = 22;
     pc.layer.cornerCurve  = kCACornerCurveContinuous;
-    pc.layer.borderColor  = [tint colorWithAlphaComponent:0.40].CGColor;
+    pc.layer.borderColor  = [tint colorWithAlphaComponent:0.55].CGColor;
     pc.layer.borderWidth  = 1;
     pc.translatesAutoresizingMaskIntoConstraints = NO;
     [panelWrap addSubview:pc];
 
-    // ── Title bar ───────────────────────────────────────────
+    // ── Title bar (translucent neon wash) ───────────────────
     UIView *titleBar = [[UIView alloc] init];
-    titleBar.backgroundColor = [tint colorWithAlphaComponent:0.08];
+    titleBar.backgroundColor = [tint colorWithAlphaComponent:0.10];
     titleBar.translatesAutoresizingMaskIntoConstraints = NO;
     [pc addSubview:titleBar];
 
@@ -2505,33 +2536,34 @@ if (active) {
 
 #pragma mark - Tab switching
 
-// Chip Tab Bar: highlight active chip with tint background + border.
-// No sliding thumb — just swap chip bg/border colors.
+// Chip Tab Bar: active chip = gradient capsule (neon glass) + text trắng.
 - (void)selectTab:(NSInteger)tab {
     self.activeTab = tab;
     for (NSInteger i = 0; i < (NSInteger)self.tabButtons.count; i++) {
         UIColor *tint  = self.tabTints[(NSUInteger)i];
         BOOL    active = (i == tab);
         UIButton *chip = self.tabButtons[(NSUInteger)i];
+        CAGradientLayer *grad = (i < (NSInteger)self.tabGrads.count) ? self.tabGrads[(NSUInteger)i] : nil;
 
         UIImageView *iconV = (UIImageView *)[chip viewWithTag:10 + i];
         UILabel     *lblV  = (UILabel     *)[chip viewWithTag:20 + i];
         UILabel     *badgeV = (UILabel    *)[chip viewWithTag:30 + i];
 
-        [UIView animateWithDuration:0.20 delay:0
+        [UIView animateWithDuration:0.22 delay:0
                             options:UIViewAnimationOptionCurveEaseInOut
                          animations:^{
-            chip.backgroundColor   = active ? [tint colorWithAlphaComponent:0.18] : [UIColor clearColor];
-            chip.layer.borderColor = active ? [tint colorWithAlphaComponent:0.55].CGColor
+            chip.backgroundColor   = [UIColor clearColor];   // gradient lo phần nền
+            chip.layer.borderColor = active ? [tint colorWithAlphaComponent:0.75].CGColor
                                             : [UIColor clearColor].CGColor;
             chip.layer.borderWidth = active ? 1.0 : 0.0;
+            grad.opacity           = active ? 1.0 : 0.0;
+            grad.frame             = chip.bounds;
 
-            if (iconV)  iconV.tintColor   = active ? tint : HUD_MUTED;
-            if (lblV)   lblV.textColor    = active ? tint : HUD_MUTED;
+            if (iconV)  iconV.tintColor   = active ? [UIColor whiteColor] : HUD_MUTED;
+            if (lblV)   lblV.textColor    = active ? [UIColor whiteColor] : HUD_MUTED;
             if (badgeV) {
                 badgeV.textColor       = active ? tint : HUD_MUTED;
-                badgeV.backgroundColor = active ? [tint colorWithAlphaComponent:0.14]
-                                                : [HUD_MUTED colorWithAlphaComponent:0.10];
+                badgeV.backgroundColor = active ? [UIColor whiteColor] : [HUD_MUTED colorWithAlphaComponent:0.10];
             }
         } completion:nil];
     }

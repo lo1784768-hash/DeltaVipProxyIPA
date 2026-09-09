@@ -494,9 +494,9 @@
     [self.view.layer insertSublayer:bg atIndex:0];
     self.bgGradient = bg;
 
-    // Glow layers
-    self.purpleGlow = BrandRadialGlow([BRAND_PURPLE colorWithAlphaComponent:0.30]);
-    self.cyanGlow   = BrandRadialGlow([BRAND_CYAN   colorWithAlphaComponent:0.20]);
+    // Glow layers — aurora mạnh hơn
+    self.purpleGlow = BrandRadialGlow([BRAND_PURPLE colorWithAlphaComponent:0.40]);
+    self.cyanGlow   = BrandRadialGlow([BRAND_CYAN   colorWithAlphaComponent:0.28]);
     [self.view.layer insertSublayer:self.purpleGlow above:bg];
     [self.view.layer insertSublayer:self.cyanGlow above:self.purpleGlow];
 
@@ -877,14 +877,14 @@
     UIVisualEffectView *glassCard = [[UIVisualEffectView alloc]
         initWithEffect:[UIBlurEffect effectWithStyle:UIBlurEffectStyleSystemThinMaterialDark]];
     glassCard.clipsToBounds = YES;
-    glassCard.layer.cornerRadius = 24;
+    glassCard.layer.cornerRadius = 26;
     glassCard.layer.cornerCurve  = kCACornerCurveContinuous;
-    glassCard.layer.borderColor  = [UIColor colorWithWhite:1 alpha:0.11].CGColor;
+    glassCard.layer.borderColor  = [UIColor colorWithWhite:1 alpha:0.14].CGColor;
     glassCard.layer.borderWidth  = 1;
     glassCard.layer.shadowColor  = BRAND_PURPLE.CGColor;
-    glassCard.layer.shadowOpacity = 0.28;
-    glassCard.layer.shadowRadius  = 16;
-    glassCard.layer.shadowOffset  = CGSizeMake(0, 4);
+    glassCard.layer.shadowOpacity = 0.40;
+    glassCard.layer.shadowRadius  = 18;
+    glassCard.layer.shadowOffset  = CGSizeMake(0, 6);
     glassCard.translatesAutoresizingMaskIntoConstraints = NO;
 
     // Wrap in non-clipping container so shadow shows
@@ -898,7 +898,7 @@
         [self.statsView.topAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.topAnchor constant:8],
         [self.statsView.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor constant:16],
         [self.statsView.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor constant:-16],
-        [self.statsView.heightAnchor constraintEqualToConstant:106],
+        [self.statsView.heightAnchor constraintEqualToConstant:158],
 
         [glassCard.topAnchor constraintEqualToAnchor:self.statsView.topAnchor],
         [glassCard.leadingAnchor constraintEqualToAnchor:self.statsView.leadingAnchor],
@@ -924,9 +924,14 @@
     UIView *supportRow = [[UIView alloc] init];
     supportRow.translatesAutoresizingMaskIntoConstraints = NO;
 
-    // Pulsing dot indicator
+    // Pulsing dot indicator — trong chip icon glass (neon)
     UIView *pulseWrap = [[UIView alloc] init];
     pulseWrap.translatesAutoresizingMaskIntoConstraints = NO;
+    pulseWrap.backgroundColor    = [supportTint colorWithAlphaComponent:0.13];
+    pulseWrap.layer.cornerRadius = 19;
+    pulseWrap.layer.cornerCurve  = kCACornerCurveContinuous;
+    pulseWrap.layer.borderColor  = [supportTint colorWithAlphaComponent:0.30].CGColor;
+    pulseWrap.layer.borderWidth  = 1;
     [supportRow addSubview:pulseWrap];
 
     UIView *dotInner = [[UIView alloc] init];
@@ -964,8 +969,8 @@
     }
 
     [NSLayoutConstraint activateConstraints:@[
-        [pulseWrap.widthAnchor constraintEqualToConstant:18],
-        [pulseWrap.heightAnchor constraintEqualToConstant:18],
+        [pulseWrap.widthAnchor constraintEqualToConstant:38],
+        [pulseWrap.heightAnchor constraintEqualToConstant:38],
         [dotInner.centerXAnchor constraintEqualToAnchor:pulseWrap.centerXAnchor],
         [dotInner.centerYAnchor constraintEqualToAnchor:pulseWrap.centerYAnchor],
         [dotInner.widthAnchor constraintEqualToConstant:8],
@@ -981,17 +986,17 @@
     [supportRow addSubview:supportLabel];
 
     [NSLayoutConstraint activateConstraints:@[
-        [supportRow.heightAnchor constraintEqualToConstant:18],
+        [supportRow.heightAnchor constraintEqualToConstant:38],
         [pulseWrap.leadingAnchor constraintEqualToAnchor:supportRow.leadingAnchor],
         [pulseWrap.centerYAnchor constraintEqualToAnchor:supportRow.centerYAnchor],
-        [supportLabel.leadingAnchor constraintEqualToAnchor:pulseWrap.trailingAnchor constant:10],
+        [supportLabel.leadingAnchor constraintEqualToAnchor:pulseWrap.trailingAnchor constant:12],
         [supportLabel.centerYAnchor constraintEqualToAnchor:supportRow.centerYAnchor],
         [supportLabel.trailingAnchor constraintLessThanOrEqualToAnchor:supportRow.trailingAnchor],
     ]];
 
     UIStackView *stack = [[UIStackView alloc] initWithArrangedSubviews:@[iosRow, devRow, supportRow]];
     stack.axis = UILayoutConstraintAxisVertical;
-    stack.spacing = 10;
+    stack.spacing = 12;
     stack.translatesAutoresizingMaskIntoConstraints = NO;
     [cc addSubview:stack];
 
@@ -1014,21 +1019,31 @@
     }
 }
 
-// A stat row: [symbol] label. Returns the row container.
+// A stat row: [glass icon chip 38×38] label — Aurora Frost
 - (UIView *)statRowText:(NSString *)text symbol:(NSString *)symbol tint:(UIColor *)tint
              valueColor:(UIColor *)valueColor labelTag:(NSInteger)tag {
     UIView *row = [[UIView alloc] init];
     row.translatesAutoresizingMaskIntoConstraints = NO;
 
-    UIImageSymbolConfiguration *cfg = [UIImageSymbolConfiguration configurationWithPointSize:12 weight:UIImageSymbolWeightSemibold];
+    // Glass chip 38×38: tinted fill + neon border
+    UIView *chip = [[UIView alloc] init];
+    chip.backgroundColor    = [tint colorWithAlphaComponent:0.13];
+    chip.layer.cornerRadius = 19;
+    chip.layer.cornerCurve  = kCACornerCurveContinuous;
+    chip.layer.borderColor  = [tint colorWithAlphaComponent:0.30].CGColor;
+    chip.layer.borderWidth  = 1;
+    chip.translatesAutoresizingMaskIntoConstraints = NO;
+    [row addSubview:chip];
+
+    UIImageSymbolConfiguration *cfg = [UIImageSymbolConfiguration configurationWithPointSize:15 weight:UIImageSymbolWeightSemibold];
     UIImageView *icon = [[UIImageView alloc] initWithImage:[UIImage systemImageNamed:symbol withConfiguration:cfg]];
     icon.tintColor = tint;
     icon.contentMode = UIViewContentModeScaleAspectFit;
     icon.translatesAutoresizingMaskIntoConstraints = NO;
-    [row addSubview:icon];
+    [chip addSubview:icon];
 
     UILabel *label = [[UILabel alloc] init];
-    label.font = DELTA_FONT(13,UIFontWeightMedium);
+    label.font = DELTA_FONT(14,UIFontWeightSemibold);
     label.textColor = valueColor;
     label.text = text;
     if (tag) label.tag = tag;
@@ -1036,11 +1051,16 @@
     [row addSubview:label];
 
     [NSLayoutConstraint activateConstraints:@[
-        [row.heightAnchor constraintEqualToConstant:18],
-        [icon.leadingAnchor constraintEqualToAnchor:row.leadingAnchor],
-        [icon.centerYAnchor constraintEqualToAnchor:row.centerYAnchor],
-        [icon.widthAnchor constraintEqualToConstant:18],
-        [label.leadingAnchor constraintEqualToAnchor:icon.trailingAnchor constant:10],
+        [row.heightAnchor constraintEqualToConstant:38],
+        [chip.leadingAnchor constraintEqualToAnchor:row.leadingAnchor],
+        [chip.centerYAnchor constraintEqualToAnchor:row.centerYAnchor],
+        [chip.widthAnchor constraintEqualToConstant:38],
+        [chip.heightAnchor constraintEqualToConstant:38],
+        [icon.centerXAnchor constraintEqualToAnchor:chip.centerXAnchor],
+        [icon.centerYAnchor constraintEqualToAnchor:chip.centerYAnchor],
+        [icon.widthAnchor constraintEqualToConstant:20],
+        [icon.heightAnchor constraintEqualToConstant:20],
+        [label.leadingAnchor constraintEqualToAnchor:chip.trailingAnchor constant:12],
         [label.centerYAnchor constraintEqualToAnchor:row.centerYAnchor],
         [label.trailingAnchor constraintLessThanOrEqualToAnchor:row.trailingAnchor],
     ]];
