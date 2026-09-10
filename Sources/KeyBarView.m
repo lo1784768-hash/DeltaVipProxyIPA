@@ -264,14 +264,14 @@
     switch (km.state) {
         case KeyStateActive:
             [_dot startPulsingWithColor:KB_GREEN];
-            _titleLabel.text    = [NSString stringWithFormat:@"KEY  %@", [self maskKey:km.keyCode]];
+            _titleLabel.text    = [NSString stringWithFormat:@"KEY: %@", [self maskKey:km.keyCode]];
             _subLabel.text      = km.formattedRemaining;
             _subLabel.textColor = KB_GREEN;
             [_addButton setTitle:LS(@"Đổi Key", @"Change Key") forState:UIControlStateNormal];
             break;
         case KeyStateExpired:
             [_dot startPulsingWithColor:KB_RED];
-            _titleLabel.text    = [NSString stringWithFormat:@"KEY  %@", [self maskKey:km.keyCode]];
+            _titleLabel.text    = [NSString stringWithFormat:@"KEY: %@", [self maskKey:km.keyCode]];
             _subLabel.text      = LS(@"Đã hết hạn — vui lòng gia hạn", @"Expired — please renew");
             _subLabel.textColor = KB_RED;
             [_addButton setTitle:LS(@"Gia hạn", @"Renew") forState:UIControlStateNormal];
