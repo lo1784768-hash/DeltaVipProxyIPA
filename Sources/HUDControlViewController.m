@@ -2861,6 +2861,7 @@ if (active) {
                                     completion:^(BOOL success, NSString *msg) {
             [row showResult:success];
             if (!success) { [row setOn:NO animated:YES]; [row setActive:NO]; }
+            if (weakSelf) [weakSelf _persistFeature:row.feature on:success bundle:weakSelf.bundleID];
             NSString *status = success
                 ? LS(@"✅ Đã Kích Hoạt Định Vị Súng Màu Tự Chọn", @"✅ Custom Color Gun Locator Activated")
                 : msg;
@@ -2890,6 +2891,7 @@ if (active) {
                                     completion:^(BOOL success, NSString *msg) {
             [row showResult:success];
             if (!success) { [row setOn:NO animated:YES]; [row setActive:NO]; }
+            if (weakSelf) [weakSelf _persistFeature:row.feature on:success bundle:weakSelf.bundleID];
             NSString *status = success
                 ? LS(@"✅ Đã Kích Hoạt Định Vị Súng Màu Tự Chọn", @"✅ Custom Color Gun Locator Activated")
                 : msg;
@@ -2931,6 +2933,7 @@ if (active) {
                                           completion:^(BOOL success, NSString *msg) {
             [row showResult:success];
             if (!success) { [row setOn:NO animated:YES]; [row setActive:NO]; }
+            if (weakSelf) [weakSelf _persistFeature:row.feature on:success bundle:weakSelf.bundleID];
             NSString *status = success
                 ? LS(@"✅ Đã Kích Hoạt Định Vị Nhân Vật Màu Tự Chọn",
                      @"✅ Custom Color Character Locator Activated")
@@ -2959,6 +2962,7 @@ if (active) {
                                           completion:^(BOOL success, NSString *msg) {
             [row showResult:success];
             if (!success) { [row setOn:NO animated:YES]; [row setActive:NO]; }
+            if (weakSelf) [weakSelf _persistFeature:row.feature on:success bundle:weakSelf.bundleID];
             NSString *status = success
                 ? LS(@"✅ Đã Kích Hoạt Định Vị Nhân Vật Màu Tự Chọn",
                      @"✅ Custom Color Character Locator Activated")
@@ -3498,6 +3502,7 @@ static UIColor *_aimTintFromString(NSString *tint) {
         if (!isOn) {
             [row setActive:NO];
             [row collapseInlineColorPicker];  // đóng expand nếu đang mở
+            if (self) [self _persistFeature:row.feature on:NO bundle:self.bundleID];
             // Nếu có restoreFileName → dán lại file gốc (mode=goc) để tắt hiệu ứng
             if (f.restoreFileName.length > 0) {
                 [row setLoading:YES];
