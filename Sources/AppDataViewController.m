@@ -751,8 +751,8 @@
     if (!l) return;
     l.font = DELTA_FONT(12.5,UIFontWeightMedium);
     l.textColor = BRAND_TEXT;
-    l.text = LS(@"Tin tức: Hệ thống Proxy v4.0 đã hoạt động ổn định.",
-                @"News: Proxy system v4.0 is up and running.");
+    l.text = LS(@"Delta VN Mãi Chất, Em Yêu Delta <3",
+                @"Delta VN Forever — We Love Delta <3");
 }
 
 - (void)refreshLocalizedStrings {
