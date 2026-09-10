@@ -553,7 +553,7 @@
 
     // Version pill — mono 12, tối (dark pill)
     UILabel *badge = [[UILabel alloc] init];
-    NSString *_bdgVer = [[NSBundle mainBundle] objectForInfoDictionaryKey:@"CFBundleShortVersionString"] ?: @"1.4.7";
+    NSString *_bdgVer = [[NSBundle mainBundle] objectForInfoDictionaryKey:@"CFBundleShortVersionString"] ?: @"1.5.0";
     badge.text = [NSString stringWithFormat:@"  v%@  ", _bdgVer];
     badge.font = [UIFont monospacedSystemFontOfSize:12 weight:UIFontWeightMedium];
     badge.textColor = BRAND_MUTED;
