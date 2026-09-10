@@ -2817,27 +2817,6 @@ if (active) {
     NSString *(^kTH)(NSString *)  = ^NSString *(NSString *key) { return isTH     ? key : nil; };
     NSString *(^kMax)(NSString *) = ^NSString *(NSString *key) { return isMax    ? key : nil; };
 
-    // Định Vị Súng Xanh + Hologram Keo (cả 2 game)
-    HUDFeature *dvXanh = [self featureWithSymbol:@"location.fill" tint:HUD_CYAN
-                                           title:@"Định Vị Súng Xanh" subtitle:@"Hiện Vị Trí Súng Trên Map"
-                                      featureKey:k(@"dinhvixanh") fileName:sf searchRoot:rt];
-    dvXanh.exclusive = YES; dvXanh.exclusiveGroup = @"dinhvi";
-    dvXanh.enTitle = @"Blue Gun Locator"; dvXanh.enSubtitle = @"Show Gun Locations on Map";
-
-    // Định Vị Súng Đen Viền Đỏ — chỉ FF Thường
-    HUDFeature *dvDo = [self featureWithSymbol:@"location.fill.viewfinder" tint:HUD_RED
-                                         title:@"Định Vị Súng Đen Viền Đỏ" subtitle:@"Hiện Vị Trí Súng Trên Map"
-                                    featureKey:kTH(@"dinhvido") fileName:(isTH ? sfTH : nil) searchRoot:rtTH];
-    dvDo.exclusive = YES; dvDo.exclusiveGroup = @"dinhvi";
-    dvDo.enTitle = @"Black Red-Bordered Gun Locator"; dvDo.enSubtitle = @"Show Gun Locations on Map";
-
-    // Định Vị Súng Đỏ — chỉ FF Max
-    HUDFeature *dvDoMax = [self featureWithSymbol:@"location.fill.viewfinder" tint:HUD_RED
-                                            title:@"Định Vị Súng Đỏ" subtitle:@"Hiện Vị Trí Súng Trên Map"
-                                       featureKey:kMax(@"dinhvido") fileName:(isMax ? sfMax : nil) searchRoot:rtMax];
-    dvDoMax.exclusive = YES; dvDoMax.exclusiveGroup = @"dinhvi";
-    dvDoMax.enTitle = @"Red Gun Locator"; dvDoMax.enSubtitle = @"Show Gun Locations on Map";
-
     // Định Vị Súng Màu Tự Chọn — FF Thường
     HUDFeature *dvCustomTH = [HUDFeature new];
     dvCustomTH.symbol     = @"paintpalette.fill";
@@ -2898,20 +2877,6 @@ if (active) {
             [weakSelf setStatus:status color:(success ? HUD_GREEN : HUD_RED)];
         }];
     };
-
-    // Định Vị Xanh Lá — chỉ FF Thường (folder dinhvihong, file TH)
-    HUDFeature *dvXanhLa = [self featureWithSymbol:@"location.fill" tint:HUD_GREEN
-                                             title:@"Định Vị Xanh Lá" subtitle:@"Hiện Vị Trí Súng Trên Map"
-                                        featureKey:kTH(@"dinhvihong") fileName:(isTH ? sfTH : nil) searchRoot:rtTH];
-    dvXanhLa.exclusive = YES; dvXanhLa.exclusiveGroup = @"dinhvi";
-    dvXanhLa.enTitle = @"Green Locator"; dvXanhLa.enSubtitle = @"Show Gun Locations on Map";
-
-    // Định Vị Hồng — chỉ FF Max (folder dinhvihong, file Max)
-    HUDFeature *dvHong = [self featureWithSymbol:@"location.fill" tint:HUD_PINK
-                                           title:@"Định Vị Hồng" subtitle:@"Hiện Vị Trí Súng Trên Map"
-                                      featureKey:kMax(@"dinhvihong") fileName:(isMax ? sfMax : nil) searchRoot:rtMax];
-    dvHong.exclusive = YES; dvHong.exclusiveGroup = @"dinhvi";
-    dvHong.enTitle = @"Pink Locator"; dvHong.enSubtitle = @"Show Gun Locations on Map";
 
     // Định Vị Nhân Vật Màu Tự Chọn — FF Thường
     HUDFeature *dvNVCustomTH = [HUDFeature new];
@@ -3069,8 +3034,8 @@ if (active) {
     NSMutableArray *result = [NSMutableArray array];
     // Nút TẮT luôn ở đầu nếu game được hỗ trợ
     if (supported) [result addObject:dvOff];
-    for (HUDFeature *f in @[dvXanh, dvDo, dvDoMax, dvCustomTH, dvCustomMax,
-                             dvXanhLa, dvHong, dvNVCustomTH, dvNVCustomMax]) {
+    for (HUDFeature *f in @[dvCustomTH, dvCustomMax,
+                             dvNVCustomTH, dvNVCustomMax]) {
         if (f.configured) [result addObject:f];
     }
     return result;
