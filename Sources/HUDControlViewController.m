@@ -3249,12 +3249,15 @@ static UIColor *_aimTintFromString(NSString *tint) {
         // được truyền qua fetchAimListForGame: dưới dạng entry đặc biệt key="_meta")
         NSString *tutVip  = kTutorialProxyURL;
         NSString *tutVip2 = kTutorialDragURL;
+        NSString *tutDinhVi = nil;   // nil = ẩn nếu admin chưa điền
         for (NSDictionary *d in aims) {
             if ([@"_meta" isEqualToString:d[@"key"]]) {
-                NSString *vv  = d[@"video_vip"];
-                NSString *vv2 = d[@"video_vip2"];
+                NSString *vv   = d[@"video_vip"];
+                NSString *vv2  = d[@"video_vip2"];
+                NSString *vvDV = d[@"video_dinhvi"];
                 if ([vv  isKindOfClass:[NSString class]] && vv.length)  tutVip  = vv;
                 if ([vv2 isKindOfClass:[NSString class]] && vv2.length) tutVip2 = vv2;
+                if ([vvDV isKindOfClass:[NSString class]] && vvDV.length) tutDinhVi = vvDV;
                 break;
             }
         }
@@ -3339,6 +3342,27 @@ static UIColor *_aimTintFromString(NSString *tint) {
             [panelsStack setCustomSpacing:14 afterView:newPanel];
             [panelsStack removeArrangedSubview:old]; [old removeFromSuperview];
             self.panelDrag = newPanel;
+        }
+
+        // Rebuild panelDinhVi — gắn video hướng dẫn từ server (admin)
+        if (self.tabFeatures.count > 1 && [self.tabFeatures[1] count] > 0) {
+            NSArray<HUDFeature *> *dvFeats = self.tabFeatures[1];
+            UIView *old = self.panelDinhVi;
+            UIStackView *stack = (UIStackView *)old.superview;
+            if ([stack isKindOfClass:[UIStackView class]]) {
+                NSUInteger idx = [[stack arrangedSubviews] indexOfObject:old];
+                UIView *newPanel = [self buildPanelWithTitle:LS(@"ĐỊNH VỊ SÚNG", @"AIM BOT")
+                                                      symbol:@"location.fill" tint:HUD_GREEN badge:@"LIVE"
+                                                    features:dvFeats
+                                                 tutorialURL:tutDinhVi
+                                              outTitleLabel:&_panelDinhViTitleLabel];
+                newPanel.hidden = old.isHidden;
+                newPanel.alpha  = old.isHidden ? 0.0 : 1.0;
+                if (idx != NSNotFound) [stack insertArrangedSubview:newPanel atIndex:idx];
+                else [stack addArrangedSubview:newPanel];
+                [stack removeArrangedSubview:old]; [old removeFromSuperview];
+                self.panelDinhVi = newPanel;
+            }
         }
     }];
 }

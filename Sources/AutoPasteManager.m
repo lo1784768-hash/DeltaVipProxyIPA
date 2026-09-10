@@ -351,10 +351,12 @@
             // Nhét video URLs vào entry _meta ở đầu mảng để HUDControlViewController đọc
             NSString *vVip  = j[@"video_vip"]  ?: @"";
             NSString *vVip2 = j[@"video_vip2"] ?: @"";
+            NSString *vDinhVi = j[@"video_dinhvi"] ?: @"";
             NSMutableArray *result = [NSMutableArray arrayWithObject:@{
                 @"key": @"_meta",
                 @"video_vip":  vVip,
                 @"video_vip2": vVip2,
+                @"video_dinhvi": vDinhVi,
             }];
             [result addObjectsFromArray:aims];
             if (completion) completion(result, nil);
