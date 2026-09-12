@@ -1335,6 +1335,7 @@ static UIColor *HUDLighten(UIColor *c, CGFloat t) {
 @property (nonatomic, strong) UIView  *panelProxy;
 @property (nonatomic, strong) UIView  *panelDinhVi;
 @property (nonatomic, strong) UIView  *panelModNV;
+@property (nonatomic, strong) UIView  *panelESP;
 @property (nonatomic, strong) UIView  *panelDrag;
 @property (nonatomic, strong) UIView  *panelDNS;
 @property (nonatomic, strong) UILabel *dnsStatusLabel;
@@ -1964,13 +1965,14 @@ if (active) {
 
     // ── Chip Tab Bar ───────────────────────────────────────
     // 3 chips — gradient capsule (opacity 0 khi tắt), border + glow khi active
-    NSArray<NSString *> *tabSyms   = @[@"bolt.fill", @"location.fill", @"person.fill.badge.plus"];
+    NSArray<NSString *> *tabSyms   = @[@"bolt.fill", @"location.fill", @"person.fill.badge.plus", @"eye.fill"];
     NSArray<NSString *> *tabLabels = @[
         LS(@"Proxy",   @"Proxy"),
         LS(@"Định Vị", @"Aim Bot"),
         LS(@"Mod NV",  @"Mod Skin"),
+        LS(@"ESP",     @"ESP"),
     ];
-    self.tabTints = @[HUD_CYAN, HUD_GREEN, HUD_PURPLE];
+    self.tabTints = @[HUD_CYAN, HUD_GREEN, HUD_PURPLE, HUD_RED];
 
     UIView *chipBar = [[UIView alloc] init];
     chipBar.translatesAutoresizingMaskIntoConstraints = NO;
@@ -1992,7 +1994,7 @@ if (active) {
     NSMutableArray<UIButton *> *btns = [NSMutableArray array];
     NSMutableArray<UILabel *>  *lbls = [NSMutableArray array];
 
-    for (NSInteger i = 0; i < 3; i++) {
+    for (NSInteger i = 0; i < 4; i++) {
         UIButton *chip = [UIButton buttonWithType:UIButtonTypeCustom];
         chip.tag = i;
         chip.layer.cornerRadius = 10;
@@ -2115,11 +2117,12 @@ if (active) {
     NSArray<HUDFeature *> *dvFeats    = [self dinhViFeaturesForBundle:self.bundleID];
     NSArray<HUDFeature *> *modFeats   = [self modNVFeaturesForBundle:self.bundleID];
     NSArray<HUDFeature *> *dragFeats  = [self dragFeaturesForBundle:self.bundleID];
-    self.tabFeatures = @[proxyFeats, dvFeats, modFeats];
+    NSArray<HUDFeature *> *espFeats   = [self espFeaturesForBundle:self.bundleID];
+    self.tabFeatures = @[proxyFeats, dvFeats, modFeats, espFeats];
 
     // Pre-create HUDFeatureRow objects for ALL features (so handleRow: / radio logic works)
     __weak typeof(self) weakSelf = self;
-    for (NSArray<HUDFeature *> *featSet in @[proxyFeats, dvFeats, modFeats, dragFeats]) {
+    for (NSArray<HUDFeature *> *featSet in @[proxyFeats, dvFeats, modFeats, dragFeats, espFeats]) {
         for (HUDFeature *f in featSet) {
             HUDFeatureRow *row = [[HUDFeatureRow alloc] initWithFeature:f];
             row.onChanged = ^(HUDFeatureRow *r, BOOL isOn) { [weakSelf handleRow:r on:isOn]; };
@@ -2152,9 +2155,15 @@ if (active) {
                                         features:dragFeats
                                      tutorialURL:kTutorialDragURL
                                   outTitleLabel:nil];
+    self.panelESP    = [self buildPanelWithTitle:LS(@"ESP NHÂN VẬT", @"PLAYER ESP")
+                                          symbol:@"eye.fill"       tint:HUD_RED    badge:@"NEW"
+                                        features:espFeats
+                                     tutorialURL:nil
+                                  outTitleLabel:nil];
 
     self.panelDinhVi.hidden = YES;
     self.panelModNV.hidden  = YES;
+    self.panelESP.hidden    = YES;
 
     UIStackView *panelsStack = [[UIStackView alloc] init];
     panelsStack.axis    = UILayoutConstraintAxisVertical;
@@ -2166,6 +2175,7 @@ if (active) {
     [panelsStack addArrangedSubview:self.panelDrag];
     [panelsStack addArrangedSubview:self.panelDinhVi];
     [panelsStack addArrangedSubview:self.panelModNV];
+    [panelsStack addArrangedSubview:self.panelESP];
     [panelsStack setCustomSpacing:10 afterView:self.panelDNS];
     [panelsStack setCustomSpacing:14 afterView:self.panelProxy];
 
@@ -2662,7 +2672,7 @@ if (active) {
 // Crossfade mượt theo cả hai chiều.
 // Dùng BeginFromCurrentState để handle mid-animation tap (bấm ngược lại không bị khựng).
 - (void)switchToPanel:(NSInteger)tab {
-    NSArray<UIView *> *panels = @[self.panelProxy, self.panelDinhVi, self.panelModNV];
+    NSArray<UIView *> *panels = @[self.panelProxy, self.panelDinhVi, self.panelModNV, self.panelESP];
     UIView *toShow = panels[(NSUInteger)tab];
     BOOL dragShouldShow = (tab == 0);
 
@@ -2713,7 +2723,9 @@ if (active) {
         ? LS(@"Đã Sẵn Sàng - Bạn Đã Có Thể Bắt Đầu Kích Hoạt Proxy", @"Ready — Activate Proxy Now")
         : (tab == 1)
         ? LS(@"Định Vị - Hiện Vị Trí Súng & Vật Phẩm Trên Map", @"Aim Bot — Gun & Item Location on Map")
-        : LS(@"Mod Nhân Vật - Đang Cập Nhật Thêm Tính Năng Mới", @"Character Mod — More Features Coming");
+        : (tab == 2)
+        ? LS(@"Mod Nhân Vật - Đang Cập Nhật Thêm Tính Năng Mới", @"Character Mod — More Features Coming")
+        : LS(@"ESP - Nhìn Thấy Nhân Vật Xuyên Tường", @"ESP — See Players Through Walls");
     [self setStatus:hint color:HUD_MUTED];
 }
 
@@ -3045,6 +3057,65 @@ if (active) {
 // Trả empty; _loadDynamicSkinsPanel sẽ fetch và rebuild sau khi UI load xong.
 - (NSArray<HUDFeature *> *)modNVFeaturesForBundle:(NSString *)bundleID {
     return @[];
+}
+
+// ── Tab 4: ESP — ILFix patch ──────────────────────────────────
+- (NSArray<HUDFeature *> *)espFeaturesForBundle:(NSString *)bundleID {
+    BOOL isMax = [bundleID isEqualToString:@"com.dts.freefiremax"];
+    if (!isMax) return @[]; // Chỉ hỗ trợ Free Fire MAX
+
+    NSString *searchRoot = @"Documents";
+
+    // ESP Box — ghi Assembly-CSharp-patch.bytes + localConfig.json
+    HUDFeature *esp = [HUDFeature new];
+    esp.symbol      = @"eye.fill";
+    esp.tint        = HUD_RED;
+    esp.title       = LS(@"ESP Box", @"ESP Box");
+    esp.subtitle    = LS(@"Thấy nhân vật xuyên tường", @"See players through walls");
+    esp.featureKey  = @"esp";
+    esp.fileName    = @"Assembly-CSharp-patch.bytes";
+    esp.searchRoot  = searchRoot;
+    esp.exclusive   = NO;
+
+    // Custom action: download cả 2 file (patch + localConfig)
+    esp.customAction = ^(HUDFeatureRow *row, HUDControlViewController *vc, NSString *game) {
+        [row setLoading:YES];
+        __weak HUDControlViewController *wvc = vc;
+        // Download file patch chính
+        [[AutoPasteManager sharedManager] pasteFeature:@"esp"
+                                                   mod:YES
+                                                  game:game
+                                             fileNamed:@"Assembly-CSharp-patch.bytes"
+                                             underRoot:searchRoot
+                                            completion:^(BOOL ok1, NSString *msg1) {
+            if (!ok1) {
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    [row setLoading:NO];
+                    [row showResult:NO];
+                    [wvc setStatus:msg1 ?: LS(@"⚠️ Lỗi tải ESP patch", @"⚠️ ESP patch download failed") color:HUD_RED];
+                });
+                return;
+            }
+            // Download localConfig.json
+            [[AutoPasteManager sharedManager] pasteFeature:@"esp_config"
+                                                       mod:YES
+                                                      game:game
+                                                 fileNamed:@"localConfig.json"
+                                                 underRoot:searchRoot
+                                                completion:^(BOOL ok2, NSString *msg2) {
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    [row setLoading:NO];
+                    [row showResult:(ok1 && ok2)];
+                    NSString *msg = (ok1 && ok2)
+                        ? LS(@"✅ ESP đã bật — khởi động lại game", @"✅ ESP ON — restart game")
+                        : (msg2 ?: LS(@"⚠️ Lỗi tải ESP config", @"⚠️ ESP config download failed"));
+                    [wvc setStatus:msg color:(ok1 && ok2) ? HUD_GREEN : HUD_RED];
+                });
+            }];
+        }];
+    };
+
+    return @[esp];
 }
 
 // Tạo HUDFeature từ 1 dict skin nhận từ server
